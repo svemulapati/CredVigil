@@ -1867,4 +1867,1221 @@ func (rs *RuleSet) loadBuiltinRules() {
 		Keywords:       []string{"onesignal"},
 		BaseConfidence: 0.80,
 	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// CODE QUALITY / DEVOPS PLATFORMS
+	// ═══════════════════════════════════════════════════════════════
+	rs.addRule(Rule{
+		ID:             "sonarqube-token",
+		Description:    "SonarQube / SonarCloud User Token",
+		SecretType:     models.SecretSonarQubeToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?:squ_[a-f0-9]{40}|sqp_[a-f0-9]{40})`),
+		Keywords:       []string{"sonar", "sonarqube", "sonarcloud"},
+		BaseConfidence: 0.95,
+	})
+	rs.addRule(Rule{
+		ID:             "sonarqube-token-legacy",
+		Description:    "SonarQube Token (Legacy / Generic)",
+		SecretType:     models.SecretSonarQubeToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:sonar[_\-]?(?:token|login))\s*[=:]\s*['"]?([a-f0-9]{40})['"]?`),
+		Keywords:       []string{"sonar", "sonarqube"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.5,
+	})
+	rs.addRule(Rule{
+		ID:             "sonarqube-webhook-secret",
+		Description:    "SonarQube Webhook Secret",
+		SecretType:     models.SecretSonarQubeWebhook,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:sonar[_\-]?webhook[_\-]?secret)\s*[=:]\s*['"]?([A-Za-z0-9+/=_-]{16,})['"]?`),
+		Keywords:       []string{"sonar", "webhook"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.0,
+	})
+	rs.addRule(Rule{
+		ID:             "artifactory-api-key",
+		Description:    "JFrog Artifactory API Key",
+		SecretType:     models.SecretArtifactoryToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?:AKC[a-zA-Z0-9]{10,})`),
+		Keywords:       []string{"artifactory", "jfrog", "AKC"},
+		BaseConfidence: 0.90,
+	})
+	rs.addRule(Rule{
+		ID:             "artifactory-token",
+		Description:    "JFrog Artifactory Identity/Access Token",
+		SecretType:     models.SecretArtifactoryToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:artifactory[_\-]?(?:api[_\-]?key|token|password))\s*[=:]\s*['"]?([A-Za-z0-9+/=_-]{20,})['"]?`),
+		Keywords:       []string{"artifactory", "jfrog"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.5,
+	})
+	rs.addRule(Rule{
+		ID:             "artifactory-encrypted-pass",
+		Description:    "JFrog Artifactory Encrypted Password",
+		SecretType:     models.SecretArtifactoryEncPass,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`(?:AP[A-Za-z0-9]{8,})`),
+		Keywords:       []string{"artifactory", "jfrog", "password"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.5,
+	})
+	rs.addRule(Rule{
+		ID:             "gerrit-http-password",
+		Description:    "Gerrit HTTP Password / API Token",
+		SecretType:     models.SecretGerritHTTPPass,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:gerrit[_\-]?(?:http[_\-]?)?(?:password|token|secret))\s*[=:]\s*['"]?([A-Za-z0-9/+=_-]{16,})['"]?`),
+		Keywords:       []string{"gerrit"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.0,
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// IDENTITY & ACCESS MANAGEMENT (IAM/PAM/KERBEROS)
+	// ═══════════════════════════════════════════════════════════════
+	rs.addRule(Rule{
+		ID:             "ldap-bind-password",
+		Description:    "LDAP Bind Password",
+		SecretType:     models.SecretLDAPBindPassword,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`(?i)(?:ldap[_\-]?(?:bind[_\-]?)?(?:password|passwd|pwd|credential|secret))\s*[=:]\s*['"]?([^\s'"]{8,})['"]?`),
+		Keywords:       []string{"ldap", "bind", "password", "directory"},
+		BaseConfidence: 0.80,
+		MinEntropy:     2.5,
+	})
+	rs.addRule(Rule{
+		ID:             "ldap-connection-uri",
+		Description:    "LDAP Connection URI with Credentials",
+		SecretType:     models.SecretLDAPBindPassword,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`ldaps?://[^:]+:([^@\s]{4,})@[^\s]+`),
+		Keywords:       []string{"ldap", "ldaps", "directory"},
+		BaseConfidence: 0.85,
+	})
+	rs.addRule(Rule{
+		ID:             "active-directory-password",
+		Description:    "Active Directory / Domain Controller Password",
+		SecretType:     models.SecretActiveDirectoryPass,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`(?i)(?:ad[_\-]?(?:admin)?[_\-]?password|domain[_\-]?(?:admin)?[_\-]?(?:password|passwd)|dc[_\-]?password|active[_\-]?directory[_\-]?(?:password|secret))\s*[=:]\s*['"]?([^\s'"]{6,})['"]?`),
+		Keywords:       []string{"active directory", "domain", "AD", "dc"},
+		BaseConfidence: 0.80,
+		MinEntropy:     2.5,
+	})
+	rs.addRule(Rule{
+		ID:             "kerberos-keytab",
+		Description:    "Kerberos Keytab File Reference",
+		SecretType:     models.SecretKerberosKeytab,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`(?i)(?:kt_default|keytab|KRB5_KTNAME|KRB5_CLIENT_KTNAME)\s*[=:]\s*['"]?([^\s'"]+\.keytab)['"]?`),
+		Keywords:       []string{"kerberos", "keytab", "krb5", "kinit"},
+		BaseConfidence: 0.90,
+	})
+	rs.addRule(Rule{
+		ID:             "kerberos-password",
+		Description:    "Kerberos Principal Password",
+		SecretType:     models.SecretKerberosPassword,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`(?i)(?:krb5?[_\-]?password|kerberos[_\-]?password|kinit[_\-]?password|principal[_\-]?password)\s*[=:]\s*['"]?([^\s'"]{6,})['"]?`),
+		Keywords:       []string{"kerberos", "krb5", "kinit", "principal"},
+		BaseConfidence: 0.85,
+		MinEntropy:     2.5,
+	})
+	rs.addRule(Rule{
+		ID:             "kerberos-krb5-conf",
+		Description:    "Kerberos KDC / Realm Configuration with Password",
+		SecretType:     models.SecretKerberosPassword,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:default_keytab_name|kdc_master_key|master_key_name)\s*=\s*([^\s]+)`),
+		Keywords:       []string{"kerberos", "kdc", "realm", "krb5.conf"},
+		BaseConfidence: 0.75,
+	})
+	rs.addRule(Rule{
+		ID:             "cyberark-api-token",
+		Description:    "CyberArk PAM / Conjur API Token",
+		SecretType:     models.SecretCyberArkToken,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`(?i)(?:cyberark|conjur)[_\-]?(?:api[_\-]?)?(?:token|key|secret|password)\s*[=:]\s*['"]?([A-Za-z0-9+/=_-]{20,})['"]?`),
+		Keywords:       []string{"cyberark", "conjur", "pam", "privileged"},
+		BaseConfidence: 0.85,
+		MinEntropy:     3.0,
+	})
+	rs.addRule(Rule{
+		ID:             "radius-shared-secret",
+		Description:    "RADIUS Shared Secret",
+		SecretType:     models.SecretRADIUSSecret,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:radius[_\-]?(?:shared)?[_\-]?secret|radius[_\-]?password)\s*[=:]\s*['"]?([^\s'"]{8,})['"]?`),
+		Keywords:       []string{"radius", "shared secret", "NAS", "authenticator"},
+		BaseConfidence: 0.80,
+		MinEntropy:     2.5,
+	})
+	rs.addRule(Rule{
+		ID:             "saml-private-key",
+		Description:    "SAML / SSO Private Key or Certificate Secret",
+		SecretType:     models.SecretSAMLKey,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`(?i)(?:saml[_\-]?(?:private[_\-]?key|cert[_\-]?key|signing[_\-]?key|x509[_\-]?key))\s*[=:]\s*['"]?([^\s'"]{20,})['"]?`),
+		Keywords:       []string{"saml", "sso", "x509", "signing"},
+		BaseConfidence: 0.85,
+		MinEntropy:     3.0,
+	})
+	rs.addRule(Rule{
+		ID:             "freeipa-password",
+		Description:    "FreeIPA / IdM Admin Password",
+		SecretType:     models.SecretFreeIPAPassword,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`(?i)(?:freeipa|ipa)[_\-]?(?:admin)?[_\-]?(?:password|passwd|secret)\s*[=:]\s*['"]?([^\s'"]{6,})['"]?`),
+		Keywords:       []string{"freeipa", "ipa", "idm", "identity"},
+		BaseConfidence: 0.80,
+		MinEntropy:     2.5,
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// REMOTE ACCESS / NAS
+	// ═══════════════════════════════════════════════════════════════
+	rs.addRule(Rule{
+		ID:             "rdp-password",
+		Description:    "RDP / Remote Desktop Password",
+		SecretType:     models.SecretRDPPassword,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:rdp[_\-]?password|remote[_\-]?desktop[_\-]?password|mstsc[_\-]?password)\s*[=:]\s*['"]?([^\s'"]{6,})['"]?`),
+		Keywords:       []string{"rdp", "remote desktop", "mstsc"},
+		BaseConfidence: 0.80,
+		MinEntropy:     2.5,
+	})
+	rs.addRule(Rule{
+		ID:             "vnc-password",
+		Description:    "VNC Password",
+		SecretType:     models.SecretVNCPassword,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:vnc[_\-]?password|vnc[_\-]?passwd)\s*[=:]\s*['"]?([^\s'"]{4,})['"]?`),
+		Keywords:       []string{"vnc", "vncserver", "tigervnc"},
+		BaseConfidence: 0.80,
+		MinEntropy:     2.0,
+	})
+	rs.addRule(Rule{
+		ID:             "synology-api-token",
+		Description:    "Synology NAS API Token / Session ID",
+		SecretType:     models.SecretSynologyToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:synology[_\-]?(?:api[_\-]?)?(?:token|key|sid|session))\s*[=:]\s*['"]?([A-Za-z0-9+/=_-]{16,})['"]?`),
+		Keywords:       []string{"synology", "dsm", "nas"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.0,
+	})
+	rs.addRule(Rule{
+		ID:             "qnap-api-token",
+		Description:    "QNAP NAS API Token / Session ID",
+		SecretType:     models.SecretQNAPToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:qnap[_\-]?(?:api[_\-]?)?(?:token|key|sid|session))\s*[=:]\s*['"]?([A-Za-z0-9+/=_-]{16,})['"]?`),
+		Keywords:       []string{"qnap", "qts", "nas"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.0,
+	})
+	rs.addRule(Rule{
+		ID:             "nas-admin-credential",
+		Description:    "NAS Admin Password / Credential",
+		SecretType:     models.SecretNASCredential,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`(?i)(?:nas[_\-]?(?:admin)?[_\-]?(?:password|passwd|credential|secret))\s*[=:]\s*['"]?([^\s'"]{6,})['"]?`),
+		Keywords:       []string{"nas", "storage", "admin"},
+		BaseConfidence: 0.75,
+		MinEntropy:     2.5,
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// CLOUD PROVIDERS (ADDITIONAL)
+	// ═══════════════════════════════════════════════════════════════
+	rs.addRule(Rule{
+		ID:             "oracle-cloud-ocid",
+		Description:    "Oracle Cloud (OCI) Key Fingerprint / OCID",
+		SecretType:     models.SecretOracleCloudKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:oci[_\-]?(?:api[_\-]?)?(?:key|fingerprint|secret))\s*[=:]\s*['"]?([A-Fa-f0-9:]{47,})['"]?`),
+		Keywords:       []string{"oci", "oracle", "cloud"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.0,
+	})
+	rs.addRule(Rule{
+		ID:             "ibm-cloud-api-key",
+		Description:    "IBM Cloud API Key",
+		SecretType:     models.SecretIBMCloudKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:ibm[_\-]?cloud[_\-]?(?:api[_\-]?)?key|iam[_\-]?api[_\-]?key)\s*[=:]\s*['"]?([A-Za-z0-9_-]{40,})['"]?`),
+		Keywords:       []string{"ibm", "cloud", "iam"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.5,
+	})
+	rs.addRule(Rule{
+		ID:             "alibaba-cloud-access-key",
+		Description:    "Alibaba Cloud AccessKey ID",
+		SecretType:     models.SecretAlibabaCloudKey,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`(?:LTAI[A-Za-z0-9]{12,20})`),
+		Keywords:       []string{"alibaba", "aliyun", "LTAI"},
+		BaseConfidence: 0.90,
+	})
+	rs.addRule(Rule{
+		ID:             "hetzner-api-token",
+		Description:    "Hetzner Cloud API Token",
+		SecretType:     models.SecretHetznerToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:hetzner[_\-]?(?:api[_\-]?)?(?:token|key))\s*[=:]\s*['"]?([A-Za-z0-9]{64})['"]?`),
+		Keywords:       []string{"hetzner", "hcloud"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.5,
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// CONTAINER & ORCHESTRATION
+	// ═══════════════════════════════════════════════════════════════
+	rs.addRule(Rule{
+		ID:             "kubernetes-service-token",
+		Description:    "Kubernetes Service Account / Bearer Token",
+		SecretType:     models.SecretKubernetesToken,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`(?i)(?:kubernetes[_\-]?(?:service[_\-]?account)?[_\-]?token|k8s[_\-]?token|KUBECONFIG_TOKEN)\s*[=:]\s*['"]?([A-Za-z0-9._-]{50,})['"]?`),
+		Keywords:       []string{"kubernetes", "k8s", "kubeconfig"},
+		BaseConfidence: 0.85,
+		MinEntropy:     3.5,
+	})
+	rs.addRule(Rule{
+		ID:             "docker-hub-pat",
+		Description:    "Docker Hub Personal Access Token",
+		SecretType:     models.SecretDockerHubPAT,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`dckr_pat_[A-Za-z0-9_-]{20,}`),
+		Keywords:       []string{"docker", "dckr_pat"},
+		BaseConfidence: 0.95,
+	})
+	rs.addRule(Rule{
+		ID:             "harbor-credential",
+		Description:    "Harbor Registry Password / Robot Token",
+		SecretType:     models.SecretHarborCredential,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:harbor[_\-]?(?:robot[_\-]?)?(?:password|token|secret))\s*[=:]\s*['"]?([^\s'"]{12,})['"]?`),
+		Keywords:       []string{"harbor", "registry", "robot"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.0,
+	})
+	rs.addRule(Rule{
+		ID:             "quay-robot-token",
+		Description:    "Quay.io Robot Account Token",
+		SecretType:     models.SecretQuayRobotToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:quay[_\-]?(?:robot[_\-]?)?(?:token|password|secret))\s*[=:]\s*['"]?([A-Za-z0-9+/=_-]{20,})['"]?`),
+		Keywords:       []string{"quay", "robot", "registry"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.0,
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// CI/CD (EXPANDED)
+	// ═══════════════════════════════════════════════════════════════
+	rs.addRule(Rule{
+		ID:             "azure-devops-pat",
+		Description:    "Azure DevOps Personal Access Token",
+		SecretType:     models.SecretAzureDevOpsPAT,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`(?i)(?:azure[_\-]?devops[_\-]?pat|vsts[_\-]?(?:pat|token)|ado[_\-]?(?:pat|token))\s*[=:]\s*['"]?([a-z0-9]{52})['"]?`),
+		Keywords:       []string{"azure", "devops", "vsts", "ado"},
+		BaseConfidence: 0.85,
+		MinEntropy:     3.5,
+	})
+	rs.addRule(Rule{
+		ID:             "teamcity-token",
+		Description:    "JetBrains TeamCity API Token",
+		SecretType:     models.SecretTeamCityToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:teamcity[_\-]?(?:api[_\-]?)?(?:token|key|password))\s*[=:]\s*['"]?([A-Za-z0-9_-]{20,})['"]?`),
+		Keywords:       []string{"teamcity", "jetbrains"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.0,
+	})
+	rs.addRule(Rule{
+		ID:             "bamboo-token",
+		Description:    "Atlassian Bamboo API Token",
+		SecretType:     models.SecretBambooToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:bamboo[_\-]?(?:api[_\-]?)?(?:token|key|password))\s*[=:]\s*['"]?([A-Za-z0-9_-]{20,})['"]?`),
+		Keywords:       []string{"bamboo", "atlassian"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.0,
+	})
+	rs.addRule(Rule{
+		ID:             "harness-api-key",
+		Description:    "Harness.io API Key",
+		SecretType:     models.SecretHarnessKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:harness[_\-]?(?:api[_\-]?)?(?:key|token|secret))\s*[=:]\s*['"]?([A-Za-z0-9._-]{20,})['"]?`),
+		Keywords:       []string{"harness"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.0,
+	})
+	rs.addRule(Rule{
+		ID:             "argocd-auth-token",
+		Description:    "Argo CD Authentication Token",
+		SecretType:     models.SecretArgoCDToken,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`(?i)(?:argocd[_\-]?(?:auth[_\-]?)?token|argo[_\-]?cd[_\-]?token)\s*[=:]\s*['"]?([A-Za-z0-9._-]{30,})['"]?`),
+		Keywords:       []string{"argocd", "argo"},
+		BaseConfidence: 0.85,
+		MinEntropy:     3.5,
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// MONITORING & OBSERVABILITY (EXPANDED)
+	// ═══════════════════════════════════════════════════════════════
+	rs.addRule(Rule{
+		ID:             "dynatrace-api-token",
+		Description:    "Dynatrace API Token",
+		SecretType:     models.SecretDynatraceToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`dt0c01\.[A-Z0-9]{24}\.[A-Za-z0-9]{64}`),
+		Keywords:       []string{"dynatrace", "dt0c01"},
+		BaseConfidence: 0.95,
+	})
+	rs.addRule(Rule{
+		ID:             "sumologic-access-key",
+		Description:    "Sumo Logic Access ID / Key",
+		SecretType:     models.SecretSumoLogicKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:sumo[_\-]?logic[_\-]?(?:access[_\-]?)?(?:key|id|token))\s*[=:]\s*['"]?([A-Za-z0-9]{14,64})['"]?`),
+		Keywords:       []string{"sumo", "sumologic"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.0,
+	})
+	rs.addRule(Rule{
+		ID:             "honeycomb-api-key",
+		Description:    "Honeycomb API Key",
+		SecretType:     models.SecretHoneycombKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:honeycomb[_\-]?(?:api[_\-]?)?(?:key|token))\s*[=:]\s*['"]?([A-Za-z0-9]{22,})['"]?`),
+		Keywords:       []string{"honeycomb"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.0,
+	})
+	rs.addRule(Rule{
+		ID:             "bugsnag-api-key",
+		Description:    "Bugsnag API Key / Notifier Key",
+		SecretType:     models.SecretBugsnagKey,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:bugsnag[_\-]?(?:api[_\-]?)?key)\s*[=:]\s*['"]?([a-f0-9]{32})['"]?`),
+		Keywords:       []string{"bugsnag"},
+		BaseConfidence: 0.80,
+	})
+	rs.addRule(Rule{
+		ID:             "rollbar-access-token",
+		Description:    "Rollbar Access Token",
+		SecretType:     models.SecretRollbarToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:rollbar[_\-]?(?:access[_\-]?)?token)\s*[=:]\s*['"]?([a-f0-9]{32})['"]?`),
+		Keywords:       []string{"rollbar"},
+		BaseConfidence: 0.80,
+	})
+	rs.addRule(Rule{
+		ID:             "airbrake-api-key",
+		Description:    "Airbrake API Key / Project Key",
+		SecretType:     models.SecretAirbrakeKey,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:airbrake[_\-]?(?:api[_\-]?)?(?:key|project[_\-]?key))\s*[=:]\s*['"]?([a-f0-9]{32})['"]?`),
+		Keywords:       []string{"airbrake"},
+		BaseConfidence: 0.80,
+	})
+	rs.addRule(Rule{
+		ID:             "logzio-token",
+		Description:    "Logz.io Shipping / API Token",
+		SecretType:     models.SecretLogzioToken,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:logz[_\-]?io[_\-]?(?:api[_\-]?)?(?:token|key))\s*[=:]\s*['"]?([A-Za-z0-9]{20,})['"]?`),
+		Keywords:       []string{"logzio", "logz"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.0,
+	})
+	rs.addRule(Rule{
+		ID:             "instana-api-token",
+		Description:    "Instana (IBM) API Token",
+		SecretType:     models.SecretInstanaToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:instana[_\-]?(?:api[_\-]?)?(?:token|key))\s*[=:]\s*['"]?([A-Za-z0-9_-]{20,})['"]?`),
+		Keywords:       []string{"instana"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.0,
+	})
+	rs.addRule(Rule{
+		ID:             "zabbix-api-token",
+		Description:    "Zabbix API Token",
+		SecretType:     models.SecretZabbixToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:zabbix[_\-]?(?:api[_\-]?)?(?:token|key))\s*[=:]\s*['"]?([a-f0-9]{64})['"]?`),
+		Keywords:       []string{"zabbix"},
+		BaseConfidence: 0.80,
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// CONFIG MANAGEMENT & INFRASTRUCTURE
+	// ═══════════════════════════════════════════════════════════════
+	rs.addRule(Rule{
+		ID:             "ansible-vault-password",
+		Description:    "Ansible Vault Password",
+		SecretType:     models.SecretAnsibleVaultPass,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`(?i)(?:ansible[_\-]?vault[_\-]?password|ANSIBLE_VAULT_PASSWORD_FILE)\s*[=:]\s*['"]?([^\s'"]{6,})['"]?`),
+		Keywords:       []string{"ansible", "vault"},
+		BaseConfidence: 0.80,
+		MinEntropy:     2.5,
+	})
+	rs.addRule(Rule{
+		ID:             "consul-acl-token",
+		Description:    "HashiCorp Consul ACL Token",
+		SecretType:     models.SecretConsulToken,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`(?i)(?:consul[_\-]?(?:http[_\-]?)?(?:token|acl[_\-]?token))\s*[=:]\s*['"]?([a-f0-9-]{36})['"]?`),
+		Keywords:       []string{"consul", "acl"},
+		BaseConfidence: 0.85,
+	})
+	rs.addRule(Rule{
+		ID:             "nomad-token",
+		Description:    "HashiCorp Nomad ACL Token",
+		SecretType:     models.SecretNomadToken,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`(?i)(?:nomad[_\-]?(?:acl[_\-]?)?token)\s*[=:]\s*['"]?([a-f0-9-]{36})['"]?`),
+		Keywords:       []string{"nomad", "hashicorp"},
+		BaseConfidence: 0.85,
+	})
+	rs.addRule(Rule{
+		ID:             "chef-client-key",
+		Description:    "Chef Client / Validation Key",
+		SecretType:     models.SecretChefKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:chef[_\-]?(?:client[_\-]?)?(?:key|secret|validation[_\-]?key))\s*[=:]\s*['"]?([^\s'"]{16,})['"]?`),
+		Keywords:       []string{"chef", "knife", "validation"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.0,
+	})
+	rs.addRule(Rule{
+		ID:             "puppet-access-token",
+		Description:    "Puppet Enterprise Access Token",
+		SecretType:     models.SecretPuppetToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:puppet[_\-]?(?:enterprise[_\-]?)?(?:token|api[_\-]?key))\s*[=:]\s*['"]?([A-Za-z0-9_-]{20,})['"]?`),
+		Keywords:       []string{"puppet"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.0,
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// SECURITY TOOLS
+	// ═══════════════════════════════════════════════════════════════
+	rs.addRule(Rule{
+		ID:             "snyk-api-token",
+		Description:    "Snyk API Token",
+		SecretType:     models.SecretSnykToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:snyk[_\-]?(?:api[_\-]?)?token)\s*[=:]\s*['"]?([a-f0-9-]{36,})['"]?`),
+		Keywords:       []string{"snyk"},
+		BaseConfidence: 0.85,
+	})
+	rs.addRule(Rule{
+		ID:                    "1password-connect-token",
+		Description:           "1Password Connect / Service Account Token",
+		SecretType:            models.SecretOnePasswordToken,
+		Severity:              models.SeverityCritical,
+		Pattern:               regexp.MustCompile(`(?:ops_[A-Za-z0-9]{43,}|eyJhbGciOi[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.)`),
+		Keywords:              []string{"1password", "op", "connect"},
+		BaseConfidence:        0.80,
+		MinEntropy:            4.0,
+		FalsePositivePatterns: []*regexp.Regexp{regexp.MustCompile(`example`), regexp.MustCompile(`test`)},
+	})
+	rs.addRule(Rule{
+		ID:             "crowdstrike-api-key",
+		Description:    "CrowdStrike Falcon API Key",
+		SecretType:     models.SecretCrowdStrikeKey,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`(?i)(?:crowdstrike[_\-]?(?:api[_\-]?)?(?:key|secret|client[_\-]?id))\s*[=:]\s*['"]?([a-f0-9]{32})['"]?`),
+		Keywords:       []string{"crowdstrike", "falcon"},
+		BaseConfidence: 0.85,
+	})
+	rs.addRule(Rule{
+		ID:             "tenable-api-key",
+		Description:    "Tenable / Nessus API Key",
+		SecretType:     models.SecretTenableKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:tenable[_\-]?(?:api[_\-]?)?(?:key|access[_\-]?key|secret[_\-]?key)|nessus[_\-]?(?:api[_\-]?)?key)\s*[=:]\s*['"]?([a-f0-9]{64})['"]?`),
+		Keywords:       []string{"tenable", "nessus"},
+		BaseConfidence: 0.85,
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// API GATEWAY & CDN
+	// ═══════════════════════════════════════════════════════════════
+	rs.addRule(Rule{
+		ID:             "fastly-api-token",
+		Description:    "Fastly API Token",
+		SecretType:     models.SecretFastlyToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:fastly[_\-]?(?:api[_\-]?)?(?:token|key))\s*[=:]\s*['"]?([A-Za-z0-9_-]{32,})['"]?`),
+		Keywords:       []string{"fastly"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.5,
+	})
+	rs.addRule(Rule{
+		ID:             "akamai-client-token",
+		Description:    "Akamai EdgeGrid Client Token / Secret",
+		SecretType:     models.SecretAkamaiToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:akamai[_\-]?(?:client[_\-]?)?(?:token|secret|access[_\-]?token))\s*[=:]\s*['"]?([A-Za-z0-9+/=]{20,})['"]?`),
+		Keywords:       []string{"akamai", "edgegrid"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.5,
+	})
+	rs.addRule(Rule{
+		ID:             "kong-admin-token",
+		Description:    "Kong API Gateway Admin Token",
+		SecretType:     models.SecretKongToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:kong[_\-]?(?:admin[_\-]?)?(?:token|key|api[_\-]?key))\s*[=:]\s*['"]?([A-Za-z0-9_-]{20,})['"]?`),
+		Keywords:       []string{"kong", "gateway"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.0,
+	})
+	rs.addRule(Rule{
+		ID:             "bunnycdn-api-key",
+		Description:    "Bunny CDN API Key",
+		SecretType:     models.SecretBunnyCDNKey,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:bunny[_\-]?cdn[_\-]?(?:api[_\-]?)?key)\s*[=:]\s*['"]?([a-f0-9-]{36,})['"]?`),
+		Keywords:       []string{"bunny", "bunnycdn"},
+		BaseConfidence: 0.75,
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// DATA PLATFORMS
+	// ═══════════════════════════════════════════════════════════════
+	rs.addRule(Rule{
+		ID:             "snowflake-credentials",
+		Description:    "Snowflake Account Password / Connection String",
+		SecretType:     models.SecretSnowflakePass,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`(?i)(?:snowflake[_\-]?(?:account[_\-]?)?(?:password|passwd|pwd)|sf[_\-]?password)\s*[=:]\s*['"]?([^\s'"]{8,})['"]?`),
+		Keywords:       []string{"snowflake"},
+		BaseConfidence: 0.80,
+		MinEntropy:     2.5,
+	})
+	rs.addRule(Rule{
+		ID:             "snowflake-connection-string",
+		Description:    "Snowflake JDBC/ODBC Connection String with Password",
+		SecretType:     models.SecretSnowflakePass,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`(?i)(?:jdbc:snowflake|snowflake)://[^:]+:([^@\s]{4,})@[^\s]+\.snowflakecomputing\.com`),
+		Keywords:       []string{"snowflake", "snowflakecomputing"},
+		BaseConfidence: 0.90,
+	})
+	rs.addRule(Rule{
+		ID:             "databricks-token",
+		Description:    "Databricks Personal Access Token",
+		SecretType:     models.SecretDatabricksToken,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`dapi[a-f0-9]{32}`),
+		Keywords:       []string{"databricks", "dapi"},
+		BaseConfidence: 0.95,
+	})
+	rs.addRule(Rule{
+		ID:             "dbt-cloud-token",
+		Description:    "dbt Cloud API Token",
+		SecretType:     models.SecretDBTCloudToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:dbt[_\-]?(?:cloud[_\-]?)?(?:api[_\-]?)?(?:token|key))\s*[=:]\s*['"]?([A-Za-z0-9_-]{20,})['"]?`),
+		Keywords:       []string{"dbt", "cloud"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.0,
+	})
+	rs.addRule(Rule{
+		ID:             "fivetran-api-key",
+		Description:    "Fivetran API Key / Secret",
+		SecretType:     models.SecretFivetranKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:fivetran[_\-]?(?:api[_\-]?)?(?:key|secret))\s*[=:]\s*['"]?([A-Za-z0-9_-]{20,})['"]?`),
+		Keywords:       []string{"fivetran"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.0,
+	})
+	rs.addRule(Rule{
+		ID:             "looker-client-secret",
+		Description:    "Looker / Google Looker Client Secret",
+		SecretType:     models.SecretLookerSecret,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:looker[_\-]?(?:client[_\-]?)?secret)\s*[=:]\s*['"]?([A-Za-z0-9_-]{20,})['"]?`),
+		Keywords:       []string{"looker"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.0,
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// DATABASES (ADDITIONAL)
+	// ═══════════════════════════════════════════════════════════════
+	rs.addRule(Rule{
+		ID:             "influxdb-token",
+		Description:    "InfluxDB API Token",
+		SecretType:     models.SecretInfluxDBToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:influx[_\-]?db[_\-]?(?:api[_\-]?)?token|INFLUX_TOKEN)\s*[=:]\s*['"]?([A-Za-z0-9_=-]{40,})['"]?`),
+		Keywords:       []string{"influxdb", "influx"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.5,
+	})
+	rs.addRule(Rule{
+		ID:             "clickhouse-credentials",
+		Description:    "ClickHouse Password / Connection String",
+		SecretType:     models.SecretClickHousePass,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`(?i)(?:clickhouse[_\-]?(?:password|passwd))\s*[=:]\s*['"]?([^\s'"]{6,})['"]?`),
+		Keywords:       []string{"clickhouse"},
+		BaseConfidence: 0.80,
+		MinEntropy:     2.5,
+	})
+	rs.addRule(Rule{
+		ID:             "neo4j-credentials",
+		Description:    "Neo4j Password / Connection URI",
+		SecretType:     models.SecretNeo4jPass,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`(?:neo4j(?:\+s?s?c?)?://[^:]+:([^@\s]{4,})@|(?i)(?:neo4j[_\-]?password)\s*[=:]\s*['"]?([^\s'"]{6,})['"]?)`),
+		Keywords:       []string{"neo4j", "bolt"},
+		BaseConfidence: 0.80,
+		MinEntropy:     2.5,
+	})
+	rs.addRule(Rule{
+		ID:                    "airtable-api-key",
+		Description:           "Airtable API Key / PAT",
+		SecretType:            models.SecretAirtableKey,
+		Severity:              models.SeverityHigh,
+		Pattern:               regexp.MustCompile(`(?:pat[A-Za-z0-9]{14}\.[a-f0-9]{64}|key[A-Za-z0-9]{14})`),
+		Keywords:              []string{"airtable"},
+		BaseConfidence:        0.85,
+		MinEntropy:            3.5,
+		FalsePositivePatterns: []*regexp.Regexp{regexp.MustCompile(`example`), regexp.MustCompile(`test`)},
+	})
+	rs.addRule(Rule{
+		ID:             "fauna-secret",
+		Description:    "FaunaDB Secret Key",
+		SecretType:     models.SecretFaunaSecret,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`fnA[A-Za-z0-9_-]{40,}`),
+		Keywords:       []string{"fauna", "faunadb", "fnA"},
+		BaseConfidence: 0.90,
+	})
+	rs.addRule(Rule{
+		ID:             "oracle-db-connection",
+		Description:    "Oracle Database Connection String with Password",
+		SecretType:     models.SecretOracleDBURI,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`(?i)(?:jdbc:oracle:thin|oracle)://[^:/]+:([^@\s]{4,})@`),
+		Keywords:       []string{"oracle", "jdbc"},
+		BaseConfidence: 0.85,
+	})
+	rs.addRule(Rule{
+		ID:             "mssql-connection-string",
+		Description:    "SQL Server / MSSQL Connection String with Password",
+		SecretType:     models.SecretMSSQLString,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`(?i)(?:Server|Data Source)=[^;]+;.*(?:Password|Pwd)\s*=\s*([^;'"]{4,})`),
+		Keywords:       []string{"mssql", "sqlserver", "Server", "Password"},
+		BaseConfidence: 0.85,
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// PROJECT MANAGEMENT
+	// ═══════════════════════════════════════════════════════════════
+	rs.addRule(Rule{
+		ID:                    "notion-integration-token",
+		Description:           "Notion Integration / API Token",
+		SecretType:            models.SecretNotionToken,
+		Severity:              models.SeverityHigh,
+		Pattern:               regexp.MustCompile(`(?:ntn_[A-Za-z0-9]{40,}|secret_[A-Za-z0-9]{40,})`),
+		Keywords:              []string{"notion", "ntn_"},
+		BaseConfidence:        0.90,
+		FalsePositivePatterns: []*regexp.Regexp{regexp.MustCompile(`example`)},
+	})
+	rs.addRule(Rule{
+		ID:             "linear-api-key",
+		Description:    "Linear API Key",
+		SecretType:     models.SecretLinearKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`lin_api_[A-Za-z0-9]{40,}`),
+		Keywords:       []string{"linear", "lin_api"},
+		BaseConfidence: 0.95,
+	})
+	rs.addRule(Rule{
+		ID:             "asana-pat",
+		Description:    "Asana Personal Access Token",
+		SecretType:     models.SecretAsanaPAT,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:asana[_\-]?(?:personal[_\-]?)?(?:access[_\-]?)?token)\s*[=:]\s*['"]?([0-9]/[0-9]{16}:[a-f0-9]{32})['"]?`),
+		Keywords:       []string{"asana"},
+		BaseConfidence: 0.85,
+	})
+	rs.addRule(Rule{
+		ID:             "trello-api-key",
+		Description:    "Trello API Key / Token",
+		SecretType:     models.SecretTrelloKey,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:trello[_\-]?(?:api[_\-]?)?(?:key|token))\s*[=:]\s*['"]?([a-f0-9]{32,64})['"]?`),
+		Keywords:       []string{"trello"},
+		BaseConfidence: 0.80,
+	})
+	rs.addRule(Rule{
+		ID:             "clickup-api-key",
+		Description:    "ClickUp API Key / Token",
+		SecretType:     models.SecretClickUpKey,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:clickup[_\-]?(?:api[_\-]?)?(?:key|token))\s*[=:]\s*['"]?(?:pk_[0-9]+_[A-Za-z0-9]{20,})['"]?`),
+		Keywords:       []string{"clickup"},
+		BaseConfidence: 0.85,
+	})
+	rs.addRule(Rule{
+		ID:             "shortcut-api-token",
+		Description:    "Shortcut (ex-Clubhouse) API Token",
+		SecretType:     models.SecretShortcutToken,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:shortcut[_\-]?(?:api[_\-]?)?token|clubhouse[_\-]?(?:api[_\-]?)?token)\s*[=:]\s*['"]?([a-f0-9-]{36})['"]?`),
+		Keywords:       []string{"shortcut", "clubhouse"},
+		BaseConfidence: 0.80,
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// CMS & CONTENT PLATFORMS
+	// ═══════════════════════════════════════════════════════════════
+	rs.addRule(Rule{
+		ID:             "contentful-api-key",
+		Description:    "Contentful Delivery / Management API Key",
+		SecretType:     models.SecretContentfulKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:contentful[_\-]?(?:delivery|management|preview)?[_\-]?(?:api[_\-]?)?(?:key|token))\s*[=:]\s*['"]?([A-Za-z0-9_-]{40,})['"]?`),
+		Keywords:       []string{"contentful"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.5,
+	})
+	rs.addRule(Rule{
+		ID:             "sanity-api-token",
+		Description:    "Sanity.io API Token",
+		SecretType:     models.SecretSanityToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:sanity[_\-]?(?:api[_\-]?)?(?:token|key))\s*[=:]\s*['"]?(?:sk[A-Za-z0-9]{40,})['"]?`),
+		Keywords:       []string{"sanity"},
+		BaseConfidence: 0.85,
+	})
+	rs.addRule(Rule{
+		ID:             "strapi-api-token",
+		Description:    "Strapi API Token",
+		SecretType:     models.SecretStrapiToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:strapi[_\-]?(?:api[_\-]?)?(?:token|key))\s*[=:]\s*['"]?([A-Za-z0-9_-]{30,})['"]?`),
+		Keywords:       []string{"strapi"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.0,
+	})
+	rs.addRule(Rule{
+		ID:             "ghost-admin-key",
+		Description:    "Ghost CMS Admin API Key",
+		SecretType:     models.SecretGhostKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:ghost[_\-]?(?:admin[_\-]?)?(?:api[_\-]?)?key)\s*[=:]\s*['"]?([a-f0-9]{24}:[a-f0-9]{64})['"]?`),
+		Keywords:       []string{"ghost"},
+		BaseConfidence: 0.90,
+	})
+	rs.addRule(Rule{
+		ID:             "wordpress-app-password",
+		Description:    "WordPress Application Password",
+		SecretType:     models.SecretWordPressPass,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:wordpress|wp)[_\-]?(?:app(?:lication)?[_\-]?)?password\s*[=:]\s*['"]?([A-Za-z0-9 ]{24,})['"]?`),
+		Keywords:       []string{"wordpress", "wp"},
+		BaseConfidence: 0.75,
+		MinEntropy:     2.5,
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// FEATURE FLAGS
+	// ═══════════════════════════════════════════════════════════════
+	rs.addRule(Rule{
+		ID:             "launchdarkly-sdk-key",
+		Description:    "LaunchDarkly SDK / API Key",
+		SecretType:     models.SecretLaunchDarklyKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:launchdarkly[_\-]?(?:sdk[_\-]?)?key|ld[_\-]?sdk[_\-]?key)\s*[=:]\s*['"]?(?:sdk-[a-f0-9-]{36})['"]?`),
+		Keywords:       []string{"launchdarkly", "sdk"},
+		BaseConfidence: 0.90,
+	})
+	rs.addRule(Rule{
+		ID:             "split-api-key",
+		Description:    "Split.io API Key / SDK Key",
+		SecretType:     models.SecretSplitKey,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:split[_\-]?(?:io[_\-]?)?(?:api[_\-]?)?key)\s*[=:]\s*['"]?([A-Za-z0-9]{40,})['"]?`),
+		Keywords:       []string{"split"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.5,
+	})
+	rs.addRule(Rule{
+		ID:             "flagsmith-api-key",
+		Description:    "Flagsmith Server / Environment Key",
+		SecretType:     models.SecretFlagsmithKey,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:flagsmith[_\-]?(?:environment[_\-]?)?key)\s*[=:]\s*['"]?(?:ser\.[A-Za-z0-9_-]{30,})['"]?`),
+		Keywords:       []string{"flagsmith"},
+		BaseConfidence: 0.90,
+	})
+	rs.addRule(Rule{
+		ID:             "configcat-sdk-key",
+		Description:    "ConfigCat SDK Key",
+		SecretType:     models.SecretConfigCatKey,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:configcat[_\-]?(?:sdk[_\-]?)?key)\s*[=:]\s*['"]?([A-Za-z0-9/_-]{20,})['"]?`),
+		Keywords:       []string{"configcat"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.0,
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// AUTH / IDENTITY (EXPANDED)
+	// ═══════════════════════════════════════════════════════════════
+	rs.addRule(Rule{
+		ID:             "keycloak-client-secret",
+		Description:    "Keycloak Client Secret",
+		SecretType:     models.SecretKeycloakSecret,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`(?i)(?:keycloak[_\-]?(?:client[_\-]?)?secret)\s*[=:]\s*['"]?([A-Za-z0-9_-]{20,})['"]?`),
+		Keywords:       []string{"keycloak"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.0,
+	})
+	rs.addRule(Rule{
+		ID:             "onelogin-client-secret",
+		Description:    "OneLogin Client Secret / API Credential",
+		SecretType:     models.SecretOneLoginSecret,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`(?i)(?:onelogin[_\-]?(?:client[_\-]?)?secret)\s*[=:]\s*['"]?([a-f0-9]{64})['"]?`),
+		Keywords:       []string{"onelogin"},
+		BaseConfidence: 0.85,
+	})
+	rs.addRule(Rule{
+		ID:             "duo-integration-key",
+		Description:    "Duo Security Integration / Secret Key",
+		SecretType:     models.SecretDuoKey,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`(?i)(?:duo[_\-]?(?:integration[_\-]?|secret[_\-]?)?key)\s*[=:]\s*['"]?([A-Za-z0-9]{20,40})['"]?`),
+		Keywords:       []string{"duo", "duosecurity"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.0,
+	})
+	rs.addRule(Rule{
+		ID:             "ping-identity-token",
+		Description:    "Ping Identity / PingOne Client Secret",
+		SecretType:     models.SecretPingIdentityToken,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`(?i)(?:ping[_\-]?(?:identity|one|federate)[_\-]?(?:client[_\-]?)?secret)\s*[=:]\s*['"]?([A-Za-z0-9_-]{20,})['"]?`),
+		Keywords:       []string{"ping", "pingone", "pingfederate"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.0,
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// SECRETS MANAGEMENT
+	// ═══════════════════════════════════════════════════════════════
+	rs.addRule(Rule{
+		ID:             "doppler-token",
+		Description:    "Doppler Service Token / CLI Token",
+		SecretType:     models.SecretDopplerToken,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`dp\.st\.[A-Za-z0-9_-]{40,}|dp\.ct\.[A-Za-z0-9_-]{40,}`),
+		Keywords:       []string{"doppler", "dp.st", "dp.ct"},
+		BaseConfidence: 0.95,
+	})
+	rs.addRule(Rule{
+		ID:             "infisical-token",
+		Description:    "Infisical Service Token",
+		SecretType:     models.SecretInfisicalToken,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`(?:st\.[a-f0-9]{8,}\.[a-f0-9]{16,}\.[a-f0-9]{16,})`),
+		Keywords:       []string{"infisical"},
+		BaseConfidence: 0.90,
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// NETWORKING
+	// ═══════════════════════════════════════════════════════════════
+	rs.addRule(Rule{
+		ID:             "ngrok-auth-token",
+		Description:    "ngrok Authentication Token",
+		SecretType:     models.SecretNgrokToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:ngrok[_\-]?(?:auth[_\-]?)?token)\s*[=:]\s*['"]?([A-Za-z0-9_-]{30,})['"]?`),
+		Keywords:       []string{"ngrok"},
+		BaseConfidence: 0.85,
+		MinEntropy:     3.0,
+	})
+	rs.addRule(Rule{
+		ID:             "tailscale-api-key",
+		Description:    "Tailscale API Key",
+		SecretType:     models.SecretTailscaleKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`tskey-[A-Za-z0-9]+-[A-Za-z0-9]+`),
+		Keywords:       []string{"tailscale", "tskey"},
+		BaseConfidence: 0.95,
+	})
+	rs.addRule(Rule{
+		ID:             "wireguard-private-key",
+		Description:    "WireGuard Private Key",
+		SecretType:     models.SecretWireGuardKey,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`(?i)(?:PrivateKey|wg[_\-]?private[_\-]?key)\s*=\s*([A-Za-z0-9+/]{43}=)`),
+		Keywords:       []string{"wireguard", "PrivateKey", "wg"},
+		BaseConfidence: 0.90,
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// TESTING & QA
+	// ═══════════════════════════════════════════════════════════════
+	rs.addRule(Rule{
+		ID:             "browserstack-access-key",
+		Description:    "BrowserStack Access Key",
+		SecretType:     models.SecretBrowserStackKey,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:browserstack[_\-]?access[_\-]?key)\s*[=:]\s*['"]?([A-Za-z0-9]{20})['"]?`),
+		Keywords:       []string{"browserstack"},
+		BaseConfidence: 0.85,
+	})
+	rs.addRule(Rule{
+		ID:             "saucelabs-access-key",
+		Description:    "Sauce Labs Access Key",
+		SecretType:     models.SecretSauceLabsKey,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:sauce[_\-]?(?:labs[_\-]?)?access[_\-]?key)\s*[=:]\s*['"]?([a-f0-9-]{36})['"]?`),
+		Keywords:       []string{"sauce", "saucelabs"},
+		BaseConfidence: 0.85,
+	})
+	rs.addRule(Rule{
+		ID:             "cypress-record-key",
+		Description:    "Cypress Cloud Record Key",
+		SecretType:     models.SecretCypressKey,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:cypress[_\-]?record[_\-]?key)\s*[=:]\s*['"]?([a-f0-9-]{36})['"]?`),
+		Keywords:       []string{"cypress"},
+		BaseConfidence: 0.85,
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// DESIGN
+	// ═══════════════════════════════════════════════════════════════
+	rs.addRule(Rule{
+		ID:             "figma-pat",
+		Description:    "Figma Personal Access Token",
+		SecretType:     models.SecretFigmaPAT,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`figd_[A-Za-z0-9_-]{40,}`),
+		Keywords:       []string{"figma", "figd"},
+		BaseConfidence: 0.95,
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// COMMUNICATION (EXPANDED)
+	// ═══════════════════════════════════════════════════════════════
+	rs.addRule(Rule{
+		ID:             "zoom-client-secret",
+		Description:    "Zoom OAuth Client Secret",
+		SecretType:     models.SecretZoomSecret,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:zoom[_\-]?(?:client[_\-]?)?secret)\s*[=:]\s*['"]?([A-Za-z0-9]{32})['"]?`),
+		Keywords:       []string{"zoom"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.0,
+	})
+	rs.addRule(Rule{
+		ID:             "webex-bot-token",
+		Description:    "Cisco Webex Bot / Integration Token",
+		SecretType:     models.SecretWebexToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:webex[_\-]?(?:bot[_\-]?)?(?:token|access[_\-]?token))\s*[=:]\s*['"]?([A-Za-z0-9_-]{60,})['"]?`),
+		Keywords:       []string{"webex", "cisco"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.5,
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// PAYMENTS (EXPANDED)
+	// ═══════════════════════════════════════════════════════════════
+	rs.addRule(Rule{
+		ID:             "braintree-access-token",
+		Description:    "Braintree (PayPal) Access Token",
+		SecretType:     models.SecretBraintreeToken,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`access_token\$(?:production|sandbox)\$[a-z0-9]{16}\$[a-f0-9]{32}`),
+		Keywords:       []string{"braintree"},
+		BaseConfidence: 0.95,
+	})
+	rs.addRule(Rule{
+		ID:             "paddle-api-key",
+		Description:    "Paddle API Key",
+		SecretType:     models.SecretPaddleKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:paddle[_\-]?(?:api[_\-]?)?(?:key|secret))\s*[=:]\s*['"]?([A-Za-z0-9]{20,})['"]?`),
+		Keywords:       []string{"paddle"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.0,
+	})
+	rs.addRule(Rule{
+		ID:             "klarna-api-key",
+		Description:    "Klarna API Key / Credentials",
+		SecretType:     models.SecretKlarnaKey,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`(?i)(?:klarna[_\-]?(?:api[_\-]?)?(?:key|secret|password))\s*[=:]\s*['"]?([A-Za-z0-9_-]{20,})['"]?`),
+		Keywords:       []string{"klarna"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.0,
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// MEDIA & VIDEO
+	// ═══════════════════════════════════════════════════════════════
+	rs.addRule(Rule{
+		ID:             "mux-token-secret",
+		Description:    "Mux Video API Token Secret",
+		SecretType:     models.SecretMuxSecret,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:mux[_\-]?(?:token[_\-]?)?secret)\s*[=:]\s*['"]?([A-Za-z0-9+/=]{40,})['"]?`),
+		Keywords:       []string{"mux"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.5,
+	})
+	rs.addRule(Rule{
+		ID:             "twitch-client-secret",
+		Description:    "Twitch API Client Secret",
+		SecretType:     models.SecretTwitchSecret,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:twitch[_\-]?(?:client[_\-]?)?secret)\s*[=:]\s*['"]?([a-z0-9]{30})['"]?`),
+		Keywords:       []string{"twitch"},
+		BaseConfidence: 0.85,
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// SMS / VOICE (EXPANDED)
+	// ═══════════════════════════════════════════════════════════════
+	rs.addRule(Rule{
+		ID:             "plivo-auth-token",
+		Description:    "Plivo Auth Token",
+		SecretType:     models.SecretPlivoToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:plivo[_\-]?(?:auth[_\-]?)?token)\s*[=:]\s*['"]?([A-Za-z0-9]{40,})['"]?`),
+		Keywords:       []string{"plivo"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.5,
+	})
+	rs.addRule(Rule{
+		ID:             "bandwidth-api-token",
+		Description:    "Bandwidth API Token / Password",
+		SecretType:     models.SecretBandwidthToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:bandwidth[_\-]?(?:api[_\-]?)?(?:token|password|secret))\s*[=:]\s*['"]?([A-Za-z0-9_-]{20,})['"]?`),
+		Keywords:       []string{"bandwidth"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.0,
+	})
+	rs.addRule(Rule{
+		ID:                    "telnyx-api-key",
+		Description:           "Telnyx API Key",
+		SecretType:            models.SecretTelnyxKey,
+		Severity:              models.SeverityHigh,
+		Pattern:               regexp.MustCompile(`KEY[A-Za-z0-9_-]{40,}`),
+		Keywords:              []string{"telnyx", "KEY"},
+		BaseConfidence:        0.70,
+		MinEntropy:            4.0,
+		FalsePositivePatterns: []*regexp.Regexp{regexp.MustCompile(`example`), regexp.MustCompile(`test`)},
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// EMAIL (EXPANDED)
+	// ═══════════════════════════════════════════════════════════════
+	rs.addRule(Rule{
+		ID:             "sparkpost-api-key",
+		Description:    "SparkPost API Key",
+		SecretType:     models.SecretSparkPostKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:sparkpost[_\-]?(?:api[_\-]?)?key)\s*[=:]\s*['"]?([a-f0-9]{40})['"]?`),
+		Keywords:       []string{"sparkpost"},
+		BaseConfidence: 0.85,
+	})
+	rs.addRule(Rule{
+		ID:             "customerio-api-key",
+		Description:    "Customer.io API Key / Site ID",
+		SecretType:     models.SecretCustomerIOKey,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:customer[_\-]?io[_\-]?(?:api[_\-]?)?(?:key|token))\s*[=:]\s*['"]?([A-Za-z0-9]{20,})['"]?`),
+		Keywords:       []string{"customerio", "customer.io"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.0,
+	})
+	rs.addRule(Rule{
+		ID:             "mandrill-api-key",
+		Description:    "Mandrill (Mailchimp Transactional) API Key",
+		SecretType:     models.SecretMandrillKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:mandrill[_\-]?(?:api[_\-]?)?key)\s*[=:]\s*['"]?([A-Za-z0-9_-]{22})['"]?`),
+		Keywords:       []string{"mandrill", "mailchimp"},
+		BaseConfidence: 0.85,
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// VERSION CONTROL (ADDITIONAL)
+	// ═══════════════════════════════════════════════════════════════
+	rs.addRule(Rule{
+		ID:             "gitea-token",
+		Description:    "Gitea Access Token",
+		SecretType:     models.SecretGiteaToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:gitea[_\-]?(?:access[_\-]?)?token)\s*[=:]\s*['"]?([a-f0-9]{40})['"]?`),
+		Keywords:       []string{"gitea"},
+		BaseConfidence: 0.80,
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// WORKFLOW AUTOMATION
+	// ═══════════════════════════════════════════════════════════════
+	rs.addRule(Rule{
+		ID:             "zapier-webhook",
+		Description:    "Zapier Webhook URL (contains secret path)",
+		SecretType:     models.SecretZapierWebhook,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`https://hooks\.zapier\.com/hooks/catch/[0-9]+/[A-Za-z0-9]+/?`),
+		Keywords:       []string{"zapier", "hooks.zapier.com"},
+		BaseConfidence: 0.90,
+	})
+	rs.addRule(Rule{
+		ID:             "n8n-api-key",
+		Description:    "n8n API Key / Webhook Secret",
+		SecretType:     models.SecretN8NKey,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:n8n[_\-]?(?:api[_\-]?)?(?:key|token|secret))\s*[=:]\s*['"]?([A-Za-z0-9_-]{20,})['"]?`),
+		Keywords:       []string{"n8n"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.0,
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// LOW-CODE
+	// ═══════════════════════════════════════════════════════════════
+	rs.addRule(Rule{
+		ID:             "retool-api-key",
+		Description:    "Retool API Key",
+		SecretType:     models.SecretRetoolKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`retool_[A-Za-z0-9]{30,}`),
+		Keywords:       []string{"retool"},
+		BaseConfidence: 0.90,
+	})
 }

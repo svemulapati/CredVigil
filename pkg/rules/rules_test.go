@@ -13,8 +13,8 @@ func TestNewRuleSet(t *testing.T) {
 
 	t.Logf("Loaded %d rules", rs.Count())
 
-	if rs.Count() < 140 {
-		t.Errorf("Expected at least 140 built-in rules, got %d", rs.Count())
+	if rs.Count() < 260 {
+		t.Errorf("Expected at least 260 built-in rules, got %d", rs.Count())
 	}
 }
 
@@ -75,6 +75,142 @@ func TestRuleRetrieval(t *testing.T) {
 		// CI/CD
 		"pulumi-token",
 		"buildkite-api-token",
+		// Code Quality / DevOps
+		"sonarqube-token",
+		"artifactory-api-key",
+		"gerrit-http-password",
+		// IAM / PAM / Kerberos
+		"ldap-bind-password",
+		"active-directory-password",
+		"kerberos-keytab",
+		"kerberos-password",
+		"cyberark-api-token",
+		"radius-shared-secret",
+		"saml-private-key",
+		"freeipa-password",
+		// Remote Access / NAS
+		"rdp-password",
+		"vnc-password",
+		"synology-api-token",
+		"qnap-api-token",
+		"nas-admin-credential",
+		// Cloud (Additional)
+		"oracle-cloud-ocid",
+		"ibm-cloud-api-key",
+		"alibaba-cloud-access-key",
+		"hetzner-api-token",
+		// Container & Orchestration
+		"kubernetes-service-token",
+		"docker-hub-pat",
+		"harbor-credential",
+		"quay-robot-token",
+		// CI/CD (Expanded)
+		"azure-devops-pat",
+		"teamcity-token",
+		"bamboo-token",
+		"harness-api-key",
+		"argocd-auth-token",
+		// Monitoring (Expanded)
+		"dynatrace-api-token",
+		"sumologic-access-key",
+		"honeycomb-api-key",
+		"bugsnag-api-key",
+		"rollbar-access-token",
+		"airbrake-api-key",
+		"logzio-token",
+		"instana-api-token",
+		"zabbix-api-token",
+		// Config Management
+		"ansible-vault-password",
+		"consul-acl-token",
+		"nomad-token",
+		"chef-client-key",
+		"puppet-access-token",
+		// Security Tools
+		"snyk-api-token",
+		"1password-connect-token",
+		"crowdstrike-api-key",
+		"tenable-api-key",
+		// CDN / Edge
+		"fastly-api-token",
+		"akamai-client-token",
+		"kong-admin-token",
+		"bunnycdn-api-key",
+		// Data Platforms
+		"snowflake-credentials",
+		"databricks-token",
+		"dbt-cloud-token",
+		"fivetran-api-key",
+		"looker-client-secret",
+		// Databases (Additional)
+		"influxdb-token",
+		"clickhouse-credentials",
+		"neo4j-credentials",
+		"airtable-api-key",
+		"fauna-secret",
+		"oracle-db-connection",
+		"mssql-connection-string",
+		// Project Management
+		"notion-integration-token",
+		"linear-api-key",
+		"asana-pat",
+		"trello-api-key",
+		"clickup-api-key",
+		"shortcut-api-token",
+		// CMS
+		"contentful-api-key",
+		"sanity-api-token",
+		"strapi-api-token",
+		"ghost-admin-key",
+		"wordpress-app-password",
+		// Feature Flags
+		"launchdarkly-sdk-key",
+		"split-api-key",
+		"flagsmith-api-key",
+		"configcat-sdk-key",
+		// Auth (Expanded)
+		"keycloak-client-secret",
+		"onelogin-client-secret",
+		"duo-integration-key",
+		"ping-identity-token",
+		// Secrets Management
+		"doppler-token",
+		"infisical-token",
+		// Networking
+		"ngrok-auth-token",
+		"tailscale-api-key",
+		"wireguard-private-key",
+		// Testing
+		"browserstack-access-key",
+		"saucelabs-access-key",
+		"cypress-record-key",
+		// Design
+		"figma-pat",
+		// Communication (Expanded)
+		"zoom-client-secret",
+		"webex-bot-token",
+		// Payments (Expanded)
+		"braintree-access-token",
+		"paddle-api-key",
+		"klarna-api-key",
+		// Media
+		"mux-token-secret",
+		"twitch-client-secret",
+		// SMS (Expanded)
+		"plivo-auth-token",
+		"bandwidth-api-token",
+		"telnyx-api-key",
+		// Email (Expanded)
+		"sparkpost-api-key",
+		"customerio-api-key",
+		"mandrill-api-key",
+		// Version Control
+		"gitea-token",
+		// Automation
+		"zapier-webhook",
+		"n8n-api-key",
+		// Low-Code
+		"retool-api-key",
 	}
 
 	for _, id := range tests {
@@ -191,6 +327,81 @@ func TestRulePatternMatching(t *testing.T) {
 		{"posthog-api-key", "phc_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef", true},
 		// HubSpot
 		{"hubspot-private-app", "pat-na1-abcdef01-2345-6789-abcd-ef0123456789", true},
+
+		// ===== ENTERPRISE / INFRASTRUCTURE =====
+		// SonarQube
+		{"sonarqube-token", "squ_abcdef0123456789abcdef0123456789abcdef01", true},
+		{"sonarqube-token", "sqp_abcdef0123456789abcdef0123456789abcdef01", true},
+		{"sonarqube-token", "not-a-sonar-token", false},
+		{"sonarqube-token-legacy", "sonar_token=abcdef0123456789abcdef0123456789abcdef01", true},
+		{"sonarqube-webhook-secret", "sonar_webhook_secret=MyWebh00kSecretValue", true},
+		// JFrog Artifactory
+		{"artifactory-api-key", "AKCabcdefghij1234567890ABCDEFGHIJklmnopq", true},
+		{"artifactory-api-key", "notakey", false},
+		{"artifactory-token", `artifactory_token=ABCDEFghijklmnopqrstuvwx`, true},
+		{"artifactory-encrypted-pass", "APabcdefghijklmnopqrstuvwxyz1234567890ABC", true},
+		// Gerrit
+		{"gerrit-http-password", `gerrit_http_password=ABCDEFghijklmnop`, true},
+		// LDAP
+		{"ldap-bind-password", `ldap_bind_password=MyS3cur3Pw0rd!`, true},
+		{"ldap-connection-uri", `ldaps://admin:secretPass@ldap.example.com:636`, true},
+		// Active Directory
+		{"active-directory-password", `domain_admin_password=Sup3rS3cur3!`, true},
+		// Kerberos
+		{"kerberos-keytab", `KRB5_KTNAME=/etc/krb5/service.keytab`, true},
+		{"kerberos-password", `kerberos_password=MyKrbPwd123`, true},
+		{"kerberos-krb5-conf", `default_keytab_name = /etc/krb5.keytab`, true},
+		// CyberArk PAM
+		{"cyberark-api-token", `cyberark_api_token=ABCDEFghijklmnopqrstuvwxyz1234`, true},
+		// RADIUS
+		{"radius-shared-secret", `radius_shared_secret=MyR4d1usSh4r3d!`, true},
+		// SAML
+		{"saml-private-key", `saml_private_key=MIIEvgIBADANBgkqhkiG9w`, true},
+		// FreeIPA
+		{"freeipa-password", `freeipa_admin_password=Sup3rIPApass`, true},
+		// RDP / VNC
+		{"rdp-password", `rdp_password=MyRdpP@ss123`, true},
+		{"vnc-password", `vnc_password=vncP@ss`, true},
+		// NAS
+		{"synology-api-token", `synology_api_token=ABCDEFghijklmnop`, true},
+		{"qnap-api-token", `qnap_api_token=ABCDEFghijklmnop`, true},
+		{"nas-admin-credential", `nas_admin_password=MyN4sP@ss!`, true},
+
+		// ===== EXPANDED COVERAGE (v2) =====
+		// Cloud (Additional)
+		{"alibaba-cloud-access-key", "LTAI5tBcc1234567890abc", true},
+		{"docker-hub-pat", "dckr_pat_ABCDEFGHIJKLMNOPQRSTUVz", true},
+		// CI/CD (Expanded)
+		{"azure-devops-pat", `azure_devops_pat=abcdef0123456789abcdef0123456789abcdef0123456789abcd`, true},
+		// Monitoring (Expanded)
+		{"dynatrace-api-token", "dt0c01.ABCDEFGHIJKLMNOPQRSTUVWX.ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789AB", true},
+		{"bugsnag-api-key", `bugsnag_api_key=abcdef0123456789abcdef0123456789`, true},
+		{"rollbar-access-token", `rollbar_access_token=abcdef0123456789abcdef0123456789`, true},
+		// Security
+		{"snyk-api-token", `snyk_api_token=abcdef01-2345-6789-abcd-ef0123456789`, true},
+		// Data Platforms
+		{"databricks-token", "dapi0123456789abcdef0123456789abcdef", true},
+		{"fauna-secret", "fnABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnop", true},
+		// Project Management
+		{"linear-api-key", "lin_api_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuv", true},
+		{"notion-integration-token", "ntn_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnop", true},
+		// Feature Flags
+		{"launchdarkly-sdk-key", `launchdarkly_sdk_key=sdk-abcdef01-2345-6789-abcd-ef0123456789`, true},
+		// Secrets Management
+		{"doppler-token", "dp.st.ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnop", true},
+		// Networking
+		{"tailscale-api-key", "tskey-abc123-ABCDEFghijklmnop", true},
+		{"wireguard-private-key", "PrivateKey = YEZbx6EkrNAhXz0SPM8e4ESKIvL7nBKYJ2W+e4Lp8Xk=", true},
+		// Design
+		{"figma-pat", "figd_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuv", true},
+		// Payments (Expanded)
+		{"braintree-access-token", "access_token$production$abc123def456ghij$abcdef0123456789abcdef0123456789", true},
+		// Database (Additional)
+		{"mssql-connection-string", "Server=myserver.database.windows.net;Database=mydb;User Id=admin;Password=MyS3cur3P@ss!", true},
+		// Automation
+		{"zapier-webhook", "https://hooks.zapier.com/hooks/catch/123456/abcdef/", true},
+		// Low-Code
+		{"retool-api-key", "retool_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefgh", true},
 	}
 
 	for _, tt := range tests {

@@ -1,21 +1,27 @@
-# CredVigil
-
-**Continuous credential monitoring and detection for modern engineering teams.**
-
-CredVigil is a layered, event-driven, zero-trust credential detection tool that scans codebases, files, and streams for leaked secrets. It combines regex pattern matching with Shannon entropy analysis, confidence scoring, and intelligent false-positive reduction — so your team only sees findings that matter.
+<p align="center">
+  <h1 align="center">CredVigil</h1>
+  <p align="center">
+    <strong>Intelligent credential detection for modern engineering teams.</strong>
+  </p>
+  <p align="center">
+    <a href="#quick-start">Quick Start</a> · <a href="#detection-coverage">Detection Coverage</a> · <a href="#architecture">Architecture</a> · <a href="#documentation">Documentation</a>
+  </p>
+</p>
 
 ---
 
-## Why CredVigil?
+## Overview
 
-Every year, millions of API keys, passwords, and tokens are accidentally committed to repositories or left in configuration files. Most secret detection tools give you a binary "found" or "not found" — flooding teams with alerts, including false positives, and offering no way to prioritize. CredVigil is different:
+CredVigil scans codebases, configuration files, and data streams for exposed credentials — API keys, tokens, passwords, private keys, and connection strings. It combines **276 regex detection rules** with **Shannon entropy analysis**, producing findings with confidence scores, severity ratings, and SHA-256 fingerprints.
 
-- **Confidence scoring (0–100%)** — every finding has a confidence score, so teams can set thresholds and eliminate alert fatigue
-- **Zero-trust architecture** — raw secrets are never stored or transmitted; only SHA-256 hashes and redacted previews leave the scanner
-- **False-positive intelligence** — detects placeholders, test fixtures, and documentation patterns and penalizes their scores
-- **Dual detection** — regex patterns catch known formats; Shannon entropy catches novel secrets no rule covers
-- **161 detection rules** covering the full modern stack (AI/ML, cloud, payment, databases, CI/CD, and more)
-- **Continuous monitoring** (planned) — not just one-shot scans, but real-time watching across repos and infrastructure
+### Key Principles
+
+| Principle | How It Works |
+|-----------|-------------|
+| **Zero-Trust** | Raw secrets are never stored or transmitted. Findings include only SHA-256 hashes and redacted previews. |
+| **Confidence Scoring** | Every finding gets a 0–100% confidence score — not a binary yes/no — so teams can set thresholds and eliminate noise. |
+| **Dual Detection** | Regex catches known credential formats. Shannon entropy catches novel secrets no rule covers. |
+| **False-Positive Reduction** | Placeholders, test fixtures, and documentation patterns are detected and penalized automatically. |
 
 ---
 
@@ -23,187 +29,43 @@ Every year, millions of API keys, passwords, and tokens are accidentally committ
 
 ### Prerequisites
 
-- Go 1.21+ installed
+- Go 1.21+
 
-### Build
+### Install
 
 ```bash
 git clone https://github.com/credvigil/credvigil.git
 cd credvigil
-go build ./cmd/credvigil
+go build -o credvigil ./cmd/credvigil
 ```
 
-### Scan a file or directory
+### Usage
 
 ```bash
-# Scan a single file
+# Scan a file
 ./credvigil scan path/to/file.env
 
-# Scan an entire directory (recursive, auto-skips binaries/.git/node_modules)
+# Scan a directory (recursive, auto-skips binaries/.git/node_modules)
 ./credvigil scan ./my-project/
 
-# Scan from stdin
-echo 'AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY' | ./credvigil scan --source stdin
-```
+# Scan from stdin (pipe from git diff, clipboard, etc.)
+echo 'AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY' | ./credvigil scan --stdin
 
-### Filter and format
-
-```bash
-# Only show HIGH and CRITICAL severity findings
+# Filter by severity or confidence
 ./credvigil scan --min-severity high ./src/
-
-# JSON output (for CI/CD pipelines or other tools)
-./credvigil scan --format json ./src/
-
-# Set minimum confidence threshold
 ./credvigil scan --min-confidence 0.7 ./src/
 
-# Disable entropy-based detection (regex only)
+# Machine-readable JSON output
+./credvigil scan --format json ./src/
+
+# Regex-only mode (disable entropy detection)
 ./credvigil scan --no-entropy ./src/
-```
 
-### List detection rules
-
-```bash
+# List all detection rules
 ./credvigil rules
 ```
 
----
-
-## What It Detects (161 Rules)
-
-CredVigil detects credentials across the entire modern stack:
-
-| Category | Services |
-|----------|----------|
-| **Cloud** | AWS, GCP, Azure, DigitalOcean, Cloudflare, Vercel, Netlify, Supabase, Railway, Render, Fly.io, Linode |
-| **Source Control** | GitHub, GitLab, Bitbucket |
-| **Collaboration** | Slack, Jira, Confluence, Atlassian OAuth, Microsoft Teams, Stack Overflow, Stack Enterprise |
-| **Private Keys** | RSA, EC, PKCS8, OpenSSH, PGP |
-| **Databases** | PostgreSQL, MySQL, MongoDB, Redis, PlanetScale, Neon, Turso, Upstash, CockroachDB |
-| **Auth/Identity** | JWT, Bearer, Basic Auth, OAuth, Auth0, Okta, Clerk |
-| **Payment** | Stripe, Square, PayPal, Razorpay, Plaid, Coinbase, Adyen |
-| **AI/ML** | OpenAI, Anthropic, Gemini, Hugging Face, Cohere, Mistral, Replicate, Groq, DeepSeek, Perplexity, Stability AI |
-| **Email** | SendGrid, Mailgun, Mailchimp, Postmark, Resend, Amazon SES |
-| **Marketing/CRM** | HubSpot, Mixpanel, Segment, Intercom, Amplitude, PostHog, Zendesk, Freshdesk, Salesforce, Zoho |
-| **CI/CD** | CircleCI, Codecov, Jenkins, Travis CI, Buildkite, Drone, Pulumi |
-| **Messaging** | Telegram, Discord, Vonage/Nexmo, Pushover, OneSignal |
-| **Maps** | Google Maps, Mapbox |
-| **Social** | Twitter/X, Facebook/Meta, LinkedIn |
-| **Storage/CDN** | Cloudinary, Backblaze B2 |
-| **Observability** | Datadog, New Relic, Sentry, Grafana, Splunk, PagerDuty, Elasticsearch, OpenTelemetry |
-| **Crypto/Web3** | Alchemy, Infura, Etherscan, Moralis |
-| **Search** | Algolia, Meilisearch, Typesense |
-| **Infrastructure** | Docker, NPM, PyPI, NuGet, Heroku, Vault, Terraform |
-| **E-commerce** | Shopify, Amazon MWS/SP-API, Etsy |
-| **Generic** | API keys, passwords, high-entropy strings |
-
----
-
-## Architecture
-
-CredVigil is built as a modular, component-based system. Each component is developed, tested, and validated independently before integration.
-
-### Component Roadmap
-
-| # | Component | Status | Description |
-|---|-----------|--------|-------------|
-| 1 | **Core Detection Engine** | ✅ Done | Regex + entropy scanning, confidence scoring, false-positive reduction |
-| 2 | Secure Hashing & Metadata Pipeline | 🔜 Next | Zero-trust pipeline — hash, redact, enrich findings before storage |
-| 3 | Git Integration Layer | ⬜ | Scan git history, blame, branches, PR diffs |
-| 4 | File System Watcher | ⬜ | Real-time monitoring via fsnotify |
-| 5 | Event Bus | ⬜ | Internal pub/sub for decoupled component communication |
-| 6 | API Server | ⬜ | REST/gRPC API for integrations |
-| 7 | Storage Layer | ⬜ | Persistent storage for findings, trends, audit trail |
-| 8 | Web Dashboard | ⬜ | Visual overview of credential risk across repos |
-| 9 | Notification Engine | ⬜ | Slack, email, webhook alerts on new findings |
-| 10 | Policy Engine | ⬜ | Define and enforce credential security policies |
-| 11 | CI/CD Integration | ⬜ | GitHub Actions, pre-commit hooks, pipeline gates |
-| 12 | Compliance Reporter | ⬜ | SOC2, ISO 27001, PCI-DSS compliance reports |
-| 13 | Secret Rotation Tracker | ⬜ | Track whether leaked secrets were actually rotated |
-| 14 | ML Anomaly Detection | ⬜ | Catch novel secret patterns no regex would find |
-| 15 | Plugin System | ⬜ | Extensible architecture for custom rules and integrations |
-
----
-
-## Component 1: Core Detection Engine (Completed)
-
-The foundation of CredVigil — a dual-strategy secret detection engine.
-
-### How It Works
-
-```
-Input (file/stdin/stream)
-    │
-    ├── Regex Pattern Matching (161 rules)
-    │     └── Known formats: ghp_*, AKIA*, sk_live_*, etc.
-    │
-    ├── Shannon Entropy Analysis
-    │     └── Detects high-randomness strings that look like secrets
-    │
-    ├── Confidence Scoring (0.0 – 1.0)
-    │     ├── Base confidence from rule
-    │     ├── + Entropy boost (high entropy → more likely a real secret)
-    │     ├── + Keyword proximity (nearby "password", "secret", "key")
-    │     ├── − False positive penalty (placeholder, test data, docs)
-    │     └── − Length/pattern penalties
-    │
-    └── Output: Findings with severity, confidence, SHA-256 hash, redacted preview
-```
-
-### Key Design Decisions
-
-- **Zero-trust by default**: Raw secrets are never stored or transmitted. Every finding includes a SHA-256 hash for tracking and a redacted preview for display.
-- **Confidence > binary**: Instead of "found" / "not found", every finding has a confidence score. This lets teams set thresholds and reduce alert fatigue.
-- **Dual detection**: Regex catches known patterns; entropy catches novel/unknown secrets that no rule covers.
-- **False-positive intelligence**: Detects placeholders (`EXAMPLE`, `TODO`, `changeme`, `your-key-here`), test fixtures, and documentation patterns — and penalizes their confidence scores.
-
-### Project Structure
-
-```
-credvigil/
-├── cmd/credvigil/         # CLI entry point
-│   └── main.go            # scan, rules, version commands
-├── pkg/
-│   ├── models/            # Core data structures (Finding, Source, ScanRequest)
-│   │   └── finding.go
-│   ├── entropy/           # Shannon entropy analysis
-│   │   ├── entropy.go
-│   │   └── entropy_test.go
-│   ├── rules/             # 161 compiled regex detection rules
-│   │   ├── rules.go
-│   │   └── rules_test.go
-│   └── detector/          # Detection engine + file scanner
-│       ├── engine.go
-│       ├── engine_test.go
-│       └── scanner.go
-├── internal/
-│   └── config/            # Application configuration
-│       └── config.go
-├── testdata/              # Test fixtures
-│   └── fake_secrets.env
-├── go.mod
-└── README.md
-```
-
-### Running Tests
-
-```bash
-# Run all tests
-go test ./... -v
-
-# Run with race detector
-go test ./... -race
-
-# Run specific package tests
-go test ./pkg/detector -v
-go test ./pkg/entropy -v
-go test ./pkg/rules -v
-```
-
----
-
-## Sample Output
+### Sample Output
 
 ```
 ╔═══════════════════════════════════════════════════════════════╗
@@ -227,32 +89,202 @@ go test ./pkg/rules -v
   SHA-256:    7f75367e...4a830606
 
 ─────────────────────────────────────────────────────────────────
-  Scan completed in 3ms using 161 rules
-  Total findings: 37
-  By severity: CRITICAL=10, HIGH=10, MEDIUM=13, LOW=4
+  Scan completed in 7ms using 276 rules
+  Total findings: 55
+  By severity: CRITICAL=17, HIGH=14, MEDIUM=20, LOW=4
 ─────────────────────────────────────────────────────────────────
 ```
 
 ---
 
-## Training Guides
+## Detection Coverage
 
-Detailed training documentation is available in the `docs/training/` directory:
+**276 built-in rules** across 50+ categories.
 
-| Module | Topic | Status |
-|--------|-------|--------|
-| [Module 1](docs/training/01-core-detection-engine.md) | Core Detection Engine — concepts, CLI usage, hands-on exercises, code walkthrough | ✅ Available |
-| Module 2 | Secure Hashing & Metadata Pipeline | 🔜 Coming |
-| Module 3–15 | Git Integration, File Watcher, API, Dashboard, and more | ⬜ Planned |
+<details>
+<summary><strong>View full coverage matrix</strong></summary>
 
-Each training guide is written for all experience levels — no prior security knowledge required.
+| Category | Services & Formats |
+|----------|-------------------|
+| **Cloud Providers** | AWS, GCP, Azure, DigitalOcean, Cloudflare, Vercel, Netlify, Supabase, Railway, Render, Fly.io, Linode |
+| **Cloud (Extended)** | Oracle OCI, IBM Cloud, Alibaba Cloud, Hetzner |
+| **Source Control** | GitHub (PAT, Fine-Grained, OAuth), GitLab (PAT, Runner, Pipeline), Bitbucket, Gitea |
+| **Collaboration** | Slack, Jira, Confluence, Atlassian OAuth, Microsoft Teams, Stack Overflow, Zoom, Webex |
+| **Private Keys** | RSA, EC, PKCS8, OpenSSH, PGP, WireGuard |
+| **Databases** | PostgreSQL, MySQL, MongoDB, Redis, PlanetScale, Neon, Turso, Upstash, CockroachDB |
+| **Databases (Extended)** | InfluxDB, ClickHouse, Neo4j, Airtable, FaunaDB, Oracle DB, SQL Server/MSSQL, Snowflake |
+| **Auth & Identity** | JWT, Bearer, Basic Auth, OAuth, Auth0, Okta, Clerk, Keycloak, OneLogin, Duo Security, Ping Identity |
+| **Payment** | Stripe, Square, PayPal, Razorpay, Plaid, Coinbase, Adyen, Braintree, Paddle, Klarna |
+| **AI & ML** | OpenAI, Anthropic, Gemini, Hugging Face, Cohere, Mistral, Replicate, Groq, DeepSeek, Perplexity, Stability AI |
+| **Email & Messaging** | SendGrid, Mailgun, Mailchimp, Postmark, Resend, Amazon SES, Telegram, Discord, Vonage, Pushover, OneSignal, SparkPost, Mandrill, Customer.io |
+| **SMS & Voice** | Twilio, Plivo, Bandwidth, Telnyx |
+| **Marketing & CRM** | HubSpot, Mixpanel, Segment, Intercom, Amplitude, PostHog, Zendesk, Freshdesk, Salesforce, Zoho |
+| **CI/CD** | CircleCI, Codecov, Jenkins, Travis CI, Buildkite, Drone, Pulumi, Azure DevOps, TeamCity, Bamboo, Harness, Argo CD |
+| **Container & K8s** | Kubernetes, Docker Hub, Harbor, Quay.io |
+| **Config Management** | Ansible, HashiCorp Consul, HashiCorp Nomad, Chef, Puppet |
+| **Secrets Management** | HashiCorp Vault, Doppler, Infisical, 1Password Connect |
+| **Security Tools** | Snyk, CrowdStrike Falcon, Tenable/Nessus |
+| **Observability** | Datadog, New Relic, Sentry, Grafana, Splunk, PagerDuty, OpenTelemetry, Dynatrace, Sumo Logic, Honeycomb, Bugsnag, Rollbar, Airbrake, Logz.io, Instana, Zabbix |
+| **Data Platforms** | Snowflake, Databricks, dbt Cloud, Fivetran, Looker |
+| **Project Management** | Notion, Linear, Asana, Trello, ClickUp, Shortcut |
+| **CMS & Content** | Contentful, Sanity, Strapi, Ghost, WordPress |
+| **Feature Flags** | LaunchDarkly, Split, Flagsmith, ConfigCat |
+| **CDN & Edge** | Fastly, Akamai, Kong, Bunny CDN, Cloudinary, Backblaze B2 |
+| **Media & Video** | Mux, Twitch |
+| **Design** | Figma |
+| **Testing & QA** | BrowserStack, Sauce Labs, Cypress Cloud |
+| **Networking** | ngrok, Tailscale, WireGuard |
+| **Workflow Automation** | Zapier, n8n |
+| **Low-Code** | Retool |
+| **Code Quality** | SonarQube, SonarCloud |
+| **Artifact Management** | JFrog Artifactory |
+| **Code Review** | Gerrit |
+| **IAM & PAM** | LDAP, Active Directory, CyberArk/Conjur, FreeIPA, RADIUS |
+| **Kerberos & SSO** | Kerberos Keytab, KDC, SAML |
+| **Remote Access** | RDP, VNC |
+| **NAS** | Synology, QNAP |
+| **Infrastructure** | Docker, NPM, PyPI, NuGet, Heroku, Terraform |
+| **Maps** | Google Maps, Mapbox |
+| **Social** | Twitter/X, Facebook/Meta, LinkedIn, TikTok |
+| **Crypto & Web3** | Alchemy, Infura, Etherscan, Moralis |
+| **Search** | Algolia, Meilisearch, Typesense |
+| **E-commerce** | Shopify, Amazon MWS/SP-API, Etsy |
+| **Generic** | API keys, passwords, connection strings, high-entropy strings |
+
+</details>
+
+---
+
+## How It Works
+
+```
+Input (file / directory / stdin)
+    │
+    ├── Regex Pattern Matching ──────── 276 compiled rules
+    │     Known formats: ghp_*, AKIA*, sk_live_*, squ_*, AKC*, etc.
+    │
+    ├── Shannon Entropy Analysis ────── Catches novel/unknown secrets
+    │     Flags high-randomness strings that look like credentials
+    │
+    ├── Confidence Scoring ──────────── 0–100% per finding
+    │     ├── Base confidence from matched rule
+    │     ├── + Entropy boost (high entropy → likely real)
+    │     ├── + Keyword proximity ("password", "secret", "key")
+    │     ├── − Placeholder penalty (EXAMPLE, TODO, changeme)
+    │     └── − Length/pattern penalties
+    │
+    └── Output ──────────────────────── Zero-trust findings
+          Severity · Confidence · SHA-256 hash · Redacted preview
+```
+
+---
+
+## Architecture
+
+CredVigil is designed as a modular, component-based system. Each component is developed, tested, and validated independently.
+
+| # | Component | Status | Description |
+|---|-----------|:------:|-------------|
+| 1 | **Core Detection Engine** | ✅ | Regex + entropy scanning, confidence scoring, false-positive reduction |
+| 2 | Secure Hashing & Metadata Pipeline | 🔜 | Zero-trust pipeline — hash, redact, and enrich findings before storage |
+| 3 | Git Integration Layer | — | Scan git history, blame, branches, and PR diffs |
+| 4 | File System Watcher | — | Real-time monitoring via fsnotify |
+| 5 | Event Bus | — | Internal pub/sub for decoupled component communication |
+| 6 | API Server | — | REST/gRPC API for integrations |
+| 7 | Storage Layer | — | Persistent storage for findings, trends, and audit trail |
+| 8 | Web Dashboard | — | Visual overview of credential risk across repositories |
+| 9 | Notification Engine | — | Slack, email, and webhook alerts on new findings |
+| 10 | Policy Engine | — | Define and enforce credential security policies |
+| 11 | CI/CD Integration | — | GitHub Actions, pre-commit hooks, pipeline gates |
+| 12 | Compliance Reporter | — | SOC 2, ISO 27001, PCI-DSS compliance reports |
+| 13 | Secret Rotation Tracker | — | Track whether leaked secrets have been rotated |
+| 14 | ML Anomaly Detection | — | Catch novel secret patterns no regex would find |
+| 15 | Plugin System | — | Extensible architecture for custom rules and integrations |
+
+---
+
+## Project Structure
+
+```
+credvigil/
+├── cmd/credvigil/          # CLI entry point (scan, rules, version)
+│   └── main.go
+├── pkg/
+│   ├── models/             # Core types: Finding, Source, ScanRequest, Severity
+│   │   └── finding.go
+│   ├── entropy/            # Shannon entropy calculation
+│   │   ├── entropy.go
+│   │   └── entropy_test.go
+│   ├── rules/              # 276 compiled regex detection rules
+│   │   ├── rules.go
+│   │   └── rules_test.go
+│   └── detector/           # Detection engine + concurrent file scanner
+│       ├── engine.go
+│       ├── engine_test.go
+│       └── scanner.go
+├── internal/
+│   └── config/             # Application configuration
+│       └── config.go
+├── testdata/
+│   └── fake_secrets.env    # Test fixtures with synthetic credentials
+├── docs/
+│   └── training/           # Training guides
+├── go.mod
+├── LICENSE                 # Apache License 2.0
+├── SECURITY.md             # Security policy & responsible disclosure
+└── README.md
+```
+
+---
+
+## Testing
+
+```bash
+# Run all tests
+go test ./...
+
+# Verbose output
+go test ./... -v
+
+# With race detector
+go test ./... -race
+
+# Individual packages
+go test ./pkg/rules -v        # Rule loading + pattern matching
+go test ./pkg/entropy -v      # Entropy calculation
+go test ./pkg/detector -v     # Engine + scanner integration
+```
+
+An interactive test suite is also available:
+
+```bash
+bash run_all_tests.sh
+```
+
+This runs 14 end-to-end tests covering version checks, full scans, severity/confidence filtering, JSON output, stdin piping, enterprise rule detection (SonarQube, Kerberos, LDAP, Artifactory), clean-input validation, and the full Go test suite.
+
+---
+
+## Documentation
+
+| Resource | Description |
+|----------|-------------|
+| [Module 1: Core Detection Engine](docs/training/01-core-detection-engine.md) | Concepts, CLI usage, hands-on exercises, and full code walkthrough |
+| [SECURITY.md](SECURITY.md) | Security policy, responsible disclosure, zero-trust design, and liability |
+| [LICENSE](LICENSE) | Apache License 2.0 |
+
+Additional training modules will accompany each new component as it is released.
 
 ---
 
 ## Contributing
 
-This project is under active development. Components are being built and validated one at a time.
+CredVigil is under active development. Components are built and validated incrementally — see the [Architecture](#architecture) table for current progress.
+
+---
 
 ## License
 
-Apache License 2.0 — see [LICENSE](LICENSE) for details.
+Licensed under the [Apache License 2.0](LICENSE).
+
+Copyright 2026 CredVigil Contributors.

@@ -238,6 +238,172 @@ const (
 	SecretPushoverToken SecretType = "pushover-token"
 	SecretOneSignalKey  SecretType = "onesignal-key"
 
+	// Code Quality / DevOps Platforms
+	SecretSonarQubeToken     SecretType = "sonarqube-token"
+	SecretSonarQubeWebhook   SecretType = "sonarqube-webhook-secret"
+	SecretArtifactoryToken   SecretType = "artifactory-token"
+	SecretArtifactoryEncPass SecretType = "artifactory-encrypted-password"
+	SecretGerritHTTPPass     SecretType = "gerrit-http-password"
+
+	// Identity & Access Management (IAM/PAM)
+	SecretLDAPBindPassword    SecretType = "ldap-bind-password"
+	SecretActiveDirectoryPass SecretType = "active-directory-password"
+	SecretKerberosKeytab      SecretType = "kerberos-keytab"
+	SecretKerberosPassword    SecretType = "kerberos-password"
+	SecretCyberArkToken       SecretType = "cyberark-token"
+	SecretRADIUSSecret        SecretType = "radius-shared-secret"
+	SecretSAMLKey             SecretType = "saml-private-key"
+	SecretFreeIPAPassword     SecretType = "freeipa-password"
+
+	// Remote Access / NAS
+	SecretRDPPassword   SecretType = "rdp-password"
+	SecretVNCPassword   SecretType = "vnc-password"
+	SecretSynologyToken SecretType = "synology-api-token"
+	SecretQNAPToken     SecretType = "qnap-api-token"
+	SecretNASCredential SecretType = "nas-credential"
+
+	// Cloud Providers (Additional)
+	SecretOracleCloudKey  SecretType = "oracle-cloud-key"
+	SecretIBMCloudKey     SecretType = "ibm-cloud-api-key"
+	SecretAlibabaCloudKey SecretType = "alibaba-cloud-access-key"
+	SecretHetznerToken    SecretType = "hetzner-api-token"
+
+	// Container & Orchestration
+	SecretKubernetesToken  SecretType = "kubernetes-service-token"
+	SecretDockerHubPAT     SecretType = "docker-hub-pat"
+	SecretHarborCredential SecretType = "harbor-credential"
+	SecretQuayRobotToken   SecretType = "quay-robot-token"
+
+	// CI/CD (Expanded)
+	SecretAzureDevOpsPAT SecretType = "azure-devops-pat"
+	SecretTeamCityToken  SecretType = "teamcity-token"
+	SecretBambooToken    SecretType = "bamboo-token"
+	SecretHarnessKey     SecretType = "harness-api-key"
+	SecretArgoCDToken    SecretType = "argocd-auth-token"
+
+	// Monitoring & Observability (Expanded)
+	SecretDynatraceToken SecretType = "dynatrace-api-token"
+	SecretSumoLogicKey   SecretType = "sumologic-access-key"
+	SecretHoneycombKey   SecretType = "honeycomb-api-key"
+	SecretBugsnagKey     SecretType = "bugsnag-api-key"
+	SecretRollbarToken   SecretType = "rollbar-access-token"
+	SecretAirbrakeKey    SecretType = "airbrake-api-key"
+	SecretLogzioToken    SecretType = "logzio-token"
+	SecretInstanaToken   SecretType = "instana-api-token"
+	SecretZabbixToken    SecretType = "zabbix-api-token"
+
+	// Config Management & Infrastructure
+	SecretAnsibleVaultPass SecretType = "ansible-vault-password"
+	SecretConsulToken      SecretType = "consul-acl-token"
+	SecretNomadToken       SecretType = "nomad-token"
+	SecretChefKey          SecretType = "chef-client-key"
+	SecretPuppetToken      SecretType = "puppet-access-token"
+
+	// Security Tools
+	SecretSnykToken        SecretType = "snyk-api-token"
+	SecretOnePasswordToken SecretType = "1password-connect-token"
+	SecretCrowdStrikeKey   SecretType = "crowdstrike-api-key"
+	SecretTenableKey       SecretType = "tenable-api-key"
+
+	// API Gateway & CDN
+	SecretFastlyToken SecretType = "fastly-api-token"
+	SecretAkamaiToken SecretType = "akamai-client-token"
+	SecretKongToken   SecretType = "kong-admin-token"
+	SecretBunnyCDNKey SecretType = "bunnycdn-api-key"
+
+	// Data Platforms
+	SecretSnowflakePass   SecretType = "snowflake-credential"
+	SecretDatabricksToken SecretType = "databricks-token"
+	SecretDBTCloudToken   SecretType = "dbt-cloud-token"
+	SecretFivetranKey     SecretType = "fivetran-api-key"
+	SecretLookerSecret    SecretType = "looker-client-secret"
+
+	// Databases (Additional)
+	SecretInfluxDBToken  SecretType = "influxdb-token"
+	SecretClickHousePass SecretType = "clickhouse-credential"
+	SecretNeo4jPass      SecretType = "neo4j-credential"
+	SecretAirtableKey    SecretType = "airtable-api-key"
+	SecretFaunaSecret    SecretType = "fauna-secret"
+	SecretOracleDBURI    SecretType = "oracle-db-uri"
+	SecretMSSQLString    SecretType = "mssql-connection-string"
+
+	// Project Management
+	SecretNotionToken   SecretType = "notion-integration-token"
+	SecretLinearKey     SecretType = "linear-api-key"
+	SecretAsanaPAT      SecretType = "asana-pat"
+	SecretTrelloKey     SecretType = "trello-api-key"
+	SecretClickUpKey    SecretType = "clickup-api-key"
+	SecretShortcutToken SecretType = "shortcut-api-token"
+
+	// CMS & Content
+	SecretContentfulKey SecretType = "contentful-api-key"
+	SecretSanityToken   SecretType = "sanity-api-token"
+	SecretStrapiToken   SecretType = "strapi-api-token"
+	SecretGhostKey      SecretType = "ghost-admin-key"
+	SecretWordPressPass SecretType = "wordpress-app-password"
+
+	// Feature Flags
+	SecretLaunchDarklyKey SecretType = "launchdarkly-sdk-key"
+	SecretSplitKey        SecretType = "split-api-key"
+	SecretFlagsmithKey    SecretType = "flagsmith-api-key"
+	SecretConfigCatKey    SecretType = "configcat-sdk-key"
+
+	// Auth/Identity (Expanded)
+	SecretKeycloakSecret    SecretType = "keycloak-client-secret"
+	SecretOneLoginSecret    SecretType = "onelogin-client-secret"
+	SecretDuoKey            SecretType = "duo-integration-key"
+	SecretPingIdentityToken SecretType = "ping-identity-token"
+
+	// Secrets Management
+	SecretDopplerToken   SecretType = "doppler-token"
+	SecretInfisicalToken SecretType = "infisical-token"
+
+	// Networking
+	SecretNgrokToken   SecretType = "ngrok-auth-token"
+	SecretTailscaleKey SecretType = "tailscale-api-key"
+	SecretWireGuardKey SecretType = "wireguard-private-key"
+
+	// Testing & QA
+	SecretBrowserStackKey SecretType = "browserstack-access-key"
+	SecretSauceLabsKey    SecretType = "saucelabs-access-key"
+	SecretCypressKey      SecretType = "cypress-record-key"
+
+	// Design
+	SecretFigmaPAT SecretType = "figma-pat"
+
+	// Communication (Expanded)
+	SecretZoomSecret SecretType = "zoom-client-secret"
+	SecretWebexToken SecretType = "webex-bot-token"
+
+	// Payments (Expanded)
+	SecretBraintreeToken SecretType = "braintree-access-token"
+	SecretPaddleKey      SecretType = "paddle-api-key"
+	SecretKlarnaKey      SecretType = "klarna-api-key"
+
+	// Media & Video
+	SecretMuxSecret    SecretType = "mux-token-secret"
+	SecretTwitchSecret SecretType = "twitch-client-secret"
+
+	// SMS/Voice (Expanded)
+	SecretPlivoToken     SecretType = "plivo-auth-token"
+	SecretBandwidthToken SecretType = "bandwidth-api-token"
+	SecretTelnyxKey      SecretType = "telnyx-api-key"
+
+	// Email (Expanded)
+	SecretSparkPostKey  SecretType = "sparkpost-api-key"
+	SecretCustomerIOKey SecretType = "customerio-api-key"
+	SecretMandrillKey   SecretType = "mandrill-api-key"
+
+	// Version Control (Additional)
+	SecretGiteaToken SecretType = "gitea-token"
+
+	// Workflow Automation
+	SecretZapierWebhook SecretType = "zapier-webhook"
+	SecretN8NKey        SecretType = "n8n-api-key"
+
+	// Low-Code
+	SecretRetoolKey SecretType = "retool-api-key"
+
 	// Entropy-based / Unknown
 	SecretHighEntropy SecretType = "high-entropy-string"
 	SecretGeneric     SecretType = "generic-secret"
