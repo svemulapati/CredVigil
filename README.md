@@ -235,10 +235,24 @@ go test ./pkg/rules -v
 
 ---
 
+## Training Guides
+
+Detailed training documentation is available in the `docs/training/` directory:
+
+| Module | Topic | Status |
+|--------|-------|--------|
+| [Module 1](docs/training/01-core-detection-engine.md) | Core Detection Engine — concepts, CLI usage, hands-on exercises, code walkthrough | ✅ Available |
+| Module 2 | Secure Hashing & Metadata Pipeline | 🔜 Coming |
+| Module 3–15 | Git Integration, File Watcher, API, Dashboard, and more | ⬜ Planned |
+
+Each training guide is written for all experience levels — no prior security knowledge required.
+
+---
+
 ## Contributing
 
 This project is under active development. Components are being built and validated one at a time.
 
 ## License
 
-TBD
+Apache License 2.0 — see [LICENSE](LICENSE) for details.
