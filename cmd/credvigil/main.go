@@ -213,7 +213,7 @@ func cmdRules() {
 	fmt.Println("  • Maps: Google Maps, Mapbox")
 	fmt.Println("  • Social: Twitter/X, Facebook/Meta, LinkedIn, TikTok")
 	fmt.Println("  • Storage/CDN: Cloudinary, Backblaze B2")
-	fmt.Println("  • Observability: Datadog, New Relic, Sentry, Grafana, Splunk, PagerDuty")
+	fmt.Println("  • Observability: Datadog, New Relic, Sentry, Grafana, Splunk, PagerDuty, OpenTelemetry")
 	fmt.Println("  • Crypto/Web3: Alchemy, Infura, Etherscan, Moralis")
 	fmt.Println("  • Search: Meilisearch, Typesense, Elasticsearch, Algolia")
 	fmt.Println("  • SaaS: Firebase, Shopify")

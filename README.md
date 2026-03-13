@@ -91,7 +91,7 @@ CredVigil detects credentials across the entire modern stack:
 | **Maps** | Google Maps, Mapbox |
 | **Social** | Twitter/X, Facebook/Meta, LinkedIn |
 | **Storage/CDN** | Cloudinary, Backblaze B2 |
-| **Observability** | Datadog, New Relic, Sentry, Grafana, Splunk, PagerDuty, Elasticsearch |
+| **Observability** | Datadog, New Relic, Sentry, Grafana, Splunk, PagerDuty, Elasticsearch, OpenTelemetry |
 | **Crypto/Web3** | Alchemy, Infura, Etherscan, Moralis |
 | **Search** | Algolia, Meilisearch, Typesense |
 | **Infrastructure** | Docker, NPM, PyPI, NuGet, Heroku, Vault, Terraform |

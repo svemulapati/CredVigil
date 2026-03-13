@@ -1446,6 +1446,26 @@ func (rs *RuleSet) loadBuiltinRules() {
 		Keywords:       []string{"loggly"},
 		BaseConfidence: 0.85,
 	})
+	rs.addRule(Rule{
+		ID:             "otel-exporter-otlp-headers",
+		Description:    "OpenTelemetry OTLP Exporter Auth Header",
+		SecretType:     models.SecretOTelToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:otel[_\-]?exporter[_\-]?otlp[_\-]?headers)\s*[=:]\s*['"]?(?:.*(?:api[_\-]?key|authorization|token)\s*=\s*)([A-Za-z0-9_\-]{20,})['"]?`),
+		Keywords:       []string{"otel", "otlp", "opentelemetry", "exporter"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.5,
+	})
+	rs.addRule(Rule{
+		ID:             "otel-exporter-otlp-token",
+		Description:    "OpenTelemetry OTLP Exporter Token",
+		SecretType:     models.SecretOTelToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:otel[_\-]?(?:access)?[_\-]?token|opentelemetry[_\-]?token)\s*[=:]\s*['"]?([A-Za-z0-9_\-]{20,})['"]?`),
+		Keywords:       []string{"otel", "opentelemetry", "tracing"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.5,
+	})
 
 	// ═══════════════════════════════════════════════════════════════
 	// EMAIL (expanded)

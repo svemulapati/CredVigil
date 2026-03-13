@@ -186,6 +186,7 @@ const (
 	SecretPagerDutyKey SecretType = "pagerduty-key"
 	SecretLogglyToken  SecretType = "loggly-token"
 	SecretElasticKey   SecretType = "elasticsearch-key"
+	SecretOTelToken    SecretType = "opentelemetry-token"
 
 	// Email (expanded)
 	SecretPostmarkKey  SecretType = "postmark-server-token"
