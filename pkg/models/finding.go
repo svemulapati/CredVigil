@@ -58,11 +58,14 @@ const (
 	SecretBitbucketToken    SecretType = "bitbucket-token"
 
 	// Collaboration
-	SecretSlackToken      SecretType = "slack-token"
-	SecretSlackWebhook    SecretType = "slack-webhook"
-	SecretJiraToken       SecretType = "jira-api-token"
-	SecretConfluenceToken SecretType = "confluence-token"
-	SecretTeamsWebhook    SecretType = "teams-webhook"
+	SecretSlackToken         SecretType = "slack-token"
+	SecretSlackWebhook       SecretType = "slack-webhook"
+	SecretJiraToken          SecretType = "jira-api-token"
+	SecretConfluenceToken    SecretType = "confluence-token"
+	SecretAtlassianOAuth     SecretType = "atlassian-oauth-secret"
+	SecretTeamsWebhook       SecretType = "teams-webhook"
+	SecretStackOverflowKey   SecretType = "stackoverflow-key"
+	SecretStackEnterpriseKey SecretType = "stack-enterprise-key"
 
 	// Private Keys & Certificates
 	SecretPrivateKeyRSA     SecretType = "private-key-rsa"

@@ -196,7 +196,7 @@ func cmdRules() {
 	fmt.Println("  • Cloud: AWS, GCP, Azure, DigitalOcean, Cloudflare, Vercel, Netlify")
 	fmt.Println("  • Cloud (Modern): Supabase, Railway, Render, Fly.io, Linode")
 	fmt.Println("  • SCM: GitHub, GitLab, Bitbucket")
-	fmt.Println("  • Collaboration: Slack, Jira, Confluence, Teams, SharePoint")
+	fmt.Println("  • Collaboration: Slack, Jira, Confluence, Atlassian, Teams, Stack Overflow/Enterprise")
 	fmt.Println("  • Private Keys: RSA, EC, PKCS8, OpenSSH, PGP")
 	fmt.Println("  • Databases: PostgreSQL, MySQL, MongoDB, Redis")
 	fmt.Println("  • Databases (Modern): Supabase, PlanetScale, Neon, Turso, Upstash, CockroachDB")

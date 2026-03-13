@@ -320,7 +320,7 @@ func (rs *RuleSet) loadBuiltinRules() {
 	})
 
 	// ═══════════════════════════════════════
-	// Jira / Confluence (Atlassian)
+	// Jira / Confluence / Atlassian
 	// ═══════════════════════════════════════
 	rs.addRule(Rule{
 		ID:             "atlassian-api-token",
@@ -329,6 +329,60 @@ func (rs *RuleSet) loadBuiltinRules() {
 		Severity:       models.SeverityHigh,
 		Pattern:        regexp.MustCompile(`(?i)(?:jira|atlassian|confluence)[_\-\s]*(?:api[_\-\s]*)?(?:token|key)\s*[=:]\s*['"]?([A-Za-z0-9]{24,})['"]?`),
 		Keywords:       []string{"jira", "atlassian", "confluence", "api", "token"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.5,
+	})
+	rs.addRule(Rule{
+		ID:             "atlassian-oauth-secret",
+		Description:    "Atlassian OAuth 2.0 Client Secret",
+		SecretType:     models.SecretAtlassianOAuth,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`(?i)(?:atlassian|jira|confluence)[_\-\s]*(?:oauth|client)[_\-\s]*secret\s*[=:]\s*['"]?([A-Za-z0-9_-]{24,})['"]?`),
+		Keywords:       []string{"atlassian", "oauth", "client_secret"},
+		BaseConfidence: 0.85,
+		MinEntropy:     4.0,
+	})
+	rs.addRule(Rule{
+		ID:             "confluence-api-token",
+		Description:    "Confluence Space or API Token",
+		SecretType:     models.SecretConfluenceToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)confluence[_\-\s]*(?:space[_\-\s]*)?(?:token|secret|key)\s*[=:]\s*['"]?([A-Za-z0-9]{24,})['"]?`),
+		Keywords:       []string{"confluence", "space", "wiki"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.5,
+	})
+	rs.addRule(Rule{
+		ID:             "atlassian-webhook-secret",
+		Description:    "Atlassian Webhook Secret",
+		SecretType:     models.SecretJiraToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:atlassian|jira|confluence)[_\-\s]*webhook[_\-\s]*secret\s*[=:]\s*['"]?([A-Za-z0-9_-]{20,})['"]?`),
+		Keywords:       []string{"atlassian", "webhook", "secret"},
+		BaseConfidence: 0.85,
+		MinEntropy:     3.5,
+	})
+
+	// ═══════════════════════════════════════
+	// Stack Overflow / Stack Enterprise
+	// ═══════════════════════════════════════
+	rs.addRule(Rule{
+		ID:             "stackoverflow-pat",
+		Description:    "Stack Overflow for Teams PAT",
+		SecretType:     models.SecretStackOverflowKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:stackoverflow|stack_overflow|stack[_\-]?exchange)[_\-\s]*(?:api[_\-\s]*)?(?:key|token|pat)\s*[=:]\s*['"]?([A-Za-z0-9()]{20,})['"]?`),
+		Keywords:       []string{"stackoverflow", "stack_overflow", "stackexchange"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.5,
+	})
+	rs.addRule(Rule{
+		ID:             "stack-enterprise-token",
+		Description:    "Stack Overflow Enterprise API Token",
+		SecretType:     models.SecretStackEnterpriseKey,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`(?i)(?:stack[_\-]?enterprise|soe)[_\-\s]*(?:api[_\-\s]*)?(?:key|token|secret)\s*[=:]\s*['"]?([A-Za-z0-9_-]{24,})['"]?`),
+		Keywords:       []string{"stack", "enterprise", "soe"},
 		BaseConfidence: 0.80,
 		MinEntropy:     3.5,
 	})

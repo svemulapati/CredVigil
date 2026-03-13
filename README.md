@@ -14,7 +14,7 @@ Every year, millions of API keys, passwords, and tokens are accidentally committ
 - **Zero-trust architecture** — raw secrets are never stored or transmitted; only SHA-256 hashes and redacted previews leave the scanner
 - **False-positive intelligence** — detects placeholders, test fixtures, and documentation patterns and penalizes their scores
 - **Dual detection** — regex patterns catch known formats; Shannon entropy catches novel secrets no rule covers
-- **154 detection rules** covering the full modern stack (AI/ML, cloud, payment, databases, CI/CD, and more)
+- **161 detection rules** covering the full modern stack (AI/ML, cloud, payment, databases, CI/CD, and more)
 - **Continuous monitoring** (planned) — not just one-shot scans, but real-time watching across repos and infrastructure
 
 ---
@@ -70,7 +70,7 @@ echo 'AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY' | ./credvi
 
 ---
 
-## What It Detects (154 Rules)
+## What It Detects (161 Rules)
 
 CredVigil detects credentials across the entire modern stack:
 
@@ -78,7 +78,7 @@ CredVigil detects credentials across the entire modern stack:
 |----------|----------|
 | **Cloud** | AWS, GCP, Azure, DigitalOcean, Cloudflare, Vercel, Netlify, Supabase, Railway, Render, Fly.io, Linode |
 | **Source Control** | GitHub, GitLab, Bitbucket |
-| **Collaboration** | Slack, Jira, Confluence, Microsoft Teams |
+| **Collaboration** | Slack, Jira, Confluence, Atlassian OAuth, Microsoft Teams, Stack Overflow, Stack Enterprise |
 | **Private Keys** | RSA, EC, PKCS8, OpenSSH, PGP |
 | **Databases** | PostgreSQL, MySQL, MongoDB, Redis, PlanetScale, Neon, Turso, Upstash, CockroachDB |
 | **Auth/Identity** | JWT, Bearer, Basic Auth, OAuth, Auth0, Okta, Clerk |
@@ -135,7 +135,7 @@ The foundation of CredVigil — a dual-strategy secret detection engine.
 ```
 Input (file/stdin/stream)
     │
-    ├── Regex Pattern Matching (154 rules)
+    ├── Regex Pattern Matching (161 rules)
     │     └── Known formats: ghp_*, AKIA*, sk_live_*, etc.
     │
     ├── Shannon Entropy Analysis
@@ -170,7 +170,7 @@ credvigil/
 │   ├── entropy/           # Shannon entropy analysis
 │   │   ├── entropy.go
 │   │   └── entropy_test.go
-│   ├── rules/             # 154 compiled regex detection rules
+│   ├── rules/             # 161 compiled regex detection rules
 │   │   ├── rules.go
 │   │   └── rules_test.go
 │   └── detector/          # Detection engine + file scanner
@@ -227,7 +227,7 @@ go test ./pkg/rules -v
   SHA-256:    7f75367e...4a830606
 
 ─────────────────────────────────────────────────────────────────
-  Scan completed in 3ms using 154 rules
+  Scan completed in 3ms using 161 rules
   Total findings: 37
   By severity: CRITICAL=10, HIGH=10, MEDIUM=13, LOW=4
 ─────────────────────────────────────────────────────────────────
