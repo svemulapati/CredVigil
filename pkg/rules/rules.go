@@ -3084,4 +3084,383 @@ func (rs *RuleSet) loadBuiltinRules() {
 		Keywords:       []string{"retool"},
 		BaseConfidence: 0.90,
 	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// AI/ML INFERENCE PROVIDERS (NEXT GENERATION)
+	// ═══════════════════════════════════════════════════════════════
+	rs.addRule(Rule{
+		ID:             "together-ai-api-key",
+		Description:    "Together AI API Key",
+		SecretType:     models.SecretTogetherAIKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:together[_-]?(?:ai[_-]?)?(?:api[_-]?)?(?:key|token|secret))\s*[=:]\s*['"]?([a-f0-9]{64})['"]?`),
+		Keywords:       []string{"together", "together_ai", "togetherai"},
+		BaseConfidence: 0.85,
+		Verifiable:     true,
+		MinEntropy:     4.0,
+	})
+	rs.addRule(Rule{
+		ID:             "fireworks-ai-api-key",
+		Description:    "Fireworks AI API Key",
+		SecretType:     models.SecretFireworksAIKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:fireworks[_-]?(?:ai[_-]?)?(?:api[_-]?)?(?:key|token))\s*[=:]\s*['"]?([A-Za-z0-9_-]{30,})['"]?`),
+		Keywords:       []string{"fireworks", "fireworks_ai"},
+		BaseConfidence: 0.80,
+		Verifiable:     true,
+		MinEntropy:     3.5,
+	})
+	rs.addRule(Rule{
+		ID:             "cerebras-api-key",
+		Description:    "Cerebras API Key",
+		SecretType:     models.SecretCerebrasKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:cerebras[_-]?(?:api[_-]?)?(?:key|token|secret))\s*[=:]\s*['"]?([A-Za-z0-9_-]{30,})['"]?`),
+		Keywords:       []string{"cerebras"},
+		BaseConfidence: 0.80,
+		Verifiable:     true,
+		MinEntropy:     3.5,
+	})
+	rs.addRule(Rule{
+		ID:             "sambanova-api-key",
+		Description:    "SambaNova API Key",
+		SecretType:     models.SecretSambaNovaKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:sambanova[_-]?(?:api[_-]?)?(?:key|token|secret))\s*[=:]\s*['"]?([A-Za-z0-9_-]{30,})['"]?`),
+		Keywords:       []string{"sambanova"},
+		BaseConfidence: 0.80,
+		Verifiable:     true,
+		MinEntropy:     3.5,
+	})
+	rs.addRule(Rule{
+		ID:             "modal-api-key",
+		Description:    "Modal Token / API Key",
+		SecretType:     models.SecretModalKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:modal[_-]?(?:token[_-]?)?(?:id|secret|key))\s*[=:]\s*['"]?(ak-[A-Za-z0-9_-]{20,})['"]?`),
+		Keywords:       []string{"modal", "ak-"},
+		BaseConfidence: 0.85,
+		Verifiable:     true,
+		MinEntropy:     3.5,
+	})
+	rs.addRule(Rule{
+		ID:             "baseten-api-key",
+		Description:    "Baseten API Key",
+		SecretType:     models.SecretBasetenKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:baseten[_-]?(?:api[_-]?)?(?:key|token|secret))\s*[=:]\s*['"]?([A-Za-z0-9_-]{30,})['"]?`),
+		Keywords:       []string{"baseten"},
+		BaseConfidence: 0.80,
+		Verifiable:     true,
+		MinEntropy:     3.5,
+	})
+	rs.addRule(Rule{
+		ID:             "runpod-api-key",
+		Description:    "RunPod API Key",
+		SecretType:     models.SecretRunPodKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:runpod[_-]?(?:api[_-]?)?(?:key|token|secret))\s*[=:]\s*['"]?([A-Za-z0-9]{30,})['"]?`),
+		Keywords:       []string{"runpod"},
+		BaseConfidence: 0.80,
+		Verifiable:     true,
+		MinEntropy:     3.5,
+	})
+	rs.addRule(Rule{
+		ID:             "lambda-labs-api-key",
+		Description:    "Lambda Labs API Key",
+		SecretType:     models.SecretLambdaLabsKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:lambda[_-]?(?:labs?[_-]?)?(?:api[_-]?)?(?:key|token|secret))\s*[=:]\s*['"]?([A-Za-z0-9_-]{30,})['"]?`),
+		Keywords:       []string{"lambda", "lambda_labs"},
+		BaseConfidence: 0.75,
+		Verifiable:     true,
+		MinEntropy:     3.5,
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// AI/ML TOOLING & ORCHESTRATION
+	// ═══════════════════════════════════════════════════════════════
+	rs.addRule(Rule{
+		ID:             "wandb-api-key",
+		Description:    "Weights & Biases (W&B) API Key",
+		SecretType:     models.SecretWandBKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:wandb[_-]?(?:api[_-]?)?(?:key|token))\s*[=:]\s*['"]?([a-f0-9]{40})['"]?`),
+		Keywords:       []string{"wandb", "weights_biases"},
+		BaseConfidence: 0.90,
+		Verifiable:     true,
+		MinEntropy:     4.0,
+	})
+	rs.addRule(Rule{
+		ID:             "langsmith-api-key",
+		Description:    "LangSmith / LangChain API Key",
+		SecretType:     models.SecretLangSmithKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`lsv2_(?:pt|sk)_[A-Za-z0-9]{32,}`),
+		Keywords:       []string{"langsmith", "langchain", "lsv2_"},
+		BaseConfidence: 0.95,
+		Verifiable:     true,
+	})
+	rs.addRule(Rule{
+		ID:             "comet-ml-api-key",
+		Description:    "Comet ML API Key",
+		SecretType:     models.SecretCometMLKey,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:comet[_-]?(?:ml[_-]?)?(?:api[_-]?)?(?:key|token))\s*[=:]\s*['"]?([A-Za-z0-9]{20,})['"]?`),
+		Keywords:       []string{"comet", "comet_ml"},
+		BaseConfidence: 0.80,
+		Verifiable:     true,
+		MinEntropy:     3.0,
+	})
+	rs.addRule(Rule{
+		ID:             "neptune-api-key",
+		Description:    "Neptune.ai API Token",
+		SecretType:     models.SecretNeptuneKey,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:neptune[_-]?(?:api[_-]?)?(?:key|token))\s*[=:]\s*['"]?([A-Za-z0-9_-]{30,})['"]?`),
+		Keywords:       []string{"neptune", "neptune_ai"},
+		BaseConfidence: 0.80,
+		Verifiable:     true,
+		MinEntropy:     3.0,
+	})
+	rs.addRule(Rule{
+		ID:             "voyage-ai-api-key",
+		Description:    "Voyage AI API Key",
+		SecretType:     models.SecretVoyageAIKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:voyage[_-]?(?:ai[_-]?)?(?:api[_-]?)?(?:key|token))\s*[=:]\s*['"]?(pa-[A-Za-z0-9_-]{30,})['"]?`),
+		Keywords:       []string{"voyage", "voyageai", "pa-"},
+		BaseConfidence: 0.85,
+		Verifiable:     true,
+		MinEntropy:     3.5,
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// VECTOR DATABASES
+	// ═══════════════════════════════════════════════════════════════
+	rs.addRule(Rule{
+		ID:             "pinecone-api-key",
+		Description:    "Pinecone Vector DB API Key",
+		SecretType:     models.SecretPineconeKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:pinecone[_-]?(?:api[_-]?)?(?:key|token))\s*[=:]\s*['"]?([a-f0-9-]{36}|pcsk_[A-Za-z0-9]{40,})['"]?`),
+		Keywords:       []string{"pinecone", "pcsk_"},
+		BaseConfidence: 0.85,
+		Verifiable:     true,
+		MinEntropy:     3.5,
+	})
+	rs.addRule(Rule{
+		ID:             "weaviate-api-key",
+		Description:    "Weaviate Vector DB API Key",
+		SecretType:     models.SecretWeaviateKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:weaviate[_-]?(?:api[_-]?)?(?:key|token))\s*[=:]\s*['"]?([A-Za-z0-9_-]{30,})['"]?`),
+		Keywords:       []string{"weaviate"},
+		BaseConfidence: 0.80,
+		Verifiable:     true,
+		MinEntropy:     3.5,
+	})
+	rs.addRule(Rule{
+		ID:             "qdrant-api-key",
+		Description:    "Qdrant Vector DB API Key",
+		SecretType:     models.SecretQdrantKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:qdrant[_-]?(?:api[_-]?)?(?:key|token))\s*[=:]\s*['"]?([A-Za-z0-9_-]{30,})['"]?`),
+		Keywords:       []string{"qdrant"},
+		BaseConfidence: 0.80,
+		Verifiable:     true,
+		MinEntropy:     3.5,
+	})
+	rs.addRule(Rule{
+		ID:             "chroma-api-key",
+		Description:    "Chroma DB API Key / Token",
+		SecretType:     models.SecretChromaKey,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:chroma[_-]?(?:db[_-]?)?(?:api[_-]?)?(?:key|token|secret))\s*[=:]\s*['"]?([A-Za-z0-9_-]{20,})['"]?`),
+		Keywords:       []string{"chroma", "chromadb"},
+		BaseConfidence: 0.75,
+		Verifiable:     true,
+		MinEntropy:     3.0,
+	})
+	rs.addRule(Rule{
+		ID:             "zilliz-api-key",
+		Description:    "Zilliz (Milvus Cloud) API Key",
+		SecretType:     models.SecretZillizKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:zilliz[_-]?(?:cloud[_-]?)?(?:api[_-]?)?(?:key|token))\s*[=:]\s*['"]?([A-Za-z0-9_-]{30,})['"]?`),
+		Keywords:       []string{"zilliz", "milvus"},
+		BaseConfidence: 0.80,
+		Verifiable:     true,
+		MinEntropy:     3.5,
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// MODERN DEVELOPER INFRASTRUCTURE
+	// ═══════════════════════════════════════════════════════════════
+	rs.addRule(Rule{
+		ID:             "convex-deploy-key",
+		Description:    "Convex Deploy Key",
+		SecretType:     models.SecretConvexKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:convex[_-]?(?:deploy[_-]?)?(?:key|token))\s*[=:]\s*['"]?(?:prod|dev):[A-Za-z0-9|_-]{20,}['"]?`),
+		Keywords:       []string{"convex", "deploy"},
+		BaseConfidence: 0.85,
+		Verifiable:     true,
+		MinEntropy:     3.0,
+	})
+	rs.addRule(Rule{
+		ID:             "xata-api-key",
+		Description:    "Xata Database API Key",
+		SecretType:     models.SecretXataKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`xau_[A-Za-z0-9_-]{20,}`),
+		Keywords:       []string{"xata", "xau_"},
+		BaseConfidence: 0.92,
+		Verifiable:     true,
+		MinEntropy:     3.5,
+	})
+	rs.addRule(Rule{
+		ID:             "deno-deploy-token",
+		Description:    "Deno Deploy Access Token",
+		SecretType:     models.SecretDenoDeployToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:deno[_-]?(?:deploy[_-]?)?(?:token|key|secret))\s*[=:]\s*['"]?(ddp_[A-Za-z0-9]{30,})['"]?`),
+		Keywords:       []string{"deno", "deploy", "ddp_"},
+		BaseConfidence: 0.90,
+		Verifiable:     true,
+	})
+	rs.addRule(Rule{
+		ID:             "trigger-dev-api-key",
+		Description:    "Trigger.dev API Key",
+		SecretType:     models.SecretTriggerDevKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`tr_(?:dev|live|test)_[A-Za-z0-9]{20,}`),
+		Keywords:       []string{"trigger", "tr_dev", "tr_live"},
+		BaseConfidence: 0.92,
+		Verifiable:     true,
+	})
+	rs.addRule(Rule{
+		ID:             "inngest-signing-key",
+		Description:    "Inngest Signing Key",
+		SecretType:     models.SecretInngestKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:inngest[_-]?(?:signing[_-]?)?(?:key|secret))\s*[=:]\s*['"]?(signkey-[A-Za-z0-9_-]{20,})['"]?`),
+		Keywords:       []string{"inngest", "signkey"},
+		BaseConfidence: 0.90,
+		Verifiable:     true,
+	})
+	rs.addRule(Rule{
+		ID:             "temporal-api-key",
+		Description:    "Temporal Cloud API Key",
+		SecretType:     models.SecretTemporalKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:temporal[_-]?(?:cloud[_-]?)?(?:api[_-]?)?(?:key|token|secret))\s*[=:]\s*['"]?([A-Za-z0-9_-]{30,})['"]?`),
+		Keywords:       []string{"temporal", "temporal_cloud"},
+		BaseConfidence: 0.80,
+		Verifiable:     true,
+		MinEntropy:     3.5,
+	})
+	rs.addRule(Rule{
+		ID:             "tinybird-api-token",
+		Description:    "Tinybird API Token",
+		SecretType:     models.SecretTinybirdToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:tinybird[_-]?(?:api[_-]?)?(?:token|key))\s*[=:]\s*['"]?(p\.ey[A-Za-z0-9_-]{50,})['"]?`),
+		Keywords:       []string{"tinybird", "p.ey"},
+		BaseConfidence: 0.90,
+		Verifiable:     true,
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// MODERN AUTH & PAYMENTS
+	// ═══════════════════════════════════════════════════════════════
+	rs.addRule(Rule{
+		ID:             "workos-api-key",
+		Description:    "WorkOS API Key",
+		SecretType:     models.SecretWorkOSKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:workos[_-]?(?:api[_-]?)?(?:key|token|secret))\s*[=:]\s*['"]?(sk_[A-Za-z0-9]{30,})['"]?`),
+		Keywords:       []string{"workos", "sk_"},
+		BaseConfidence: 0.85,
+		Verifiable:     true,
+	})
+	rs.addRule(Rule{
+		ID:             "stytch-secret",
+		Description:    "Stytch Secret Key",
+		SecretType:     models.SecretStytchSecret,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:stytch[_-]?(?:api[_-]?)?(?:key|token|secret))\s*[=:]\s*['"]?(secret-[A-Za-z0-9_-]{20,})['"]?`),
+		Keywords:       []string{"stytch", "secret-"},
+		BaseConfidence: 0.90,
+		Verifiable:     true,
+	})
+	rs.addRule(Rule{
+		ID:             "descope-project-key",
+		Description:    "Descope Project Secret Key",
+		SecretType:     models.SecretDescopeKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:descope[_-]?(?:project[_-]?)?(?:key|id|secret))\s*[=:]\s*['"]?([A-Za-z0-9_-]{20,})['"]?`),
+		Keywords:       []string{"descope"},
+		BaseConfidence: 0.80,
+		Verifiable:     true,
+		MinEntropy:     3.0,
+	})
+	rs.addRule(Rule{
+		ID:             "lemonsqueezy-api-key",
+		Description:    "LemonSqueezy API Key",
+		SecretType:     models.SecretLemonSqueezyKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:lemonsqueezy|lemon[_-]?squeezy)[_-]?(?:api[_-]?)?(?:key|token|secret)\s*[=:]\s*['"]?([A-Za-z0-9_-]{30,})['"]?`),
+		Keywords:       []string{"lemonsqueezy", "lemon_squeezy"},
+		BaseConfidence: 0.85,
+		Verifiable:     true,
+		MinEntropy:     3.5,
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// MODERN COMMUNICATION & OBSERVABILITY
+	// ═══════════════════════════════════════════════════════════════
+	rs.addRule(Rule{
+		ID:             "novu-api-key",
+		Description:    "Novu Notification API Key",
+		SecretType:     models.SecretNovuKey,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:novu[_-]?(?:api[_-]?)?(?:key|token|secret))\s*[=:]\s*['"]?([A-Za-z0-9_-]{30,})['"]?`),
+		Keywords:       []string{"novu"},
+		BaseConfidence: 0.80,
+		Verifiable:     true,
+		MinEntropy:     3.0,
+	})
+	rs.addRule(Rule{
+		ID:             "loops-api-key",
+		Description:    "Loops Transactional Email API Key",
+		SecretType:     models.SecretLoopsKey,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:loops[_-]?(?:api[_-]?)?(?:key|token|secret))\s*[=:]\s*['"]?([A-Za-z0-9_-]{30,})['"]?`),
+		Keywords:       []string{"loops", "loops_api"},
+		BaseConfidence: 0.75,
+		Verifiable:     true,
+		MinEntropy:     3.0,
+	})
+	rs.addRule(Rule{
+		ID:             "axiom-api-token",
+		Description:    "Axiom Observability API Token",
+		SecretType:     models.SecretAxiomToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`xaat-[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}`),
+		Keywords:       []string{"axiom", "xaat-"},
+		BaseConfidence: 0.95,
+		Verifiable:     true,
+	})
+	rs.addRule(Rule{
+		ID:             "highlight-api-key",
+		Description:    "Highlight.io Project API Key",
+		SecretType:     models.SecretHighlightKey,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:highlight[_-]?(?:io[_-]?)?(?:project[_-]?)?(?:(?:api[_-]?)?(?:key|token|secret)|id))\s*[=:]\s*['"]?([A-Za-z0-9_-]{20,})['"]?`),
+		Keywords:       []string{"highlight", "highlight_io"},
+		BaseConfidence: 0.75,
+		Verifiable:     true,
+		MinEntropy:     3.0,
+	})
 }

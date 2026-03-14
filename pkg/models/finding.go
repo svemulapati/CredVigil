@@ -404,6 +404,51 @@ const (
 	// Low-Code
 	SecretRetoolKey SecretType = "retool-api-key"
 
+	// AI/ML Inference Providers (Next Generation)
+	SecretTogetherAIKey  SecretType = "together-ai-api-key"
+	SecretFireworksAIKey SecretType = "fireworks-ai-api-key"
+	SecretCerebrasKey    SecretType = "cerebras-api-key"
+	SecretSambaNovaKey   SecretType = "sambanova-api-key"
+	SecretModalKey       SecretType = "modal-api-key"
+	SecretBasetenKey     SecretType = "baseten-api-key"
+	SecretRunPodKey      SecretType = "runpod-api-key"
+	SecretLambdaLabsKey  SecretType = "lambda-labs-api-key"
+
+	// AI/ML Tooling & Orchestration
+	SecretWandBKey     SecretType = "wandb-api-key"
+	SecretLangSmithKey SecretType = "langsmith-api-key"
+	SecretCometMLKey   SecretType = "comet-ml-api-key"
+	SecretNeptuneKey   SecretType = "neptune-api-key"
+	SecretVoyageAIKey  SecretType = "voyage-ai-api-key"
+
+	// Vector Databases
+	SecretPineconeKey SecretType = "pinecone-api-key"
+	SecretWeaviateKey SecretType = "weaviate-api-key"
+	SecretQdrantKey   SecretType = "qdrant-api-key"
+	SecretChromaKey   SecretType = "chroma-api-key"
+	SecretZillizKey   SecretType = "zilliz-api-key"
+
+	// Modern Developer Infrastructure
+	SecretConvexKey       SecretType = "convex-deploy-key"
+	SecretXataKey         SecretType = "xata-api-key"
+	SecretDenoDeployToken SecretType = "deno-deploy-token"
+	SecretTriggerDevKey   SecretType = "trigger-dev-api-key"
+	SecretInngestKey      SecretType = "inngest-signing-key"
+	SecretTemporalKey     SecretType = "temporal-api-key"
+	SecretTinybirdToken   SecretType = "tinybird-api-token"
+
+	// Modern Auth & Payments
+	SecretWorkOSKey       SecretType = "workos-api-key"
+	SecretStytchSecret    SecretType = "stytch-secret"
+	SecretDescopeKey      SecretType = "descope-project-key"
+	SecretLemonSqueezyKey SecretType = "lemonsqueezy-api-key"
+
+	// Modern Communication & Observability
+	SecretNovuKey      SecretType = "novu-api-key"
+	SecretLoopsKey     SecretType = "loops-api-key"
+	SecretAxiomToken   SecretType = "axiom-api-token"
+	SecretHighlightKey SecretType = "highlight-api-key"
+
 	// Entropy-based / Unknown
 	SecretHighEntropy SecretType = "high-entropy-string"
 	SecretGeneric     SecretType = "generic-secret"

@@ -12,7 +12,7 @@
 
 ## Overview
 
-CredVigil scans codebases, configuration files, and data streams for exposed credentials — API keys, tokens, passwords, private keys, and connection strings. It combines **276 regex detection rules** with **Shannon entropy analysis**, producing findings with confidence scores, severity ratings, and SHA-256 fingerprints.
+CredVigil scans codebases, configuration files, and data streams for exposed credentials — API keys, tokens, passwords, private keys, and connection strings. It combines **309 regex detection rules** with **Shannon entropy analysis**, producing findings with confidence scores, severity ratings, and SHA-256 fingerprints.
 
 ### Key Principles
 
@@ -101,7 +101,7 @@ echo 'AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY' | ./credvi
   SHA-256:    7f75367e...4a830606
 
 ─────────────────────────────────────────────────────────────────
-  Scan completed in 7ms using 276 rules
+  Scan completed in 7ms using 309 rules
   Total findings: 55
   By severity: CRITICAL=17, HIGH=14, MEDIUM=20, LOW=4
 ─────────────────────────────────────────────────────────────────
@@ -111,7 +111,7 @@ echo 'AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY' | ./credvi
 
 ## Detection Coverage
 
-**276 built-in rules** across 50+ categories.
+**309 built-in rules** across 55+ categories.
 
 <details>
 <summary><strong>View full coverage matrix</strong></summary>
@@ -128,6 +128,9 @@ echo 'AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY' | ./credvi
 | **Auth & Identity** | JWT, Bearer, Basic Auth, OAuth, Auth0, Okta, Clerk, Keycloak, OneLogin, Duo Security, Ping Identity |
 | **Payment** | Stripe, Square, PayPal, Razorpay, Plaid, Coinbase, Adyen, Braintree, Paddle, Klarna |
 | **AI & ML** | OpenAI, Anthropic, Gemini, Hugging Face, Cohere, Mistral, Replicate, Groq, DeepSeek, Perplexity, Stability AI |
+| **AI Inference (Next Gen)** | Together AI, Fireworks AI, Cerebras, SambaNova, Modal, Baseten, RunPod, Lambda Labs |
+| **AI/ML Tooling** | Weights & Biases, LangSmith/LangChain, Comet ML, Neptune.ai, Voyage AI |
+| **Vector Databases** | Pinecone, Weaviate, Qdrant, Chroma, Zilliz/Milvus |
 | **Email & Messaging** | SendGrid, Mailgun, Mailchimp, Postmark, Resend, Amazon SES, Telegram, Discord, Vonage, Pushover, OneSignal, SparkPost, Mandrill, Customer.io |
 | **SMS & Voice** | Twilio, Plivo, Bandwidth, Telnyx |
 | **Marketing & CRM** | HubSpot, Mixpanel, Segment, Intercom, Amplitude, PostHog, Zendesk, Freshdesk, Salesforce, Zoho |
@@ -148,6 +151,11 @@ echo 'AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY' | ./credvi
 | **Networking** | ngrok, Tailscale, WireGuard |
 | **Workflow Automation** | Zapier, n8n |
 | **Low-Code** | Retool |
+| **Modern Dev Infra** | Convex, Xata, Deno Deploy, Trigger.dev, Inngest, Temporal, Tinybird |
+| **Modern Auth** | WorkOS, Stytch, Descope |
+| **Modern Payments** | LemonSqueezy |
+| **Modern Observability** | Axiom, Highlight.io |
+| **Modern Email/Comms** | Novu, Loops |
 | **Code Quality** | SonarQube, SonarCloud |
 | **Artifact Management** | JFrog Artifactory |
 | **Code Review** | Gerrit |
@@ -172,7 +180,7 @@ echo 'AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY' | ./credvi
 ```
 Input (file / directory / stdin)
     │
-    ├── Regex Pattern Matching ──────── 276 compiled rules
+    ├── Regex Pattern Matching ──────── 309 compiled rules
     │     Known formats: ghp_*, AKIA*, sk_live_*, squ_*, AKC*, etc.
     │
     ├── Shannon Entropy Analysis ────── Catches novel/unknown secrets
@@ -227,7 +235,7 @@ credvigil/
 │   ├── entropy/            # Shannon entropy calculation
 │   │   ├── entropy.go
 │   │   └── entropy_test.go
-│   ├── rules/              # 276 compiled regex detection rules
+│   ├── rules/              # 309 compiled regex detection rules
 │   │   ├── rules.go
 │   │   └── rules_test.go
 │   ├── detector/           # Detection engine + concurrent file scanner
