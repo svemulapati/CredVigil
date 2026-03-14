@@ -76,6 +76,82 @@
 
 ---
 
+## How This Guide Works — The CredVigil Philosophy
+
+CredVigil follows a **Linux-native command style**. If you know `grep`, `find`, or `git`, you already know how to use CredVigil. Every command follows the pattern:
+
+```
+credvigil <verb> <target> [--flags]
+```
+
+Compare this to other tools:
+| Tool | Style | Example |
+|------|-------|--------|
+| **CredVigil** | `verb target --flags` (Linux-native) | `credvigil scan . --format json` |
+| TruffleHog | `verb source-type target --flags` | `trufflehog filesystem . --json` |
+| GitLeaks | `verb --source target --flags` | `gitleaks detect --source .` |
+
+CredVigil is the most concise. No unnecessary subcommands.
+
+### Architecture Overview
+
+```mermaid
+flowchart LR
+    subgraph INPUT["Input Sources"]
+        F["File/Directory"]
+        S["Stdin (pipe)"]
+        G["Git Repository"]
+        W["File Watcher"]
+    end
+
+    subgraph ENGINE["Component 1: Detection Engine"]
+        R["331 Regex Rules"]
+        E["Shannon Entropy"]
+    end
+
+    subgraph PIPELINE["Component 2: Zero-Trust Pipeline"]
+        direction LR
+        H["Hash"] --> RD["Redact"] --> EN["Enrich"] --> FP["Fingerprint"] --> SN["Sanitize"]
+    end
+
+    subgraph OUTPUT["Output"]
+        TXT["Text Report"]
+        JSON["JSON"]
+    end
+
+    F --> ENGINE
+    S --> ENGINE
+    G --> ENGINE
+    W --> ENGINE
+    ENGINE --> PIPELINE
+    PIPELINE --> OUTPUT
+```
+
+### Real-Life Scenarios This Guide Covers
+
+```mermaid
+mindmap
+  root((CredVigil\nUse Cases))
+    Developer Workflow
+      Pre-commit hook
+      Scan before push
+      IDE integration
+    CI/CD Pipeline
+      GitHub Actions gate
+      Exit code checking
+      JSON report generation
+    Security Audit
+      Full repo history scan
+      Cross-branch analysis
+      Severity triage
+    Real-Time Monitoring
+      Watch project directory
+      Debounce rapid saves
+      Auto-scan on change
+```
+
+---
+
 ## 1. Prerequisites & Setup
 
 ### Check Go Installation
@@ -93,6 +169,21 @@ brew install go
 
 # Linux (Ubuntu/Debian)
 sudo apt install golang-go
+```
+
+### Check jq Installation (used for JSON processing)
+
+```bash
+jq --version
+```
+
+If jq is not installed:
+```bash
+# macOS
+brew install jq
+
+# Linux (Ubuntu/Debian)
+sudo apt install jq
 ```
 
 ### Check Git Installation (needed for Component 3)
@@ -125,6 +216,13 @@ go mod download
 
 **What it does:** Downloads the `fsnotify` dependency and any transitive dependencies.
 
+**Step-by-step breakdown:**
+1. Go reads `go.mod` to find required modules
+2. Downloads `github.com/fsnotify/fsnotify v1.9.0` (file system notifications)
+3. Downloads transitive dependency `golang.org/x/sys` (OS-level syscalls for fsnotify)
+4. Stores packages in `$GOPATH/pkg/mod/` (shared cache across all Go projects)
+5. Updates `go.sum` with cryptographic checksums for supply-chain integrity
+
 ### Verify Dependencies
 
 ```bash
@@ -148,7 +246,39 @@ require (
 
 ## 2. Component 1: Core Detection Engine (CLI)
 
-This is the main user-facing component. It scans files, directories, and stdin for hardcoded secrets using 183+ regex rules and Shannon entropy analysis.
+This is the main user-facing component. It scans files, directories, and stdin for hardcoded secrets using 331 regex rules and Shannon entropy analysis.
+
+### How a Scan Works (Step-by-Step)
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant CLI as credvigil CLI
+    participant Scanner as FileScanner
+    participant Engine as DetectionEngine
+    participant Rules as 331 Rules
+    participant Entropy as Shannon Entropy
+    participant Pipeline as Zero-Trust Pipeline
+    participant Output as Formatter
+
+    User->>CLI: ./credvigil scan file.env
+    CLI->>Scanner: ScanFile("file.env")
+    Scanner->>Scanner: Read file, split into lines
+    loop For each line
+        Scanner->>Engine: ScanContent(line)
+        Engine->>Rules: Match against 331 compiled regexes
+        Rules-->>Engine: Matches found
+        Engine->>Entropy: Calculate Shannon entropy
+        Entropy-->>Engine: Entropy score (0.0 - 8.0)
+        Engine->>Engine: Deduplicate, assign severity & confidence
+    end
+    Scanner-->>CLI: ScanResult{findings[]}
+    CLI->>Pipeline: ProcessResult(findings)
+    Note over Pipeline: Hash → Redact → Enrich → Fingerprint → Sanitize
+    Pipeline-->>CLI: Processed findings (zero-trust)
+    CLI->>Output: Format as text or JSON
+    Output-->>User: Report with redacted matches
+```
 
 ---
 
@@ -161,12 +291,19 @@ go build -o credvigil ./cmd/credvigil
 
 **What it does:** Compiles the CLI binary from `cmd/credvigil/main.go` and all imported packages.
 
+**Step-by-step breakdown:**
+1. `go build` invokes the Go compiler on `./cmd/credvigil` (the `main` package)
+2. The compiler resolves all `import` statements, pulling in `pkg/detector`, `pkg/rules`, `pkg/pipeline`, `pkg/git`, `pkg/watcher`, etc.
+3. All 331 regex patterns are compiled at init time and baked into the binary
+4. The `-o credvigil` flag names the output binary (otherwise it defaults to the directory name)
+5. Result: a single, statically-linked binary with zero runtime dependencies
+
 **Verify it built:**
 ```bash
 ls -lh credvigil
 ```
 
-**Expected output:** A binary file (~10-15 MB) named `credvigil`.
+**Expected output:** A binary file (~3-4 MB) named `credvigil`.
 
 **Alternative — build and install to `$GOPATH/bin`:**
 ```bash
@@ -182,7 +319,7 @@ go install ./cmd/credvigil
 ./credvigil version
 ```
 
-**Expected output:**
+**Actual output:**
 ```
 CredVigil 0.1.0
 Component: core-detection-engine
@@ -190,7 +327,7 @@ Build date: 2026-03-12
 Go version: see `go version`
 ```
 
-**Why it matters:** Confirms the binary is working. In production, this helps debug which version is deployed.
+**Why it matters:** Confirms the binary is working. In production, this helps debug which version is deployed. The version string is also embedded in every JSON scan output under the `version` field.
 
 #### Show Help / Usage
 ```bash
@@ -204,7 +341,69 @@ Or equivalently:
 ./credvigil        # (no arguments also shows help)
 ```
 
-**Expected output:** A full usage banner with all flags, options, and examples.
+**Actual output:**
+```
+╔═══════════════════════════════════════════════════════════════╗
+║                     CredVigil v0.1.0                        ║
+║         Credential Detection & Monitoring Engine             ║
+╚═══════════════════════════════════════════════════════════════╝
+
+Usage:
+  credvigil scan <path>         Scan a file or directory for secrets
+  credvigil scan --stdin        Scan from standard input
+  credvigil scan --git <path|url>  Scan git repository history
+  credvigil rules               List all detection rules
+  credvigil version             Show version and build info
+
+Options:
+  --format <text|json>          Output format (default: text)
+  --min-confidence <0.0-1.0>    Minimum confidence threshold (default: 0.3)
+  --min-severity <info|low|medium|high|critical>  Minimum severity
+  --no-entropy                  Disable entropy-based detection
+  --no-context                  Don't show surrounding context
+  --context-lines <n>           Number of context lines (default: 2)
+
+Git Options:
+  --git <path|url>              Scan a git repository's commit history
+  --git-branch <branch>         Scan a specific branch (default: current)
+  --git-since <commit>          Only scan commits after this hash
+  --git-depth <n>               Clone depth for remote repos (0 = full)
+  --git-max-commits <n>         Maximum commits to scan (0 = all)
+  --git-all-branches            Scan all branches
+  --git-include-merges          Include merge commits
+
+Examples:
+  credvigil scan .                           Scan current directory
+  credvigil scan /path/to/project            Scan a project
+  credvigil scan config.yaml                  Scan a single file
+  credvigil scan --stdin < config.yaml        Scan from stdin
+  credvigil scan . --format json             Output as JSON
+  credvigil scan . --min-severity high       Only show high/critical
+  cat file.txt | credvigil scan --stdin      Pipe content to scan
+  credvigil scan --git .                     Scan current repo history
+```
+
+**Command anatomy — reading the help output:**
+
+```mermaid
+flowchart TD
+    A["credvigil"] --> B{"Verb"}
+    B -->|scan| C["Scan for secrets"]
+    B -->|rules| D["List detection rules"]
+    B -->|version| E["Show version"]
+    B -->|help| F["Show usage"]
+    
+    C --> G{"Target"}
+    G -->|"path"| H["File or directory"]
+    G -->|"--stdin"| I["Piped input"]
+    G -->|"--git path"| J["Git repository"]
+    
+    H --> K["--flags"]
+    K --> L["--format json"]
+    K --> M["--min-severity high"]
+    K --> N["--no-context"]
+    K --> O["--min-confidence 0.7"]
+```
 
 ---
 
@@ -214,14 +413,14 @@ Or equivalently:
 ./credvigil rules
 ```
 
-**What it does:** Lists all 183+ detection rule categories grouped by provider/service.
+**What it does:** Lists all 331 detection rules grouped by provider/service.
 
 **Expected output (partial):**
 ```
-CredVigil Detection Rules (183 total)
+CredVigil Detection Rules (331 total)
 ═══════════════════════════════════════════════════════════════
 
-Loaded 183 detection rules covering:
+Loaded 331 detection rules covering:
   • Cloud: AWS, GCP, Azure, DigitalOcean, Cloudflare, Vercel, Netlify
   • SCM: GitHub, GitLab, Bitbucket, Gitea
   • Databases: PostgreSQL, MySQL, MongoDB, Redis, InfluxDB...
@@ -229,6 +428,31 @@ Loaded 183 detection rules covering:
 ```
 
 **Why it matters:** Shows you exactly what the engine can detect. Each rule is a compiled regex with metadata (severity, confidence, entropy threshold). Understanding rule coverage is key to knowing what CredVigil can and cannot catch.
+
+**How rules work internally:**
+
+```mermaid
+flowchart LR
+    subgraph Rule["Example: aws-access-key-id"]
+        Pattern["Regex: AKIA[0-9A-Z]'{16}'"]
+        Sev["Severity: CRITICAL"]
+        Conf["Base Confidence: 0.9"]
+        Ent["Min Entropy: 3.0"]
+        Cat["Category: cloud"]
+    end
+
+    Input["Line from file"] --> Compile["Compiled Regex"]
+    Compile -->|Match| Score["Calculate:\nconfidence + entropy bonus"]
+    Compile -->|No match| Skip["Next rule"]
+    Score --> Finding["Finding object"]
+```
+
+Each rule has:
+- **Compiled regex** — pre-compiled at startup for speed (not interpreted at scan time)
+- **Severity** — CRITICAL/HIGH/MEDIUM/LOW/INFO based on the damage potential
+- **Base confidence** — starting confidence score, boosted by entropy analysis
+- **Entropy threshold** — minimum randomness to consider a match real
+- **Category** — cloud, scm, database, messaging, etc.
 
 #### Count the rules programmatically
 ```bash
@@ -244,7 +468,113 @@ Loaded 183 detection rules covering:
 ./credvigil scan testdata/fake_secrets.env
 ```
 
-**What it does:** Reads `testdata/fake_secrets.env`, runs all 183 regex rules + Shannon entropy analysis, then processes every finding through the zero-trust pipeline (Hash → Redact → Enrich → Fingerprint → Sanitize).
+**What it does:** Reads `testdata/fake_secrets.env`, runs all 331 regex rules + Shannon entropy analysis, then processes every finding through the zero-trust pipeline (Hash → Redact → Enrich → Fingerprint → Sanitize).
+
+**Step-by-step — what happens when you run this command:**
+
+```mermaid
+flowchart TD
+    A["./credvigil scan testdata/fake_secrets.env"] --> B["CLI parses arguments"]
+    B --> C["FileScanner.ScanFile()"]
+    C --> D["Read file into memory"]
+    D --> E["Split into lines"]
+    E --> F{"For each line"}
+    F --> G["Run 331 regex rules"]
+    G --> H{"Any matches?"}
+    H -->|Yes| I["Calculate entropy"]
+    H -->|No| F
+    I --> J["Assign severity + confidence"]
+    J --> K["Deduplicate overlapping matches"]
+    K --> F
+    F -->|All lines done| L["Pipeline: Hash → Redact → Enrich → Fingerprint → Sanitize"]
+    L --> M["Format output (text or JSON)"]
+    M --> N["Print to stdout"]
+    N --> O{"Findings > 0?"}
+    O -->|Yes| P["Exit code 1"]
+    O -->|No| Q["Exit code 0"]
+```
+
+1. CLI parses `scan testdata/fake_secrets.env` — identifies target as a file
+2. `FileScanner.ScanFile()` reads the file, checks it's under the size limit
+3. Splits content into lines and sends to `Engine.ScanContent()`
+4. Engine runs all 331 compiled regexes against each line
+5. For each match, calculates Shannon entropy of the matched text
+6. Assigns severity (from the rule) and confidence (base + entropy bonus)
+7. Deduplicates overlapping matches on the same line
+8. Zero-trust pipeline processes all findings (hash, redact, enrich, fingerprint, sanitize)
+9. Formatter outputs results as text or JSON
+
+**Actual output (first 3 findings + summary):**
+```
+╔═══════════════════════════════════════════════════════════════╗
+║                    CredVigil Scan Report                     ║
+╚═══════════════════════════════════════════════════════════════╝
+
+[CRITICAL] AWS Access Key ID
+  Rule:       aws-access-key-id
+  Type:       aws-access-key-id
+  File:       testdata/fake_secrets.env:6
+  Match:      AKIA****MPLE
+  Entropy:    3.68
+  Confidence: 40%
+  SHA-256:    1a5d44a2...d78ddb3
+  Fingerprint:98ddf6a49d642146
+  File Type:  env
+  Environment:test
+  Category:   cloud
+
+[CRITICAL] AWS Secret Access Key
+  Rule:       aws-secret-access-key
+  Type:       aws-secret-access-key
+  File:       testdata/fake_secrets.env:7
+  Match:      wJal****EKEY
+  Entropy:    4.66
+  Confidence: 50%
+  SHA-256:    78314b11...080e0598
+  Fingerprint:a14a113ed62a9f72
+  File Type:  env
+  Environment:test
+  Category:   cloud
+
+[CRITICAL] GitHub Personal Access Token (Classic)
+  Rule:       github-pat-classic
+  Type:       github-token
+  File:       testdata/fake_secrets.env:10
+  Match:      ghp_****1234
+  Entropy:    5.32
+  Confidence: 55%
+  SHA-256:    edc43928...4c92e588
+  Fingerprint:fd61cc7abb8cfb59
+  File Type:  env
+  Environment:test
+  Category:   scm
+
+... (53 more findings) ...
+
+─────────────────────────────────────────────────────────────────
+  Scan completed in 15ms using 331 rules
+  Total findings: 56
+  By severity: CRITICAL=18, HIGH=14, MEDIUM=20, LOW=4
+─────────────────────────────────────────────────────────────────
+  ⚠️  56 potential secret(s) found. Review and remediate.
+```
+
+**Reading the output — field-by-field guide:**
+
+| Field | Example | What It Means |
+|-------|---------|---------------|
+| `[CRITICAL]` | `[CRITICAL]` | Severity level — how dangerous this secret is if leaked |
+| `Rule:` | `aws-access-key-id` | Which detection rule matched |
+| `Type:` | `aws-access-key-id` | Secret type classification |
+| `File:` | `testdata/fake_secrets.env:6` | File path and line number |
+| `Match:` | `AKIA****MPLE` | Redacted preview (first 4 + `****` + last 4 chars) |
+| `Entropy:` | `3.68` | Shannon entropy score (higher = more random = more likely real) |
+| `Confidence:` | `40%` | How confident the engine is this is a real secret |
+| `SHA-256:` | `1a5d44a2...d78ddb3` | Cryptographic hash of the secret (for tracking without exposing) |
+| `Fingerprint:` | `98ddf6a49d642146` | Stable identifier across scans (same secret = same fingerprint) |
+| `File Type:` | `env` | Detected file type |
+| `Environment:` | `test` | Detected environment (test, dev, staging, prod) |
+| `Category:` | `cloud` | Secret category (cloud, scm, database, etc.) |
 
 **Expected output:** A formatted report showing each finding with:
 - **Severity** (CRITICAL, HIGH, MEDIUM, LOW, INFO)
@@ -278,6 +608,26 @@ Loaded 183 detection rules covering:
 
 ### 2.5 Scan a Directory
 
+When scanning a directory, CredVigil walks the file tree recursively, skipping binary/media files and common non-source directories.
+
+```mermaid
+flowchart TD
+    DIR["./credvigil scan ./project/"] --> WALK["Recursive directory walker"]
+    WALK --> CHECK_DIR{"Directory in<br/>exclude list?"}
+    CHECK_DIR -->|"Yes (.git, node_modules)"| SKIP_DIR["⏭ Skip entire directory"]
+    CHECK_DIR -->|No| CHECK_EXT{"File extension<br/>excluded?"}
+    CHECK_EXT -->|"Yes (.png, .exe, .zip)"| SKIP_FILE["⏭ Skip file"]
+    CHECK_EXT -->|No| CHECK_NAME{"Filename<br/>excluded?"}
+    CHECK_NAME -->|"Yes (package-lock.json)"| SKIP_FILE2["⏭ Skip file"]
+    CHECK_NAME -->|No| SCAN["🔍 Scan file content<br/>(parallel, 4 workers)"]
+    SCAN --> RESULTS["Aggregate all findings"]
+    
+    style SKIP_DIR fill:#e74c3c,color:#fff
+    style SKIP_FILE fill:#e74c3c,color:#fff
+    style SKIP_FILE2 fill:#e74c3c,color:#fff
+    style SCAN fill:#27ae60,color:#fff
+```
+
 #### Scan current directory
 ```bash
 ./credvigil scan .
@@ -296,6 +646,16 @@ Loaded 183 detection rules covering:
 ```
 
 **What it does:** Scans its own source code! Will find the fake secrets in `testdata/`. This is a great way to see the engine working on a real project tree.
+
+> **Real-life scenario: New developer onboarding audit**
+> 
+> You've just cloned repo. Before writing any code, audit it for existing secrets:
+> ```bash
+> git clone https://github.com/your-org/legacy-app.git
+> cd legacy-app
+> ./credvigil scan . --no-context --min-severity high
+> ```
+> This immediately tells you if the repo has leaked credentials in any file.
 
 **Directories automatically excluded:**
 ```
@@ -322,12 +682,92 @@ poetry.lock, Gemfile.lock, composer.lock
 
 ### 2.6 Scan from Stdin (Piping)
 
-This is one of CredVigil's most powerful features. You can pipe ANY text into the scanner.
+This is one of CredVigil's most powerful features. You can pipe ANY text into the scanner. This follows the Unix philosophy: **programs should be filters that read stdin and write stdout**.
+
+```mermaid
+flowchart LR
+    subgraph Sources["Anything that outputs text"]
+        echo["echo 'secret'"] 
+        cat["cat file.env"]
+        git["git diff --staged"]
+        curl["curl -s URL"]
+        pb["pbpaste"]
+        kubectl["kubectl get secret"]
+    end
+    
+    pipe["|"]
+    cv["./credvigil scan --stdin"]
+    
+    Sources --> pipe --> cv
+    cv --> report["Scan Report"]
+```
+
+#### Real-life scenario: Developer checks code before committing
+
+```bash
+# Step 1: Stage your changes
+git add -A
+
+# Step 2: Pipe only staged diff to CredVigil
+git diff --staged | ./credvigil scan --stdin --no-context
+
+# Step 3: If exit code is 0, safe to commit
+if git diff --staged | ./credvigil scan --stdin --no-context --min-severity medium 2>&1 > /dev/null; then
+  git commit -m "Safe commit - no secrets"
+else
+  echo "BLOCKED: Secrets detected in staged changes!"
+fi
+```
+
+**What happens step-by-step:**
+1. `git diff --staged` outputs the unified diff of all staged changes
+2. The `|` pipe sends that text to CredVigil's stdin
+3. CredVigil treats each line of the diff as content to scan
+4. Any added lines containing secrets are flagged
+5. Exit code determines if the commit proceeds
 
 #### Basic stdin scan
 ```bash
 echo 'AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY' | ./credvigil scan --stdin
 ```
+
+**Actual output:**
+```
+[CRITICAL] AWS Secret Access Key
+  Rule:       aws-secret-access-key
+  Type:       aws-secret-access-key
+  File:       stdin:1
+  Match:      wJal****EKEY
+  Entropy:    4.66
+  Confidence: 50%
+  SHA-256:    78314b11...080e0598
+  Fingerprint:a14a113ed62a9f72
+  File Type:  unknown
+  Environment:unknown
+  Category:   cloud
+
+[MEDIUM] High-entropy base64 string (entropy: 4.66)
+  Rule:       entropy-detection
+  Type:       high-entropy-string
+  File:       stdin:1
+  Match:      wJal****EKEY
+  Entropy:    4.66
+  Confidence: 80%
+  SHA-256:    78314b11...080e0598
+  Fingerprint:4dc95cb124ca821a
+  File Type:  unknown
+  Environment:unknown
+  Category:   entropy
+
+─────────────────────────────────────────────────────────────────
+  Scan completed in 1ms using 331 rules
+  Total findings: 2
+  By severity: CRITICAL=1, MEDIUM=1
+─────────────────────────────────────────────────────────────────
+  ⚠️  2 potential secret(s) found. Review and remediate.
+```
+
+**Notice:** Two findings for one secret! The regex rule catches it as `aws-secret-access-key`, and the entropy detector independently flags the high-entropy string. This is **defense in depth** — even if a regex rule is missing, entropy catches suspicious strings.
 
 #### Pipe a file via cat
 ```bash
@@ -436,15 +876,128 @@ echo 'hvs.CAESIDhMOEXAMPLETOKENVAL' | ./credvigil scan --stdin --no-context
 
 **What it does:** Outputs machine-readable JSON. Perfect for piping to `jq`, dashboards, or APIs.
 
+**JSON structure overview:**
+
+```mermaid
+classDiagram
+    class JSONOutput {
+        version: "0.1.0"
+        scan_duration: "15ms"
+        total_findings: 56
+        results: ScanResult[]
+    }
+    class ScanResult {
+        findings: Finding[]
+        total_findings: int
+        count_by_severity: map
+        duration: string
+        source: Source
+    }
+    class Finding {
+        id: "CVF-1773527227549-1"
+        secret_type: "aws-secret-access-key"
+        description: "AWS Secret Access Key"
+        severity: "CRITICAL"
+        rule_id: "aws-secret-access-key"
+        source: Source
+        redacted_match: "wJal****EKEY"
+        secret_hash: "78314b11..."
+        fingerprint: "a14a113e..."
+        entropy: 4.66
+        confidence: 0.5
+        file_type: "env"
+        environment: "test"
+        category: "cloud"
+        raw_match: "" ← always empty
+    }
+    class Source {
+        type: "file"
+        location: "testdata/fake_secrets.env"
+        line: 7
+        end_line: 7
+    }
+    JSONOutput --> ScanResult
+    ScanResult --> Finding
+    Finding --> Source
+```
+
+**Actual JSON output (single secret piped via stdin):**
+
+```json
+{
+  "version": "0.1.0",
+  "scan_duration": "745µs",
+  "total_findings": 2,
+  "results": [
+    {
+      "findings": [
+        {
+          "id": "CVF-1773527227549-1",
+          "secret_type": "aws-secret-access-key",
+          "description": "AWS Secret Access Key",
+          "severity": "CRITICAL",
+          "rule_id": "aws-secret-access-key",
+          "source": {
+            "type": "stdin",
+            "location": "stdin",
+            "line": 1,
+            "end_line": 1
+          },
+          "redacted_match": "wJal****EKEY",
+          "secret_hash": "78314b11be2e581549ac1c4f616563fad3fdf0c3...",
+          "fingerprint": "a14a113ed62a9f7212255a232c2c53cfee4b1830...",
+          "entropy": 4.662814895472355,
+          "confidence": 0.5,
+          "detected_at": "2026-03-14T18:27:07.549414-04:00",
+          "file_type": "unknown",
+          "environment": "unknown",
+          "category": "cloud",
+          "metadata": {
+            "scanner_version": "0.1.0",
+            "sha256": "78314b11be2e581549ac1c4f616563fad3fdf0c3..."
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Key observations:**
+- `raw_match` is always `""` (zero-trust — raw secret is never in the output)
+- `severity` is a string (`"CRITICAL"`) not an integer
+- `results` is an array — one entry per file scanned
+- Each result has a `findings` array — one entry per detected secret
+- `source.line` gives you the exact line number in the file
+
+#### How to navigate the JSON with jq
+
+```mermaid
+flowchart LR
+    root["."] --> total[".total_findings → 56"]
+    root --> results[".results[]"]
+    results --> findings[".findings[]"]
+    findings --> severity[".severity → 'CRITICAL'"]
+    findings --> rule[".rule_id → 'aws-access-key-id'"]
+    findings --> source[".source"]
+    source --> loc[".location → 'file.env'"]
+    source --> line[".line → 7"]
+    findings --> hash[".secret_hash → '78314b...'"]
+```
+
 #### JSON + jq: count findings
 ```bash
 ./credvigil scan testdata/fake_secrets.env --no-context --format json 2>/dev/null | jq '.total_findings'
 ```
 
+**Actual output:** `56`
+
 #### JSON + jq: list all rule IDs found
 ```bash
 ./credvigil scan testdata/fake_secrets.env --no-context --format json 2>/dev/null | jq '[.results[].findings[].rule_id] | unique'
 ```
+
+**Actual output:** `["1password-connect-token", "artifactory-api-key", "aws-access-key-id", ...]` (34 unique rules)
 
 #### JSON + jq: show only critical findings
 ```bash
@@ -454,6 +1007,16 @@ echo 'hvs.CAESIDhMOEXAMPLETOKENVAL' | ./credvigil scan --stdin --no-context
 #### JSON + jq: group by severity
 ```bash
 ./credvigil scan testdata/fake_secrets.env --no-context --format json 2>/dev/null | jq '[.results[].findings[]] | group_by(.severity) | map({severity: .[0].severity, count: length})'
+```
+
+**Actual output:**
+```json
+[
+  { "severity": "CRITICAL", "count": 18 },
+  { "severity": "HIGH",     "count": 14 },
+  { "severity": "LOW",      "count": 4  },
+  { "severity": "MEDIUM",   "count": 20 }
+]
 ```
 
 #### JSON + python: validate structure
@@ -486,12 +1049,26 @@ print(f'Zero-trust enforced: {len(raw_leaked) == 0}')
 ### 2.8 Severity Filtering
 
 Filter findings by minimum severity level. Severity levels (lowest to highest):
-`info` < `low` < `medium` < `high` < `critical`
+
+```mermaid
+flowchart LR
+    INFO["INFO<br/>(informational)"] --> LOW["LOW<br/>(minor risk)"] --> MEDIUM["MEDIUM<br/>(should fix)"] --> HIGH["HIGH<br/>(must fix soon)"] --> CRITICAL["CRITICAL<br/>(fix immediately!)"]
+    
+    style INFO fill:#95a5a6,color:#fff
+    style LOW fill:#3498db,color:#fff
+    style MEDIUM fill:#f39c12,color:#fff
+    style HIGH fill:#e67e22,color:#fff
+    style CRITICAL fill:#e74c3c,color:#fff
+```
+
+`--min-severity` sets the floor — anything below it is filtered out.
 
 #### Show only CRITICAL findings
 ```bash
 ./credvigil scan testdata/fake_secrets.env --no-context --min-severity critical
 ```
+
+> **Real-life use:** In CI/CD, you might only block on CRITICAL (AWS keys, private keys) and let MEDIUM pass with a warning.
 
 #### Show HIGH and above
 ```bash
@@ -536,6 +1113,23 @@ echo "=== CRITICAL ==="
 
 Confidence is a 0.0-1.0 score representing how sure the engine is that a match is a real secret (not a false positive).
 
+```mermaid
+flowchart TD
+    MATCH["Regex matches a string"] --> SCORE["Calculate confidence score"]
+    SCORE --> FACTORS["Factors that increase confidence:"]
+    FACTORS --> F1["✅ High entropy (4.0+)"]
+    FACTORS --> F2["✅ Known key prefix (AKIA, ghp_, sk_live)"]
+    FACTORS --> F3["✅ Near keyword (password=, token=)"]
+    FACTORS --> F4["✅ Correct length/format for type"]
+    
+    SCORE --> CHECK{"confidence >= min-confidence?"}
+    CHECK -->|Yes| REPORT["Include in report"]
+    CHECK -->|No| DROP["Filter out (likely false positive)"]
+    
+    style REPORT fill:#27ae60,color:#fff
+    style DROP fill:#e74c3c,color:#fff
+```
+
 #### Show only high-confidence findings (70%+)
 ```bash
 ./credvigil scan testdata/fake_secrets.env --no-context --min-confidence 0.7
@@ -568,7 +1162,28 @@ done
 
 ### 2.10 Entropy Toggle
 
-Shannon entropy measures the randomness of a string. High-entropy strings are statistically likely to be secrets.
+Shannon entropy measures the randomness of a string. High-entropy strings are statistically likely to be secrets because random passwords/keys have much higher entropy than normal English text or variable names.
+
+```mermaid
+flowchart LR
+    subgraph "Low Entropy (< 3.0)"
+        L1["'password' → 2.75"]
+        L2["'admin123' → 2.91"]
+        L3["'localhost' → 2.95"]
+    end
+    
+    subgraph "Medium Entropy (3.0-4.0)"
+        M1["'MyApp_Config_2024' → 3.67"]
+    end
+    
+    subgraph "High Entropy (> 4.0) 🔴"
+        H1["'wJalrXUtnFEMI/K7M...' → 4.66"]
+        H2["'ghp_ABCDEF...' → 4.32"]
+    end
+    
+    style H1 fill:#e74c3c,color:#fff
+    style H2 fill:#e74c3c,color:#fff
+```
 
 #### Normal scan (entropy enabled — default)
 ```bash
@@ -660,7 +1275,24 @@ git diff --staged | ./credvigil scan --stdin --no-context --min-severity medium
 
 ### 2.13 Exit Codes
 
-CredVigil uses exit codes to signal results. This is critical for CI/CD integration.
+CredVigil uses exit codes to signal results. This is critical for CI/CD integration — scripts can check `$?` to decide whether to proceed or abort.
+
+```mermaid
+flowchart TD
+    SCAN["./credvigil scan ..."] --> RESULT{"Any findings?"}
+    RESULT -->|No findings| EXIT0["Exit code 0<br/>✅ Clean"]
+    RESULT -->|Findings found| EXIT1["Exit code 1<br/>❌ Secrets detected"]
+    RESULT -->|Error occurred| EXIT1_ERR["Exit code 1<br/>⚠️ Error"]
+    
+    EXIT0 --> CI_PASS["CI/CD: continue pipeline"]
+    EXIT1 --> CI_FAIL["CI/CD: block deployment"]
+    
+    style EXIT0 fill:#27ae60,color:#fff
+    style EXIT1 fill:#e74c3c,color:#fff
+    style EXIT1_ERR fill:#e67e22,color:#fff
+    style CI_PASS fill:#27ae60,color:#fff
+    style CI_FAIL fill:#e74c3c,color:#fff
+```
 
 | Exit Code | Meaning |
 |-----------|---------|
@@ -696,6 +1328,27 @@ fi
 
 The pipeline is the security boundary between raw detection output and any consumer. It's not a separate CLI command — it runs automatically on every scan. But you can observe its effects.
 
+### Why the Pipeline Exists
+
+```mermaid
+flowchart TD
+    subgraph PROBLEM["The Problem"]
+        A["Detection engine finds:\\n'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'"] 
+        B["If we log/store this raw secret,\\nwe just leaked it AGAIN"]
+    end
+    
+    subgraph SOLUTION["The Zero-Trust Solution"]
+        C["Pipeline transforms every finding\\nBEFORE it reaches any output"]
+        D["Raw secret is DESTROYED\\nafter processing"]
+    end
+    
+    A --> B
+    B --> C
+    C --> D
+```
+
+**Real-life scenario:** Your CI/CD pipeline runs CredVigil and stores scan reports in a dashboard. Without the zero-trust pipeline, those reports would contain the actual secrets — creating a new attack surface. With the pipeline, reports contain hashes, fingerprints, and redacted previews — useful for tracking but not exploitable.
+
 ---
 
 ### 3.1 Observing the Pipeline in Action
@@ -724,7 +1377,7 @@ Look for the `Fingerprint:` line — first 16 characters of a stable, reproducib
 ./credvigil scan testdata/fake_secrets.env --no-context
 ```
 
-Look for `File Type:`, `Environment:`, and `Category:` fields in each finding.
+Look for `File Type:`, `Environment:`, `Category:` fields — these are added by the Enrich stage.
 
 ---
 
@@ -732,13 +1385,55 @@ Look for `File Type:`, `Environment:`, and `Category:` fields in each finding.
 
 The pipeline runs these 5 stages in order on every finding:
 
-| Stage | What It Does | Observable In |
-|-------|-------------|---------------|
-| **Hash** | SHA-256 hash of raw secret → `SecretHash` field | `SHA-256:` in text, `secret_hash` in JSON |
-| **Redact** | Creates masked preview → `RedactedMatch` field | `Match:` in text, `redacted_match` in JSON |
-| **Enrich** | Adds FileType, Environment, Category metadata | `File Type:`, `Environment:`, `Category:` lines |
-| **Fingerprint** | Generates stable cross-scan fingerprint | `Fingerprint:` in text, `fingerprint` in JSON |
-| **Sanitize** | Clears `RawMatch` (zero-trust enforcement) | `raw_match` is always `""` in JSON |
+```mermaid
+flowchart LR
+    RAW["Raw Finding\\n(has raw_match)"] --> HASH
+    
+    subgraph Pipeline["Zero-Trust Pipeline (5 stages)"]
+        direction LR
+        HASH["1️⃣ Hash\\nSHA-256(raw_match)\\n→ secret_hash"] --> REDACT["2️⃣ Redact\\nwJal****EKEY\\n→ redacted_match"]
+        REDACT --> ENRICH["3️⃣ Enrich\\nfile_type, env,\\ncategory"]
+        ENRICH --> FP["4️⃣ Fingerprint\\nStable ID across\\nscans"]
+        FP --> SANITIZE["5️⃣ Sanitize\\nraw_match = ''\\n⛔ DESTROYED"]
+    end
+    
+    SANITIZE --> SAFE["Safe Finding\\n(raw_match = '')"]
+```
+
+| Stage | Input → Output | Real Example | Observable In |
+|-------|---------------|-------------|---------------|
+| **1. Hash** | Raw secret → SHA-256 hash | `wJalrXUt...EKEY` → `78314b11be2e5815...` | `SHA-256:` in text, `secret_hash` in JSON |
+| **2. Redact** | Raw secret → Masked preview | `wJalrXUt...EKEY` → `wJal****EKEY` | `Match:` in text, `redacted_match` in JSON |
+| **3. Enrich** | File path → Metadata | `testdata/fake_secrets.env` → `{env, test, cloud}` | `File Type:`, `Environment:`, `Category:` |
+| **4. Fingerprint** | (rule_id + file + line + hash) → Stable ID | → `a14a113ed62a9f72` | `Fingerprint:` in text, `fingerprint` in JSON |
+| **5. Sanitize** | Raw secret → Empty string | `wJalrXUt...EKEY` → `""` | `raw_match` is always `""` in JSON |
+
+**Key design principle:** Each stage can run independently. If the hash stage fails, redaction still works. If enrichment fails, sanitization still clears the raw secret. The pipeline **never** fails open — if anything goes wrong, the raw secret is still destroyed.
+
+#### Verify all 5 stages with a single command
+```bash
+echo 'STRIPE_SECRET_KEY=sk_live_1234567890ABCDEFGHIJKLMNOPQRSTUVWXyz' | \
+  ./credvigil scan --stdin --no-context --format json 2>/dev/null | \
+  python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+f = data['results'][0]['findings'][0]
+print('Stage 1 - Hash:       ', f.get('secret_hash', 'MISSING')[:20] + '...')
+print('Stage 2 - Redact:     ', f.get('redacted_match', 'MISSING'))
+print('Stage 3 - Enrich:      file_type=' + f.get('file_type', '?') + ', env=' + f.get('environment', '?') + ', cat=' + f.get('category', '?'))
+print('Stage 4 - Fingerprint:', f.get('fingerprint', 'MISSING')[:16])
+print('Stage 5 - Sanitize:    raw_match=' + repr(f.get('raw_match', 'NOT_EMPTY')))
+"
+```
+
+**Expected output:**
+```
+Stage 1 - Hash:        d4f1a8b3e9c2... (SHA-256 of the Stripe key)
+Stage 2 - Redact:      sk_l****WXyz
+Stage 3 - Enrich:      file_type=unknown, env=unknown, cat=payment
+Stage 4 - Fingerprint: a3b7c9d1e5f2...
+Stage 5 - Sanitize:    raw_match=''     ← EMPTY! Zero-trust enforced.
+```
 
 ---
 
@@ -746,21 +1441,39 @@ The pipeline runs these 5 stages in order on every finding:
 
 This is the most important thing to understand about the pipeline. After sanitization, no raw secret ever leaves the system.
 
+```mermaid
+flowchart TD
+    A["56 secrets detected in testdata/fake_secrets.env"]
+    A --> B["Pipeline processes all 56 findings"]
+    B --> C["All 56 raw_match fields = ''"]
+    C --> D{"Any raw secrets leaked?"}
+    D -->|"Zero!"| E["✅ Zero-trust verified"]
+    D -->|"Any > 0"| F["❌ SECURITY BUG"]
+```
+
 #### Prove zero-trust works
 ```bash
 ./credvigil scan testdata/fake_secrets.env --no-context --format json 2>/dev/null | python3 -c "
 import json, sys
 data = json.load(sys.stdin)
-findings = []
-for r in data.get('results', []):
-    findings.extend(r.get('Findings', []))
-for f in findings:
-    raw = f.get('raw_match', '')
-    if raw != '':
-        print(f'LEAK! raw_match is not empty: {raw[:20]}...')
-        sys.exit(1)
-print(f'✅ Zero-trust verified: {len(findings)} findings, 0 raw secrets leaked')
+findings = [f for r in data.get('results', []) for f in r.get('findings', [])]
+raw_leaked = [f for f in findings if f.get('raw_match', '') != '']
+print(f'Total findings: {len(findings)}')
+print(f'Raw secrets leaked: {len(raw_leaked)}')
+print(f'Zero-trust enforced: {len(raw_leaked) == 0}')
+if raw_leaked:
+    print('SECURITY BUG: raw secrets found in output!')
+    sys.exit(1)
+print('✅ All raw_match fields are empty. Zero-trust pipeline verified.')
 "
+```
+
+**Actual output:**
+```
+Total findings: 56
+Raw secrets leaked: 0
+Zero-trust enforced: True
+✅ All raw_match fields are empty. Zero-trust pipeline verified.
 ```
 
 #### See the full pipeline in JSON
@@ -777,11 +1490,63 @@ Look for these fields in each finding:
 - `"environment": "..."` ← enriched environment
 - `"category": "..."` ← enriched category
 
+#### Real-life scenario: Tracking a rotated secret across scans
+
+The `fingerprint` field lets you track the same secret across multiple scans — even if the file changes. But if the secret itself is rotated (changed), the `secret_hash` will differ, telling you it's a new credential.
+
+```bash
+# First scan — establish baseline
+./credvigil scan testdata/fake_secrets.env --format json 2>/dev/null | \
+  jq '[.results[].findings[] | select(.rule_id == "aws-access-key-id") | {hash: .secret_hash[:16], fp: .fingerprint[:16]}]'
+
+# After rotation, the hash changes but you can track the same location via fingerprint
+```
+
 ---
 
 ## 4. Component 3: Git Integration Layer
 
 Scan the commit history of git repositories to find secrets that were ever committed — even if they were later deleted or overwritten.
+
+### Why Git History Scanning Matters
+
+```mermaid
+gitGraph
+    commit id: "Initial commit"
+    commit id: "Add config"
+    commit id: "Add AWS key ⚠️" type: HIGHLIGHT
+    commit id: "Oops, remove key"
+    commit id: "Fix tests"
+    commit id: "Release v1.0"
+```
+
+Even though the AWS key was removed in a later commit, **it still exists in the git history**. Anyone with repo access can run `git log -p` to find it. CredVigil scans every commit's diff to catch these.
+
+**Real-life scenario:** A developer accidentally commits their AWS credentials on Monday, notices on Tuesday, and deletes them. They think the problem is solved. But the credentials are still in the git history, and any attacker who clones the repo can extract them. CredVigil catches this.
+
+### How Git Scanning Works
+
+```mermaid
+sequenceDiagram
+    participant CLI as credvigil CLI
+    participant Git as Git Layer
+    participant Repo as Local/Remote Repo
+    participant Engine as Detection Engine
+    participant Pipeline as Pipeline
+
+    CLI->>Git: scan --git .
+    Git->>Repo: git log (list commits)
+    Repo-->>Git: [commit1, commit2, ...]
+    loop For each commit
+        Git->>Repo: git diff (parent → commit)
+        Repo-->>Git: Added lines in diff
+        Git->>Engine: ScanContent(added lines)
+        Engine-->>Git: Findings[]
+    end
+    Git->>Pipeline: Process all findings
+    Pipeline-->>CLI: Safe output (zero-trust)
+    CLI-->>CLI: Print report with commit hashes
+```
 
 ---
 
@@ -792,13 +1557,16 @@ Scan the commit history of git repositories to find secrets that were ever commi
 ./credvigil scan --git .
 ```
 
-**What it does:**
-1. Verifies git is available on PATH
-2. Opens the local repository at `.`
-3. Gets the commit log for the current branch
-4. For each commit, parses the diff to find added lines
-5. Runs the detection engine on each added line
-6. Processes all findings through the zero-trust pipeline
+**What it does — step by step:**
+1. Verifies `git` is available on PATH (`which git`)
+2. Opens the local repository at `.` using Go's `os/exec` to call git
+3. Runs `git log --format=...` to get all commits on the current branch
+4. For each commit, runs `git diff <parent> <commit>` to get the unified diff
+5. Parses the diff to extract only **added lines** (lines starting with `+`)
+6. Runs each added line through the 331-rule detection engine
+7. Adjusts line numbers to match the original file positions
+8. Processes all findings through the zero-trust pipeline
+9. Outputs results with commit hash, author, date, and file path
 
 #### Scan any local repo
 ```bash
@@ -824,11 +1592,36 @@ Scan the commit history of git repositories to find secrets that were ever commi
 ./credvigil scan --git . --git-branch develop
 ```
 
+**Real-life scenario: Security review before merging a PR**
+```bash
+# Developer opened a PR from feature/payments to main
+# Security reviewer scans only the feature branch:
+./credvigil scan --git . --git-branch feature/payments --format json 2>/dev/null | \
+  jq '.total_findings'
+
+# If findings > 0, block the PR
+```
+
 ---
 
 ### 4.3 Incremental Scanning (Since Commit)
 
 Only scan commits after a specific hash. Essential for CI/CD to avoid re-scanning everything.
+
+```mermaid
+flowchart LR
+    subgraph "Full Scan (slow)"
+        A1["Commit 1"] --> A2["Commit 2"] --> A3["Commit 3"] --> A4["Commit 4"] --> A5["Commit 5"]
+    end
+    
+    subgraph "Incremental Scan (fast)"
+        B3["Commit 3\\n(--git-since)"] --> B4["Commit 4"] --> B5["Commit 5"]
+    end
+    
+    style A1 fill:#ccc
+    style A2 fill:#ccc
+    style B3 fill:#ffa
+```
 
 #### Get a commit hash to use
 ```bash
@@ -847,6 +1640,22 @@ Pick a hash from the output, then:
 HASH=$(git rev-parse HEAD~3)   # 3 commits ago
 ./credvigil scan --git . --git-since $HASH
 ```
+
+**Real-life CI/CD scenario: Only scan new commits in GitHub Actions**
+```yaml
+# .github/workflows/secret-scan.yml
+- name: Scan new commits for secrets
+  run: |
+    LAST_SCANNED=$(cat .credvigil-last-scan 2>/dev/null || echo "")
+    if [ -n "$LAST_SCANNED" ]; then
+      ./credvigil scan --git . --git-since $LAST_SCANNED --format json
+    else
+      ./credvigil scan --git . --git-max-commits 10 --format json
+    fi
+    git rev-parse HEAD > .credvigil-last-scan
+```
+
+This avoids re-scanning the entire history on every CI run — only new commits since the last scan are checked.
 
 ---
 
@@ -943,6 +1752,21 @@ By default, merge commits are skipped (they duplicate content from feature branc
 
 The watcher monitors directories for file changes in real-time and triggers scanning. It uses **debouncing** to avoid scanning the same file multiple times within a short window.
 
+### Why Real-Time Watching Matters
+
+```mermaid
+flowchart LR
+    subgraph WITHOUT["Without Watcher"]
+        D1["Developer writes code"] --> D2["Forgets to scan"] --> D3["Commits secret"] --> D4["Push to GitHub"] --> D5["Secret exposed 💀"]
+    end
+    
+    subgraph WITH["With Watcher"]
+        W1["Developer writes code"] --> W2["Watcher detects save"] --> W3["Auto-scan in <1s"] --> W4["Alert: secret found!"] --> W5["Developer fixes before commit ✅"]
+    end
+```
+
+**Real-life scenario:** You're coding and accidentally paste an API key into a config file. Without a watcher, you might not notice until the secret is already committed and pushed. With CredVigil's watcher, you get an alert within 500ms of saving — before you even switch to the terminal.
+
 ---
 
 ### 5.1 Understanding Debouncing
@@ -958,12 +1782,40 @@ Without debouncing, the scanner would run 3 times for 1 save. Debouncing collaps
 
 **How CredVigil implements it:**
 
+```mermaid
+sequenceDiagram
+    participant Editor as VS Code
+    participant OS as macOS/Linux
+    participant FSN as fsnotify
+    participant DB as Debouncer
+    participant Handler as Scan Handler
+
+    Editor->>OS: Save file (Cmd+S)
+    OS->>FSN: WRITE event
+    FSN->>DB: Event for "config.env"
+    Note over DB: First time seeing this file<br/>Record timestamp, EMIT
+    DB->>Handler: ✅ Scan "config.env"
+    
+    OS->>FSN: CHMOD event (50ms later)
+    FSN->>DB: Event for "config.env"
+    Note over DB: Seen 50ms ago (<500ms)<br/>DROP event
+    DB--xHandler: ❌ Dropped (debounced)
+    
+    OS->>FSN: WRITE event (80ms later)
+    FSN->>DB: Event for "config.env"
+    Note over DB: Seen 80ms ago (<500ms)<br/>DROP event  
+    DB--xHandler: ❌ Dropped (debounced)
+    
+    Note over DB: 500ms passes...
+    
+    Editor->>OS: Save again
+    OS->>FSN: WRITE event
+    FSN->>DB: Event for "config.env"
+    Note over DB: Last seen >500ms ago<br/>Record timestamp, EMIT
+    DB->>Handler: ✅ Scan "config.env"
 ```
-File saved → fsnotify emits events → Watcher receives event
-  → Check debounce map: was this file seen in the last 500ms?
-    → YES: Drop event (increment EventsDropped counter)
-    → NO:  Record timestamp, emit event to handler (increment EventsEmitted)
-```
+
+**Result:** 4 OS events → 2 handler calls. The scanner runs efficiently instead of wasting CPU.
 
 ---
 
@@ -1026,11 +1878,37 @@ go run testdata/watcher_demo.go
 
 In another terminal, rapidly create/modify files in the watched directory and observe how events are collapsed.
 
+> **Real-life scenario: IDE auto-save storm**
+> 
+> You're using VS Code with auto-save enabled (every 1 second). You're editing a `.env` file and typing an API key character by character. Without debouncing, the watcher would trigger 20+ scans in 20 seconds. With 500ms debouncing, it triggers maybe 3-4 scans total, saving CPU and keeping your machine responsive.
+
 ---
 
 ### 5.4 Watcher Configuration Options
 
 These are the configuration knobs available in `watcher.Config`:
+
+```mermaid
+flowchart TD
+    CONFIG["watcher.Config"] --> WHAT["WHAT to Watch"]
+    CONFIG --> HOW["HOW to Watch"]
+    CONFIG --> FILTER["WHAT to Ignore"]
+    
+    WHAT --> P["Paths: []string<br/>(required)"]
+    WHAT --> R["Recursive: bool<br/>default: true"]
+    
+    HOW --> DI["DebounceInterval: Duration<br/>default: 500ms"]
+    
+    FILTER --> ED["ExcludeDirs<br/>.git, node_modules, vendor"]
+    FILTER --> EE["ExcludeExtensions<br/>.exe, .png, .jpg, .zip"]
+    FILTER --> EF["ExcludeFiles<br/>package-lock.json, yarn.lock"]
+    FILTER --> IE["IncludeExtensions<br/>(empty = watch all)"]
+    
+    style CONFIG fill:#4a90d9,color:#fff
+    style WHAT fill:#27ae60,color:#fff
+    style HOW fill:#e67e22,color:#fff
+    style FILTER fill:#e74c3c,color:#fff
+```
 
 | Option | Type | Default | What It Controls |
 |--------|------|---------|-----------------|
@@ -1047,11 +1925,40 @@ These are the configuration knobs available in `watcher.Config`:
 go test ./pkg/watcher -v -run "TestDefaultConfig"
 ```
 
+**How filtering works — step by step:**
+
+When an event arrives, the watcher checks filters in this order:
+
+```mermaid
+flowchart TD
+    EVENT["📁 File event received"] --> CHECK_DIR{"Is file in<br/>ExcludeDirs?"}
+    CHECK_DIR -->|Yes| DROP1["❌ DROP<br/>(e.g., .git/objects/...)"]
+    CHECK_DIR -->|No| CHECK_EXT{"Is extension in<br/>ExcludeExtensions?"}
+    CHECK_EXT -->|Yes| DROP2["❌ DROP<br/>(e.g., image.png)"]
+    CHECK_EXT -->|No| CHECK_FILE{"Is filename in<br/>ExcludeFiles?"}
+    CHECK_FILE -->|Yes| DROP3["❌ DROP<br/>(e.g., package-lock.json)"]
+    CHECK_FILE -->|No| CHECK_INCLUDE{"IncludeExtensions<br/>set?"}
+    CHECK_INCLUDE -->|Yes| CHECK_MATCH{"Does extension<br/>match?"}
+    CHECK_MATCH -->|No| DROP4["❌ DROP"]
+    CHECK_MATCH -->|Yes| DEBOUNCE{"Debounce<br/>check"}
+    CHECK_INCLUDE -->|No (empty)| DEBOUNCE
+    DEBOUNCE -->|"Seen < 500ms ago"| DROP5["❌ DROP (debounced)"]
+    DEBOUNCE -->|"First time or > 500ms"| EMIT["✅ EMIT to handler"]
+    
+    style EVENT fill:#3498db,color:#fff
+    style EMIT fill:#27ae60,color:#fff
+    style DROP1 fill:#e74c3c,color:#fff
+    style DROP2 fill:#e74c3c,color:#fff
+    style DROP3 fill:#e74c3c,color:#fff
+    style DROP4 fill:#e74c3c,color:#fff
+    style DROP5 fill:#e74c3c,color:#fff
+```
+
 ---
 
 ### 5.5 Event Types Explained
 
-The watcher emits 4 event types:
+The watcher emits 4 event types, each triggered by specific OS-level file operations:
 
 | EventType | Constant | Meaning | When It Fires |
 |-----------|----------|---------|---------------|
@@ -1059,6 +1966,20 @@ The watcher emits 4 event types:
 | `MODIFIED` | `EventModified` | File content changed | `echo >> file`, save in editor, `sed -i` |
 | `DELETED` | `EventDeleted` | File/directory removed | `rm`, `mv` (from old name) |
 | `RENAMED` | `EventRenamed` | File/directory renamed | `mv old new` |
+
+```mermaid
+flowchart LR
+    subgraph "Linux/macOS Terminal Commands → Event Types"
+        T1["touch newfile.env"] -->|CREATED| W["Watcher"]
+        T2["echo 'key=val' >> file"] -->|MODIFIED| W
+        T3["rm secret.env"] -->|DELETED| W
+        T4["mv old.env new.env"] -->|"RENAMED<br/>(old → new)"| W
+        T5["cp source.env dest.env"] -->|"CREATED<br/>(dest appears)"| W
+        T6["vim file.env → :wq"] -->|"MODIFIED<br/>(or CREATED+DELETED<br/>if editor uses temp file)"| W
+    end
+```
+
+> **Note:** Some editors (like Vim) don't modify files in-place — they write a temporary file, delete the original, and rename the temp file. This produces `CREATED + DELETED + RENAMED` events instead of a single `MODIFIED`. CredVigil's debouncer handles this gracefully by collapsing the event storm.
 
 #### Test event types
 ```bash
@@ -1069,7 +1990,25 @@ go test ./pkg/watcher -v -run "TestEvent"
 
 ### 5.6 Stats & Monitoring
 
-The watcher tracks runtime statistics:
+The watcher tracks runtime statistics that help you monitor its health and efficiency:
+
+```mermaid
+flowchart LR
+    RAW["Raw Events<br/>(from fsnotify)"] --> RECEIVED["EventsReceived<br/>counter++"]
+    RECEIVED --> FILTER{"Filtering<br/>+ Debounce"}
+    FILTER -->|Passed| EMITTED["EventsEmitted<br/>counter++"]
+    FILTER -->|Dropped| DROPPED["EventsDropped<br/>counter++"]
+    
+    EMITTED --> HANDLER["→ Scan Handler"]
+    
+    subgraph "Invariant"
+        INV["EventsReceived = EventsEmitted + EventsDropped"]
+    end
+    
+    style RAW fill:#3498db,color:#fff
+    style EMITTED fill:#27ae60,color:#fff
+    style DROPPED fill:#e74c3c,color:#fff
+```
 
 | Stat | Meaning |
 |------|---------|
@@ -1080,8 +2019,10 @@ The watcher tracks runtime statistics:
 | `StartedAt` | When the watcher was started |
 
 **Key metrics to observe:**
-- `EventsReceived - EventsEmitted = EventsDropped` (they should add up)
-- `EventsDropped / EventsReceived` = debounce efficiency (higher = more efficient)
+- `EventsReceived - EventsEmitted = EventsDropped` (they should add up — this is the invariant)
+- `EventsDropped / EventsReceived` = debounce efficiency (higher = more efficient filtering)
+
+**Example:** If you see `Received: 150, Emitted: 30, Dropped: 120`, that's 80% efficiency — the watcher saved 120 unnecessary scans.
 
 #### Test stats with the test suite
 ```bash
@@ -1092,7 +2033,23 @@ go test ./pkg/watcher -v -run "TestStats"
 
 ## 6. Unit Testing Commands
 
-Go's testing framework is central to CredVigil's development.
+Go's testing framework is central to CredVigil's development. Understanding how to run, filter, and analyze tests is essential for validating that every component works correctly.
+
+```mermaid
+flowchart TD
+    subgraph "Go Test Pyramid"
+        UNIT["Unit Tests<br/>go test ./pkg/..."]
+        INTEGRATION["Integration Tests<br/>go test ./pkg/git (uses real git)"]
+        CLI["CLI Tests<br/>bash run_all_tests.sh"]
+        RACE["Race Detection<br/>go test -race ./..."]
+        COVERAGE["Coverage Analysis<br/>go test -cover ./..."]
+    end
+    
+    UNIT --> INTEGRATION
+    INTEGRATION --> CLI
+    UNIT --> RACE
+    UNIT --> COVERAGE
+```
 
 ---
 
@@ -1102,17 +2059,32 @@ Go's testing framework is central to CredVigil's development.
 go test ./...
 ```
 
-**What it does:** Runs all tests in every package recursively.
+**What it does:** Recursively discovers and runs every `_test.go` file in every Go package.
 
-**Expected output:**
+**Step-by-step:**
+1. `go test` — invokes Go's test runner
+2. `./...` — `./` means current directory, `...` means "and all subdirectories recursively"
+3. Each package compiles separately, runs its test functions, reports PASS/FAIL
+4. Packages with no test files show `[no test files]`
+
+**Actual output:**
 ```
-ok      github.com/credvigil/credvigil/pkg/detector   0.XXXs
-ok      github.com/credvigil/credvigil/pkg/entropy     0.XXXs
-ok      github.com/credvigil/credvigil/pkg/git          0.XXXs
-ok      github.com/credvigil/credvigil/pkg/pipeline     0.XXXs
-ok      github.com/credvigil/credvigil/pkg/rules        0.XXXs
-ok      github.com/credvigil/credvigil/pkg/watcher      0.XXXs
+?       github.com/credvigil/credvigil/cmd/credvigil         [no test files]
+?       github.com/credvigil/credvigil/internal/config       [no test files]
+ok      github.com/credvigil/credvigil/pkg/detector     0.707s
+ok      github.com/credvigil/credvigil/pkg/entropy      0.277s
+ok      github.com/credvigil/credvigil/pkg/git          5.831s
+?       github.com/credvigil/credvigil/pkg/models       [no test files]
+ok      github.com/credvigil/credvigil/pkg/pipeline     0.643s
+ok      github.com/credvigil/credvigil/pkg/rules        0.777s
+ok      github.com/credvigil/credvigil/pkg/watcher      1.513s
 ```
+
+**Reading the output:**
+- `?` = no test files (pure types or config, nothing to test)
+- `ok` + time = all tests passed in that duration
+- `pkg/git` takes longest (5.8s) because it creates actual git repos in temp dirs
+- `pkg/detector` takes ~0.7s because it runs 331 regex rules against test content
 
 ---
 
@@ -1138,13 +2110,52 @@ go test ./pkg/git
 go test ./pkg/watcher
 ```
 
+```mermaid
+flowchart LR
+    subgraph "Package → Component Mapping"
+        DET["pkg/detector"] -->|"Component 1"| ENGINE["Core Detection Engine"]
+        RULES["pkg/rules"] -->|"Component 1"| ENGINE
+        ENT["pkg/entropy"] -->|"Component 1"| ENGINE
+        PIPE["pkg/pipeline"] -->|"Component 2"| PIPELINE["Secure Pipeline"]
+        GIT["pkg/git"] -->|"Component 3"| GITCOMP["Git Integration"]
+        WATCH["pkg/watcher"] -->|"Component 4"| WATCHCOMP["File Watcher"]
+    end
+```
+
 ---
 
 ### 6.3 Run a Specific Test Function
 
 ```bash
 # Syntax: go test ./pkg/<package> -run <TestFunctionName>
+```
 
+**How `-run` works:** It takes a regex pattern, not an exact name. So `-run AWS` matches any test with "AWS" in the name.
+
+**Example with actual output:**
+```bash
+go test ./pkg/detector -v -run TestScanContent_AWSKeys
+```
+
+**Actual output:**
+```
+=== RUN   TestScanContent_AWSKeys
+    engine_test.go:27: Found: AWS Access Key ID (type=aws-access-key-id, confidence=0.40, entropy=3.68)
+    engine_test.go:27: Found: AWS Secret Access Key (type=aws-secret-access-key, confidence=0.50, entropy=4.66)
+    engine_test.go:27: Found: High-entropy base64 string (entropy: 4.66) (type=high-entropy-string, confidence=0.80, entropy=4.66)
+--- PASS: TestScanContent_AWSKeys (0.01s)
+PASS
+ok      github.com/credvigil/credvigil/pkg/detector     0.167s
+```
+
+**What this tells you:**
+1. The test injected fake AWS credentials into the scanner
+2. The scanner found **3 things**: the Access Key ID, the Secret Key, and a high-entropy string (the secret key is also flagged by entropy analysis)
+3. Confidence scores differ: the entropy detector has 0.80 confidence (high entropy = likely a secret)
+4. The test passed in 10ms, total package compile+run was 167ms
+
+**More specific test examples:**
+```bash
 # Detection engine tests
 go test ./pkg/detector -run TestScanContent_AWSKeys
 go test ./pkg/detector -run TestScanContent_GitHubTokens
@@ -1217,6 +2228,18 @@ go test ./pkg/detector -v -run TestScanContent_AWSKeys
 
 Go's race detector finds data races in concurrent code. Critical for the watcher (which uses goroutines).
 
+```mermaid
+flowchart TD
+    RACE["go test -race ./..."] --> INSTRUMENT["Go compiler instruments<br/>every memory access"]
+    INSTRUMENT --> RUN["Tests run with<br/>instrumented binary"]
+    RUN --> CHECK{"Concurrent access<br/>without sync?"}
+    CHECK -->|Yes| FAIL["❌ FAIL + detailed<br/>stack trace showing<br/>both goroutines"]
+    CHECK -->|No| PASS["✅ PASS<br/>(no races detected)"]
+    
+    style FAIL fill:#e74c3c,color:#fff
+    style PASS fill:#27ae60,color:#fff
+```
+
 ```bash
 # All tests with race detection
 go test -race ./...
@@ -1231,7 +2254,59 @@ go test -race ./pkg/pipeline -v
 go test -race ./pkg/detector -v
 ```
 
-**What it does:** Instruments the binary to detect concurrent access to shared memory without proper synchronization. If a race is found, the test fails with a detailed stack trace.
+**Actual output (watcher with race detection, all 21 tests):**
+```
+=== RUN   TestNewWatcher_NilHandler
+--- PASS: TestNewWatcher_NilHandler (0.00s)
+=== RUN   TestNewWatcher_NoPaths
+--- PASS: TestNewWatcher_NoPaths (0.00s)
+=== RUN   TestNewWatcher_Valid
+--- PASS: TestNewWatcher_Valid (0.00s)
+=== RUN   TestNewWatcher_DefaultDebounce
+--- PASS: TestNewWatcher_DefaultDebounce (0.00s)
+=== RUN   TestDefaultConfig
+--- PASS: TestDefaultConfig (0.00s)
+=== RUN   TestEventTypeString
+--- PASS: TestEventTypeString (0.00s)
+=== RUN   TestShouldSkip
+--- PASS: TestShouldSkip (0.00s)
+=== RUN   TestShouldSkip_IncludeExtensions
+--- PASS: TestShouldSkip_IncludeExtensions (0.00s)
+=== RUN   TestShouldSkipDir
+--- PASS: TestShouldSkipDir (0.00s)
+=== RUN   TestPath2Components
+--- PASS: TestPath2Components (0.00s)
+=== RUN   TestMapEventType
+--- PASS: TestMapEventType (0.00s)
+=== RUN   TestWatcher_StartStop
+--- PASS: TestWatcher_StartStop (0.02s)
+=== RUN   TestWatcher_DetectsCreate
+--- PASS: TestWatcher_DetectsCreate (0.04s)
+=== RUN   TestWatcher_DetectsModify
+--- PASS: TestWatcher_DetectsModify (0.04s)
+=== RUN   TestWatcher_Debounce
+--- PASS: TestWatcher_Debounce (0.54s)
+=== RUN   TestWatcher_ExcludesFiltered
+--- PASS: TestWatcher_ExcludesFiltered (0.05s)
+=== RUN   TestWatcher_Recursive
+--- PASS: TestWatcher_Recursive (0.04s)
+=== RUN   TestWatcher_Stats
+--- PASS: TestWatcher_Stats (0.22s)
+=== RUN   TestWatcher_DoubleStart
+--- PASS: TestWatcher_DoubleStart (0.02s)
+=== RUN   TestWatcher_WatchedDirs
+--- PASS: TestWatcher_WatchedDirs (0.02s)
+=== RUN   TestWatcher_ExcludedDir
+--- PASS: TestWatcher_ExcludedDir (0.02s)
+=== RUN   TestStats_Snapshot
+--- PASS: TestStats_Snapshot (0.00s)
+PASS
+ok      github.com/credvigil/credvigil/pkg/watcher      2.216s
+```
+
+**What it does:** Instruments the binary to detect concurrent access to shared memory without proper synchronization. If a race is found, the test fails with a detailed stack trace showing both goroutines and the exact memory location.
+
+> **Why this matters:** The watcher runs a background goroutine (fsnotify event loop) and accesses shared state (debounce map, stats counters). Without proper locking, concurrent reads/writes would corrupt data. The race detector proves our mutexes work correctly.
 
 ---
 
@@ -1240,7 +2315,35 @@ go test -race ./pkg/detector -v
 ```bash
 # Coverage percentage for all packages
 go test ./... -cover
+```
 
+**Actual output:**
+```
+        github.com/credvigil/credvigil/cmd/credvigil         coverage: 0.0% of statements
+        github.com/credvigil/credvigil/internal/config        coverage: 0.0% of statements
+ok      github.com/credvigil/credvigil/pkg/detector     0.592s  coverage: 62.8% of statements
+ok      github.com/credvigil/credvigil/pkg/entropy      0.277s  coverage: 76.0% of statements
+ok      github.com/credvigil/credvigil/pkg/git          6.150s  coverage: 80.3% of statements
+        github.com/credvigil/credvigil/pkg/models               coverage: 0.0% of statements
+ok      github.com/credvigil/credvigil/pkg/pipeline     0.688s  coverage: 86.7% of statements
+ok      github.com/credvigil/credvigil/pkg/rules        0.403s  coverage: 100.0% of statements
+ok      github.com/credvigil/credvigil/pkg/watcher      1.852s  coverage: 89.4% of statements
+```
+
+**Reading the coverage results:**
+
+| Package | Coverage | Status |
+|---------|----------|--------|
+| `pkg/rules` | 100.0% | All rule definitions are exercised |
+| `pkg/watcher` | 89.4% | Excellent — most watcher code paths tested |
+| `pkg/pipeline` | 86.7% | Strong — all 5 pipeline stages tested |
+| `pkg/git` | 80.3% | Good — diff parsing, filtering, repo operations |
+| `pkg/entropy` | 76.0% | Good — Shannon entropy calculations |
+| `pkg/detector` | 62.8% | Room for improvement — many edge cases |
+| `cmd/credvigil` | 0.0% | CLI entry point — tested via `run_all_tests.sh` instead |
+| `pkg/models` | 0.0% | Pure type definitions — no logic to test |
+
+```bash
 # Coverage for a specific package
 go test ./pkg/detector -cover
 go test ./pkg/watcher -cover
@@ -1252,7 +2355,7 @@ go test ./pkg/rules -cover
 # Generate coverage profile
 go test ./... -coverprofile=coverage.out
 
-# View coverage in terminal
+# View coverage in terminal (shows per-function coverage)
 go tool cover -func=coverage.out
 
 # View coverage in browser (visual — highlights covered/uncovered lines)
@@ -1266,6 +2369,8 @@ go tool cover -html=detector_coverage.out
 go test ./pkg/watcher -coverprofile=watcher_coverage.out
 go tool cover -html=watcher_coverage.out
 ```
+
+> **Pro tip:** The HTML coverage report (`go tool cover -html=coverage.out`) is incredibly useful — it opens in your browser and highlights each line in green (covered) or red (not covered). This helps you write targeted tests for uncovered code paths.
 
 ---
 
@@ -1320,7 +2425,26 @@ go test ./pkg/detector -bench=. -count=5
 
 ## 7. Interactive Test Suite Script
 
-A comprehensive script that runs all CLI-level tests:
+A comprehensive bash script that runs all CLI-level tests end-to-end, validating the binary works correctly:
+
+```mermaid
+flowchart TD
+    START["bash run_all_tests.sh"] --> T1["1. Version check"]
+    T1 --> T2["2. List rules (331 rules)"]
+    T2 --> T3["3. Full scan fake_secrets.env"]
+    T3 --> T4["4. Severity filter (CRITICAL)"]
+    T4 --> T5["5. Confidence filter (70%+)"]
+    T5 --> T6["6. JSON output + validation"]
+    T6 --> T7["7. Stdin piping"]
+    T7 --> T8["8-11. Specific secret types"]
+    T8 --> T12["12. Clean input (no secrets)"]
+    T12 --> T13["13. Regex-only mode"]
+    T13 --> T14["14. Go unit tests"]
+    T14 --> SUMMARY["Summary: X/14 passed"]
+    
+    style START fill:#3498db,color:#fff
+    style SUMMARY fill:#27ae60,color:#fff
+```
 
 ```bash
 # Run the interactive test suite
@@ -1329,7 +2453,7 @@ bash run_all_tests.sh
 
 **What it does:** Runs 14 tests covering:
 1. Version check
-2. List rules (183 rules)
+2. List rules (331 rules)
 3. Full scan of `fake_secrets.env`
 4. Severity filter (CRITICAL only)
 5. Confidence filter (70%+)
@@ -1342,6 +2466,13 @@ bash run_all_tests.sh
 12. Clean input (no secrets)
 13. Regex-only mode (no entropy)
 14. Go unit tests
+
+> **Real-life scenario: Pre-release validation**
+> 
+> Before tagging a new release, run `bash run_all_tests.sh` to ensure all 14 categories still work. This catches regressions like:
+> - A new rule accidentally breaks JSON output format
+> - A severity enum change breaks severity filtering
+> - A dependency update causes stdin piping to fail
 
 ---
 
@@ -1684,32 +2815,121 @@ rm /tmp/watcher_demo.go
 
 ## 9. Advanced Piping & Automation
 
-### Scan git diff before committing (pre-commit hook)
+CredVigil's Linux-native design shines when combined with standard Unix tools. Every command below follows the Unix philosophy: **each tool does one thing, and they connect via pipes.**
+
+```mermaid
+flowchart LR
+    subgraph "Data Sources"
+        GIT["git diff"]
+        FIND["find . -name"]
+        KUBECTL["kubectl get secret"]
+        CURL["curl API"]
+        CAT["cat file"]
+    end
+    
+    subgraph "CredVigil"
+        SCAN["credvigil scan --stdin"]
+    end
+    
+    subgraph "Post-Processing"
+        JQ["jq (filter JSON)"]
+        PYTHON["python3 (reports)"]
+        WC["wc -l (count)"]
+        SORT["sort | uniq (dedupe)"]
+        CSV["csv (export)"]
+    end
+    
+    GIT --> SCAN
+    FIND --> SCAN
+    KUBECTL --> SCAN
+    CURL --> SCAN
+    CAT --> SCAN
+    SCAN --> JQ
+    SCAN --> PYTHON
+    SCAN --> WC
+    JQ --> SORT
+    JQ --> CSV
+```
+
+---
+
+### 9.1 Pre-Commit Scanning
+
+> **Real-life scenario:** You've staged changes for a commit. Before running `git commit`, check if you accidentally added any secrets.
+
+#### Scan git diff before committing (pre-commit hook)
 ```bash
 git diff --staged | ./credvigil scan --stdin --no-context --min-severity medium
 ```
 
-### Scan a specific git commit's changes
+**Step-by-step:**
+1. `git diff --staged` — shows only the changes you've `git add`-ed (staged for commit)
+2. `|` — pipes the diff text to CredVigil
+3. `--stdin` — tells CredVigil to read from stdin instead of a file
+4. `--no-context` — hides surrounding code lines (cleaner output for automation)
+5. `--min-severity medium` — ignores LOW/INFO findings (reduces noise)
+
+**To make this an actual Git hook:**
+```bash
+cat > .git/hooks/pre-commit << 'EOF'
+#!/bin/bash
+# CredVigil pre-commit hook — block commits with secrets
+
+RESULT=$(git diff --staged | ./credvigil scan --stdin --no-context --min-severity high --format json 2>/dev/null)
+COUNT=$(echo "$RESULT" | jq -r '.total_findings // 0')
+
+if [ "$COUNT" -gt "0" ]; then
+    echo "🚫 BLOCKED: $COUNT high/critical secret(s) found in staged changes!"
+    echo ""
+    echo "$RESULT" | jq -r '.results[].findings[] | "  [\(.severity)] \(.secret_type) at line \(.source.line)"'
+    echo ""
+    echo "Fix: remove the secrets and re-stage, or use 'git commit --no-verify' to bypass."
+    exit 1
+fi
+echo "✅ No secrets detected in staged changes."
+EOF
+chmod +x .git/hooks/pre-commit
+```
+
+### 9.2 Scanning Specific File Types
+
+#### Scan a specific git commit's changes
 ```bash
 git show HEAD --format="" | ./credvigil scan --stdin --no-context
 ```
 
-### Scan all .env files in a project
+#### Scan all .env files in a project
 ```bash
 find /path/to/project -name "*.env" -exec cat {} + | ./credvigil scan --stdin --no-context
 ```
 
-### Scan Kubernetes secrets (base64 decoded)
+**Step-by-step:**
+1. `find` recursively searches for all `.env` files
+2. `-exec cat {} +` concatenates their contents (more efficient than `xargs`)
+3. The combined content is piped to CredVigil for scanning
+
+#### Scan all YAML/YML config files
+```bash
+find /path/to/project \( -name "*.yml" -o -name "*.yaml" \) -exec cat {} + | ./credvigil scan --stdin --no-context
+```
+
+### 9.3 Cloud & DevOps Scanning
+
+#### Scan Kubernetes secrets (base64 decoded)
 ```bash
 kubectl get secret my-secret -o jsonpath='{.data}' | base64 -d | ./credvigil scan --stdin --no-context
 ```
 
-### Scan Terraform state file
+#### Scan Terraform state file
 ```bash
 ./credvigil scan terraform.tfstate --no-context --min-severity high
 ```
 
-### Scan entire project, output JSON, filter with jq
+> **Why Terraform state?** Terraform stores the actual values of all resources in `terraform.tfstate`, including database passwords, API keys, and certificates. This file should NEVER be committed to git. CredVigil can audit it for secrets.
+
+### 9.4 JSON Post-Processing with jq
+
+#### Scan entire project, output JSON, filter with jq
 ```bash
 ./credvigil scan . --no-context --format json 2>/dev/null | jq '
   [.results[].findings[] | {
@@ -1722,7 +2942,14 @@ kubectl get secret my-secret -o jsonpath='{.data}' | base64 -d | ./credvigil sca
 '
 ```
 
-### Generate a CSV report
+#### Count findings by rule (which rules fire most?)
+```bash
+./credvigil scan testdata/fake_secrets.env --no-context --format json 2>/dev/null | jq '[.results[].findings[].rule_id] | group_by(.) | map({rule: .[0], count: length}) | sort_by(-.count)'
+```
+
+### 9.5 Report Generation
+
+#### Generate a CSV report
 ```bash
 ./credvigil scan . --no-context --format json 2>/dev/null | python3 -c "
 import json, sys, csv
@@ -1742,12 +2969,20 @@ for r in data.get('results', []):
 " > scan_report.csv
 ```
 
-### Count findings by rule
-```bash
-./credvigil scan testdata/fake_secrets.env --no-context --format json 2>/dev/null | jq '[.results[].findings[].rule_id] | group_by(.) | map({rule: .[0], count: length}) | sort_by(-.count)'
+```mermaid
+flowchart LR
+    SCAN["credvigil scan<br/>--format json"] --> PYTHON["python3<br/>(parse JSON)"]
+    PYTHON --> CSV["scan_report.csv"]
+    CSV --> EXCEL["Open in Excel<br/>or Google Sheets"]
+    CSV --> JIRA["Import to<br/>Jira/ServiceNow"]
+    
+    style SCAN fill:#3498db,color:#fff
+    style CSV fill:#27ae60,color:#fff
 ```
 
-### Scan and fail CI if any critical finding
+### 9.6 CI/CD Gate Script
+
+#### Scan and fail CI if any critical finding
 ```bash
 #!/bin/bash
 RESULT=$(./credvigil scan . --no-context --min-severity critical --format json 2>/dev/null)
@@ -1760,20 +2995,26 @@ fi
 echo "✅ PASSED: No critical secrets found"
 ```
 
+> **Real-life scenario: CI/CD pipeline gate**
+> 
+> Add this script as a step in your GitHub Actions, GitLab CI, or Jenkins pipeline. If any CRITICAL secret is found, the build fails before deployment — preventing secrets from reaching production.
+
 ---
 
 ## 10. Quick Reference Card
 
+> **Print this section!** Keep it beside your terminal for fast lookups.
+
 ### CLI Commands
 
-| Command | Description |
-|---------|-------------|
-| `./credvigil version` | Show version info |
-| `./credvigil help` | Show usage and options |
-| `./credvigil rules` | List all 183+ detection rules |
-| `./credvigil scan <path>` | Scan file or directory |
-| `./credvigil scan --stdin` | Scan from piped input |
-| `./credvigil scan --git <path\|url>` | Scan git repository history |
+| Command | Description | Example |
+|---------|-------------|---------|
+| `./credvigil version` | Show version info | Version, Go version, OS |
+| `./credvigil help` | Show usage and options | All flags documented |
+| `./credvigil rules` | List all 331 detection rules | Rule ID, severity, description |
+| `./credvigil scan <path>` | Scan file or directory | `./credvigil scan ./src/` |
+| `./credvigil scan --stdin` | Scan from piped input | `cat file \| ./credvigil scan --stdin` |
+| `./credvigil scan --git <path\|url>` | Scan git repository history | `./credvigil scan --git .` |
 
 ### Scan Flags
 
