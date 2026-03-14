@@ -302,7 +302,7 @@ Regex can only find secrets it already knows about. If a new service launches to
 
 ```mermaid
 flowchart TD
-    A["Input Text"] --> B["Apply 309 Regex Rules"]
+    A["Input Text"] --> B["Apply 331 Regex Rules"]
     B --> C{"Pattern Match?"}
     C -->|"✅ AKIA... matches AWS rule"| D["Finding Created"]
     C -->|"❌ No match"| E["Try Entropy Analysis"]
@@ -1357,7 +1357,7 @@ flowchart TD
     D -->|"✅ Read"| E["Read File Into Memory"]
     E --> F["4. Engine.ScanContent()"]
     F --> G["Split into lines"]
-    G --> H["Run 309 regex rules"]
+    G --> H["Run 331 regex rules"]
     H --> I["Extract matches + entropy"]
     I --> J["Compute confidence"]
     J --> K["5. Pipeline:\nHash→Redact→Enrich→FP→Sanitize"]
@@ -1454,7 +1454,7 @@ Regex catches known patterns with high confidence. Entropy catches unknown/novel
 ```mermaid
 flowchart LR
     subgraph Phase1["Phase 1: Regex"]
-        A["309 Rules"] --> B["Known Patterns"]
+        A["331 Rules"] --> B["Known Patterns"]
     end
     subgraph Phase2["Phase 2: Entropy"]
         C["Shannon Analysis"] --> D["Unknown Patterns"]
@@ -1623,7 +1623,7 @@ flowchart TD
     CLI["cmd/credvigil/main.go\n💻 CLI Entry Point"] --> ENG["pkg/detector/engine.go\n🧠 Detection Engine"]
     CLI --> SCN["pkg/detector/scanner.go\n📁 File Scanner"]
     SCN --> ENG
-    ENG --> RUL["pkg/rules/rules.go\n📖 309 Rules"]
+    ENG --> RUL["pkg/rules/rules.go\n📖 331 Rules"]
     ENG --> ENT["pkg/entropy/entropy.go\n📊 Shannon Math"]
     ENG --> MOD["pkg/models/finding.go\n📦 Data Structures"]
     CLI --> PIP["pkg/pipeline/...\n⚙️ Post-Processing"]
@@ -1825,7 +1825,7 @@ CredVigil covers 25+ categories of secrets. Here's what each category covers and
 Covering: Slack, Jira, Confluence, Teams, Stack Overflow, private keys (RSA/EC/SSH/PGP), JWT, OAuth, SendGrid, Mailgun, Mailchimp, Postmark, Resend, Docker, NPM, PyPI, Heroku, Vault, Terraform, Datadog, New Relic, Sentry, Grafana, Splunk, PagerDuty, OpenTelemetry, CircleCI, Jenkins, Travis CI, Buildkite, Drone, Pulumi, Google Maps, Mapbox, Twitter/X, Facebook, LinkedIn, Cloudinary, Backblaze, Alchemy, Infura, Etherscan, Moralis, Meilisearch, Typesense, HubSpot, Mixpanel, Segment, Intercom, Zendesk, Auth0, Okta, Clerk, and more.
 
 ```mermaid
-pie title 309 Detection Rules by Category
+pie title 331 Detection Rules by Category
     "Cloud Providers" : 15
     "AI/ML Services" : 11
     "Source Control" : 7
@@ -2089,7 +2089,7 @@ This section collects all the interview-ready talking points related to Componen
 
 ### 16.1 "Tell me about a project you've built"
 
-> **Interview Tip**: "I built CredVigil, a zero-trust credential detection engine that scans codebases for leaked secrets. It uses 309 regex-based detection rules combined with Shannon entropy analysis to produce confidence-scored findings. The engine was designed from day one to never store plaintext secrets — everything is SHA-256 hashed and redacted before it leaves the detection layer."
+> **Interview Tip**: "I built CredVigil, a zero-trust credential detection engine that scans codebases for leaked secrets. It uses 331 regex-based detection rules combined with Shannon entropy analysis to produce confidence-scored findings. The engine was designed from day one to never store plaintext secrets — everything is SHA-256 hashed and redacted before it leaves the detection layer."
 
 ### 16.2 "How does regex matching work?"
 
@@ -2113,7 +2113,7 @@ This section collects all the interview-ready talking points related to Componen
 
 ### 16.7 "How do you handle concurrency?"
 
-> **Interview Tip**: "The RuleSet uses a sync.RWMutex so multiple goroutines can scan files simultaneously, each reading the rules concurrently. File scanning is parallelized — each file is a goroutine that independently matches all 309 rules. Results are collected via channels. This gives near-linear speedup on multi-core machines. The mutex only escalates to a write lock when adding custom rules, which is rare."
+> **Interview Tip**: "The RuleSet uses a sync.RWMutex so multiple goroutines can scan files simultaneously, each reading the rules concurrently. File scanning is parallelized — each file is a goroutine that independently matches all 331 rules. Results are collected via channels. This gives near-linear speedup on multi-core machines. The mutex only escalates to a write lock when adding custom rules, which is rare."
 
 ### 16.8 "Why Go and not Python?"
 
@@ -2157,7 +2157,7 @@ These are detailed marketing angles, talking points, copy snippets, landing page
 
 | Feature | Benefit | What to Say |
 |---------|---------|-------------|
-| 309 detection rules | Broadest coverage | "We detect secrets from 55+ services — from AWS to Pinecone, from Stripe to Together AI" |
+| 331 detection rules | Broadest coverage | "We detect secrets from 55+ services — from AWS to Pinecone, from Stripe to Together AI" |
 | Confidence scoring (0-100%) | No false positive fatigue | "Every finding has a confidence score, so your team fixes real threats, not noise" |
 | Shannon entropy analysis | Catches unknown secrets | "Even if a secret doesn't match any known pattern, we catch it through randomness analysis" |
 | Zero external dependencies | Easy deployment | "One binary, zero dependencies. Works anywhere Go compiles — no pip install, no Docker required" |
@@ -2194,7 +2194,7 @@ These are detailed marketing angles, talking points, copy snippets, landing page
 ### 17.6 Social Media Copy (Ready to Post)
 
 **LinkedIn Post**:
-> 🔐 We just shipped 309 detection rules in CredVigil — covering everything from AWS access keys to Pinecone vector DB tokens.
+> 🔐 We just shipped 331 detection rules in CredVigil — covering everything from AWS access keys to Pinecone vector DB tokens.
 >
 > But here's what makes it different: every finding gets a confidence score from 0-100%.
 >
@@ -2221,7 +2221,7 @@ These are detailed marketing angles, talking points, copy snippets, landing page
 | "Confidence-Scored Secret Detection: Beyond Binary Pattern Matching" | Security engineers | 30 min |
 | "Shannon Entropy in Practice: How Math Catches Secrets Regex Can't" | Developers | 20 min |
 | "Zero-Trust Scan Output: Why Your Secret Scanner Is Leaking Secrets" | CISO/management | 15 min |
-| "Building a 309-Rule Detection Engine in Pure Go with Zero Dependencies" | Go developers | 45 min |
+| "Building a 331-Rule Detection Engine in Pure Go with Zero Dependencies" | Go developers | 45 min |
 
 ### 17.8 Pricing & Packaging Angle
 
@@ -2240,7 +2240,7 @@ These are detailed marketing angles, talking points, copy snippets, landing page
 
 ### 17.10 Elevator Pitch (30 Seconds)
 
-> "CredVigil is an open-source credential scanner that finds leaked API keys, tokens, and passwords in your code. What makes it different is confidence scoring — every finding gets a 0-100% score, so your team fixes real threats instead of drowning in false positives. It's a single Go binary with zero dependencies, 309 detection rules, and zero-trust output — the scan results themselves never contain the actual secrets."
+> "CredVigil is an open-source credential scanner that finds leaked API keys, tokens, and passwords in your code. What makes it different is confidence scoring — every finding gets a 0-100% score, so your team fixes real threats instead of drowning in false positives. It's a single Go binary with zero dependencies, 331 detection rules, and zero-trust output — the scan results themselves never contain the actual secrets."
 
 ---
 

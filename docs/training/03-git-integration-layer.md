@@ -64,7 +64,7 @@ The Git Integration Layer adds the ability to scan an entire repository's **comm
 ```mermaid
 flowchart TB
     subgraph M1["Module 1: Detection Engine"]
-        ENGINE["309 Rules +\nEntropy Analysis"]
+        ENGINE["331 Rules +\nEntropy Analysis"]
     end
     subgraph M2["Module 2: Pipeline"]
         PIPE["Hash → Redact → Enrich\n→ Fingerprint → Sanitize"]
@@ -1215,7 +1215,7 @@ flowchart TB
         S2["Walk each commit"]
         S3["Extract diff entries"]
         S4["Build scannable content<br/>from added lines"]
-        S5["Run detection engine<br/>(309 rules + entropy)"]
+        S5["Run detection engine<br/>(331 rules + entropy)"]
         S6["Adjust line numbers"]
         S7["Run pipeline<br/>(hash → redact → enrich<br/>→ fingerprint → sanitize)"]
         S8["Aggregate results"]
@@ -1302,7 +1302,7 @@ flowchart TB
     end
     
     subgraph C1["Component 1: Detection Engine"]
-        ENGINE["ScanContent<br/>309 rules + entropy"]
+        ENGINE["ScanContent<br/>331 rules + entropy"]
     end
     
     subgraph C2["Component 2: Pipeline"]
@@ -2344,12 +2344,12 @@ Yes. The initial commit has no parent to diff against. CredVigil handles this by
 
 ### Q9: How does the scanner know which detection rules to use?
 
-It uses the same detection engine from Module 1 — all 309 rules plus entropy detection. The scanner simply feeds the added lines from each diff entry into `engine.ScanContent()`. No git-specific rules are needed because the content is just text, regardless of where it came from.
+It uses the same detection engine from Module 1 — all 331 rules plus entropy detection. The scanner simply feeds the added lines from each diff entry into `engine.ScanContent()`. No git-specific rules are needed because the content is just text, regardless of where it came from.
 
 ```mermaid
 flowchart LR
     GIT["Added lines from git diff"] --> BUILD["Build content string"]
-    BUILD --> ENGINE["Same 309-rule engine<br/>from Module 1"]
+    BUILD --> ENGINE["Same 331-rule engine<br/>from Module 1"]
     ENGINE --> FINDINGS["Findings"]
     
     FILE["File content<br/>from disk"] --> ENGINE
@@ -2469,7 +2469,7 @@ Module 3 already has ~20 inline interview tips scattered throughout the document
 
 ### 17.13 System Design: "Design a secret scanning service for an enterprise"
 
-> **Interview Tip**: "I'd use CredVigil's architecture as the foundation: (1) A scanner service that clones repos and walks commit history — this is Component 3. (2) A detection engine with 309+ rules — Component 1. (3) A zero-trust pipeline for post-processing — Component 2. (4) A message queue (Kafka/NATS) for async processing — scan requests go in, findings come out. (5) A database for findings with fingerprint-based dedup. (6) A dashboard for triage. (7) Webhook integration for CI/CD gates. Scale horizontally by running multiple scanner workers — each scan is independent and stateless."
+> **Interview Tip**: "I'd use CredVigil's architecture as the foundation: (1) A scanner service that clones repos and walks commit history — this is Component 3. (2) A detection engine with 331+ rules — Component 1. (3) A zero-trust pipeline for post-processing — Component 2. (4) A message queue (Kafka/NATS) for async processing — scan requests go in, findings come out. (5) A database for findings with fingerprint-based dedup. (6) A dashboard for triage. (7) Webhook integration for CI/CD gates. Scale horizontally by running multiple scanner workers — each scan is independent and stateless."
 
 ### 17.14 Behavioral: "Tell me about a time you solved a complex parsing problem"
 
@@ -2630,7 +2630,7 @@ In **Module 4: File System Watcher**, you'll learn how CredVigil monitors files 
 ```mermaid
 flowchart LR
     subgraph DONE["✅ Completed"]
-        M1["Module 1<br/>Detection Engine<br/>309 rules + entropy"]
+        M1["Module 1<br/>Detection Engine<br/>331 rules + entropy"]
         M2["Module 2<br/>Pipeline<br/>5-stage zero-trust"]
         M3["Module 3<br/>Git Integration<br/>History scanning"]
     end
@@ -2672,7 +2672,7 @@ flowchart TB
 1. **File System Events** — How operating systems notify programs about file changes
 2. **Event Debouncing** — Why you can't scan on every keystroke
 3. **Watch Patterns** — Monitoring specific directories and file types
-4. **Integration with the Detection Engine** — Feeding changed files into the same 309-rule engine
+4. **Integration with the Detection Engine** — Feeding changed files into the same 331-rule engine
 
 ---
 

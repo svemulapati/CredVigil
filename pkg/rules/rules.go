@@ -3463,4 +3463,284 @@ func (rs *RuleSet) loadBuiltinRules() {
 		Verifiable:     true,
 		MinEntropy:     3.0,
 	})
+
+	// ==========================================
+	// GITLEAKS-PARITY ADDITIONS (22 rules)
+	// ==========================================
+
+	// Adobe Client Secret (p8e- prefix)
+	rs.addRule(Rule{
+		ID:             "adobe-client-secret",
+		Description:    "Adobe OAuth Client Secret",
+		SecretType:     models.SecretAdobeClientSecret,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`\b(p8e-[a-zA-Z0-9]{32})\b`),
+		Keywords:       []string{"adobe", "p8e-"},
+		BaseConfidence: 0.95,
+		Verifiable:     true,
+	})
+
+	// Age Secret Key (modern encryption tool)
+	rs.addRule(Rule{
+		ID:             "age-secret-key",
+		Description:    "Age Encryption Tool Secret Key",
+		SecretType:     models.SecretAgeSecretKey,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`AGE-SECRET-KEY-1[QPZRY9X8GF2TVDW0S3JN54KHCE6MUA7L]{58}`),
+		Keywords:       []string{"AGE-SECRET-KEY-1", "age-secret-key"},
+		BaseConfidence: 0.99,
+		Verifiable:     false,
+	})
+
+	// Anthropic Admin API Key (admin access, different prefix than regular key)
+	rs.addRule(Rule{
+		ID:             "anthropic-admin-api-key",
+		Description:    "Anthropic Admin API Key",
+		SecretType:     models.SecretAnthropicAdminKey,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`\b(sk-ant-admin01-[a-zA-Z0-9_\-]{93}AA)\b`),
+		Keywords:       []string{"sk-ant-admin01", "anthropic"},
+		BaseConfidence: 0.99,
+		Verifiable:     true,
+	})
+
+	// AWS Amazon Bedrock API Key (long-lived)
+	rs.addRule(Rule{
+		ID:             "aws-bedrock-api-key",
+		Description:    "AWS Amazon Bedrock API Key",
+		SecretType:     models.SecretAWSBedrockKey,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`\b(ABSK[A-Za-z0-9+/]{109,269}={0,2})\b`),
+		Keywords:       []string{"ABSK", "bedrock"},
+		BaseConfidence: 0.95,
+		Verifiable:     true,
+		MinEntropy:     3.0,
+	})
+
+	// Cloudflare Origin CA Key
+	rs.addRule(Rule{
+		ID:             "cloudflare-origin-ca-key",
+		Description:    "Cloudflare Origin CA Key",
+		SecretType:     models.SecretCloudflareOriginCAKey,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`\b(v1\.0-[a-f0-9]{24}-[a-f0-9]{146})\b`),
+		Keywords:       []string{"cloudflare", "v1.0-"},
+		BaseConfidence: 0.95,
+		Verifiable:     true,
+	})
+
+	// Confluent Access Token (Kafka ecosystem)
+	rs.addRule(Rule{
+		ID:             "confluent-access-token",
+		Description:    "Confluent Cloud Access Token",
+		SecretType:     models.SecretConfluentToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:confluent)[\w\s_-]{0,20}[\s'"]*[=:]\s*['"]?([a-z0-9]{16})['"]?`),
+		Keywords:       []string{"confluent"},
+		BaseConfidence: 0.80,
+		Verifiable:     true,
+		MinEntropy:     3.0,
+	})
+
+	// Confluent Secret Key (Kafka ecosystem)
+	rs.addRule(Rule{
+		ID:             "confluent-secret-key",
+		Description:    "Confluent Cloud Secret Key",
+		SecretType:     models.SecretConfluentSecret,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`(?i)(?:confluent)[\w\s_-]{0,20}(?:secret|key)[\s'"]*[=:]\s*['"]?([a-zA-Z0-9]{64})['"]?`),
+		Keywords:       []string{"confluent", "kafka"},
+		BaseConfidence: 0.85,
+		Verifiable:     true,
+		MinEntropy:     3.5,
+	})
+
+	// Discord Client Secret
+	rs.addRule(Rule{
+		ID:             "discord-client-secret",
+		Description:    "Discord Application Client Secret",
+		SecretType:     models.SecretDiscordClientSecret,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:discord)[\w\s_-]{0,20}(?:client[_\s-]?)?(?:secret|key)[\s'"]*[=:]\s*['"]?([a-z0-9_\-]{32})['"]?`),
+		Keywords:       []string{"discord"},
+		BaseConfidence: 0.80,
+		Verifiable:     true,
+		MinEntropy:     3.0,
+	})
+
+	// Dropbox API Token
+	rs.addRule(Rule{
+		ID:             "dropbox-api-token",
+		Description:    "Dropbox API Access Token",
+		SecretType:     models.SecretDropboxToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`\b(sl\.[a-z0-9\-=_]{135,})\b`),
+		Keywords:       []string{"dropbox", "sl."},
+		BaseConfidence: 0.90,
+		Verifiable:     true,
+		MinEntropy:     3.0,
+	})
+
+	// Facebook App Secret
+	rs.addRule(Rule{
+		ID:             "facebook-app-secret",
+		Description:    "Facebook Application Secret",
+		SecretType:     models.SecretFacebookAppSecret,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:facebook|fb)[\w\s_-]{0,20}(?:app[_\s-]?)?(?:secret|key)[\s'"]*[=:]\s*['"]?([a-f0-9]{32})['"]?`),
+		Keywords:       []string{"facebook", "fb_secret", "fb_app"},
+		BaseConfidence: 0.80,
+		Verifiable:     true,
+		MinEntropy:     3.0,
+	})
+
+	// Facebook Page Access Token (EAA prefix)
+	rs.addRule(Rule{
+		ID:             "facebook-page-access-token",
+		Description:    "Facebook Page Access Token",
+		SecretType:     models.SecretFacebookPageToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`\b(EAA[MC][a-zA-Z0-9]{100,})\b`),
+		Keywords:       []string{"EAAM", "EAAC", "facebook"},
+		BaseConfidence: 0.95,
+		Verifiable:     true,
+		MinEntropy:     4.0,
+	})
+
+	// Flutterwave Secret Key (African payment gateway)
+	rs.addRule(Rule{
+		ID:             "flutterwave-secret-key",
+		Description:    "Flutterwave Payment Secret Key",
+		SecretType:     models.SecretFlutterwaveKey,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`FLWSECK_TEST-[a-hA-H0-9]{32}-X`),
+		Keywords:       []string{"FLWSECK_TEST", "flutterwave"},
+		BaseConfidence: 0.95,
+		Verifiable:     true,
+	})
+
+	// Grafana Service Account Token (glsa_ prefix)
+	rs.addRule(Rule{
+		ID:             "grafana-service-account-token",
+		Description:    "Grafana Service Account Token",
+		SecretType:     models.SecretGrafanaSAToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`\b(glsa_[A-Za-z0-9]{32}_[A-Fa-f0-9]{8})\b`),
+		Keywords:       []string{"glsa_", "grafana"},
+		BaseConfidence: 0.95,
+		Verifiable:     true,
+	})
+
+	// Mattermost Access Token
+	rs.addRule(Rule{
+		ID:             "mattermost-access-token",
+		Description:    "Mattermost Personal Access Token",
+		SecretType:     models.SecretMattermostToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:mattermost)[\w\s_-]{0,20}[\s'"]*[=:]\s*['"]?([a-z0-9]{26})['"]?`),
+		Keywords:       []string{"mattermost"},
+		BaseConfidence: 0.80,
+		Verifiable:     true,
+		MinEntropy:     3.0,
+	})
+
+	// OpenShift User Token (sha256~ prefix)
+	rs.addRule(Rule{
+		ID:             "openshift-user-token",
+		Description:    "OpenShift User Authentication Token",
+		SecretType:     models.SecretOpenShiftToken,
+		Severity:       models.SeverityCritical,
+		Pattern:        regexp.MustCompile(`\b(sha256~[\w-]{43})\b`),
+		Keywords:       []string{"sha256~", "openshift"},
+		BaseConfidence: 0.95,
+		Verifiable:     true,
+		MinEntropy:     3.5,
+	})
+
+	// Postman API Token (PMAK- prefix)
+	rs.addRule(Rule{
+		ID:             "postman-api-token",
+		Description:    "Postman API Token",
+		SecretType:     models.SecretPostmanToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`\b(PMAK-[a-fA-F0-9]{24}-[a-fA-F0-9]{34})\b`),
+		Keywords:       []string{"PMAK-", "postman"},
+		BaseConfidence: 0.95,
+		Verifiable:     true,
+	})
+
+	// RapidAPI Access Token
+	rs.addRule(Rule{
+		ID:             "rapidapi-access-token",
+		Description:    "RapidAPI Access Token",
+		SecretType:     models.SecretRapidAPIToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:rapidapi)[\w\s_-]{0,20}[\s'"]*[=:]\s*['"]?([a-z0-9_\-]{50})['"]?`),
+		Keywords:       []string{"rapidapi", "x-rapidapi-key"},
+		BaseConfidence: 0.80,
+		Verifiable:     true,
+		MinEntropy:     3.0,
+	})
+
+	// RubyGems API Token (rubygems_ prefix)
+	rs.addRule(Rule{
+		ID:             "rubygems-api-token",
+		Description:    "RubyGems Package Registry API Token",
+		SecretType:     models.SecretRubyGemsToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`\b(rubygems_[a-f0-9]{48})\b`),
+		Keywords:       []string{"rubygems_"},
+		BaseConfidence: 0.95,
+		Verifiable:     true,
+	})
+
+	// Sentry Auth Token (org token: sntrys_, user token: sntryu_)
+	rs.addRule(Rule{
+		ID:             "sentry-auth-token",
+		Description:    "Sentry Organization or User Auth Token",
+		SecretType:     models.SecretSentryAuthToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`\b(sntrys_eyJpYXQiO[a-zA-Z0-9+/]{50,400}={0,2}_[a-zA-Z0-9+/]{43}|sntryu_[a-f0-9]{64})\b`),
+		Keywords:       []string{"sntrys_", "sntryu_", "sentry"},
+		BaseConfidence: 0.95,
+		Verifiable:     true,
+		MinEntropy:     4.0,
+	})
+
+	// Sourcegraph Access Token (sgp_ prefix)
+	rs.addRule(Rule{
+		ID:             "sourcegraph-access-token",
+		Description:    "Sourcegraph Access Token",
+		SecretType:     models.SecretSourcegraphToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`\b(sgp_(?:[a-fA-F0-9]{16}|local)_[a-fA-F0-9]{40}|sgp_[a-fA-F0-9]{40})\b`),
+		Keywords:       []string{"sgp_", "sourcegraph"},
+		BaseConfidence: 0.95,
+		Verifiable:     true,
+		MinEntropy:     3.0,
+	})
+
+	// Squarespace Access Token
+	rs.addRule(Rule{
+		ID:             "squarespace-access-token",
+		Description:    "Squarespace Access Token",
+		SecretType:     models.SecretSquarespaceToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:squarespace)[\w\s_-]{0,20}[\s'"]*[=:]\s*['"]?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})['"]?`),
+		Keywords:       []string{"squarespace"},
+		BaseConfidence: 0.80,
+		Verifiable:     true,
+	})
+
+	// Typeform API Token (tfp_ prefix)
+	rs.addRule(Rule{
+		ID:             "typeform-api-token",
+		Description:    "Typeform API Token",
+		SecretType:     models.SecretTypeformToken,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`\b(tfp_[a-z0-9\-_.=]{59})\b`),
+		Keywords:       []string{"tfp_", "typeform"},
+		BaseConfidence: 0.95,
+		Verifiable:     true,
+	})
 }

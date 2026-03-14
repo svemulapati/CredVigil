@@ -12,7 +12,7 @@
 
 ## Overview
 
-CredVigil scans codebases, configuration files, and data streams for exposed credentials — API keys, tokens, passwords, private keys, and connection strings. It combines **309 regex detection rules** with **Shannon entropy analysis**, producing findings with confidence scores, severity ratings, and SHA-256 fingerprints.
+CredVigil scans codebases, configuration files, and data streams for exposed credentials — API keys, tokens, passwords, private keys, and connection strings. It combines **331 regex detection rules** with **Shannon entropy analysis**, producing findings with confidence scores, severity ratings, and SHA-256 fingerprints.
 
 ### Key Principles
 
@@ -101,7 +101,7 @@ echo 'AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY' | ./credvi
   SHA-256:    7f75367e...4a830606
 
 ─────────────────────────────────────────────────────────────────
-  Scan completed in 7ms using 309 rules
+  Scan completed in 7ms using 331 rules
   Total findings: 55
   By severity: CRITICAL=17, HIGH=14, MEDIUM=20, LOW=4
 ─────────────────────────────────────────────────────────────────
@@ -111,7 +111,7 @@ echo 'AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY' | ./credvi
 
 ## Detection Coverage
 
-**309 built-in rules** across 55+ categories.
+**331 built-in rules** across 60+ categories.
 
 <details>
 <summary><strong>View full coverage matrix</strong></summary>
@@ -156,6 +156,17 @@ echo 'AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY' | ./credvi
 | **Modern Payments** | LemonSqueezy |
 | **Modern Observability** | Axiom, Highlight.io |
 | **Modern Email/Comms** | Novu, Loops |
+| **Encryption** | Age Secret Key |
+| **Data Streaming** | Confluent (Kafka) |
+| **Cloud Storage** | Dropbox |
+| **Enterprise Comms** | Mattermost |
+| **Enterprise K8s** | OpenShift |
+| **API Dev Tools** | Postman, RapidAPI |
+| **Package Registries** | RubyGems |
+| **Code Search** | Sourcegraph |
+| **Website Builders** | Squarespace |
+| **Forms & Surveys** | Typeform |
+| **African Payments** | Flutterwave |
 | **Code Quality** | SonarQube, SonarCloud |
 | **Artifact Management** | JFrog Artifactory |
 | **Code Review** | Gerrit |
@@ -180,7 +191,7 @@ echo 'AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY' | ./credvi
 ```
 Input (file / directory / stdin)
     │
-    ├── Regex Pattern Matching ──────── 309 compiled rules
+    ├── Regex Pattern Matching ──────── 331 compiled rules
     │     Known formats: ghp_*, AKIA*, sk_live_*, squ_*, AKC*, etc.
     │
     ├── Shannon Entropy Analysis ────── Catches novel/unknown secrets
@@ -235,7 +246,7 @@ credvigil/
 │   ├── entropy/            # Shannon entropy calculation
 │   │   ├── entropy.go
 │   │   └── entropy_test.go
-│   ├── rules/              # 309 compiled regex detection rules
+│   ├── rules/              # 331 compiled regex detection rules
 │   │   ├── rules.go
 │   │   └── rules_test.go
 │   ├── detector/           # Detection engine + concurrent file scanner
