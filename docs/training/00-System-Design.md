@@ -319,34 +319,34 @@ graph LR
 
 ```mermaid
 graph TD
-    ENTRY["os.Args parsing<br/>main()"] --> ROUTE{Command Router<br/>switch args[1]}
+    ENTRY["os.Args parsing<br/>main"] --> ROUTE{"Command Router"}
 
-    ROUTE -->|"scan"| SCAN["cmdScan()<br/>File/directory/git scanning"]
-    ROUTE -->|"rules"| RULES["cmdRules()<br/>List all 331 rules"]
-    ROUTE -->|"version"| VER["cmdVersion()<br/>Print version info"]
-    ROUTE -->|"help / -h"| HELP["cmdHelp()<br/>Usage text"]
+    ROUTE -->|"scan"| SCAN["cmdScan<br/>File/directory/git scanning"]
+    ROUTE -->|"rules"| RULES["cmdRules<br/>List all 331 rules"]
+    ROUTE -->|"version"| VER["cmdVersion<br/>Print version info"]
+    ROUTE -->|"help / -h"| HELP["cmdHelp<br/>Usage text"]
     ROUTE -->|"--help"| HELP
     ROUTE -->|"unknown"| ERR["Print error + help<br/>Exit code 1"]
 
     SCAN --> FLAGS["Parse Scan Flags<br/>--severity, --json,<br/>--min-confidence,<br/>--entropy, --workers"]
-    FLAGS --> INIT["Initialize Components<br/>RuleSet → Engine → Scanner"]
-    INIT --> MODE{Input Mode?}
+    FLAGS --> INIT["Initialize Components<br/>RuleSet, Engine, Scanner"]
+    INIT --> MODE{"Input Mode?"}
 
-    MODE -->|"os.Stdin has data"| STDIN["ScanStdin()<br/>Read pipe/redirect"]
+    MODE -->|"os.Stdin has data"| STDIN["ScanStdin<br/>Read pipe/redirect"]
     MODE -->|"path arguments"| TARGETS["Loop over target paths"]
 
-    TARGETS --> FTYPE{Path Type?}
-    FTYPE -->|"IsDir()"| DIR["ScanDirectory(path)"]
-    FTYPE -->|"IsFile()"| FILE["ScanFile(path)"]
+    TARGETS --> FTYPE{"Path Type?"}
+    FTYPE -->|"IsDir"| DIR["ScanDirectory"]
+    FTYPE -->|"IsFile"| FILE["ScanFile"]
 
     subgraph "Post-Scan"
-        PIPELINE["Pipeline.ProcessResult()"]
-        OUTPUT{--json flag?}
-        TEXT["outputText() with ANSI"]
-        JSON["outputJSON() with encoding/json"]
-        EXIT{Findings > 0?}
-        EXIT0["Exit code 0 ✓"]
-        EXIT1["Exit code 1 ✗"]
+        PIPELINE["Pipeline.ProcessResult"]
+        OUTPUT{"--json flag?"}
+        TEXT["outputText with ANSI"]
+        JSON["outputJSON with encoding/json"]
+        EXIT{"Findings found?"}
+        EXIT0["Exit code 0"]
+        EXIT1["Exit code 1"]
     end
 
     STDIN --> PIPELINE
@@ -445,38 +445,38 @@ graph TD
 ```mermaid
 classDiagram
     class Finding {
-        +string ID "CVF-{unixmilli}-{count}"
-        +SecretType SecretType "~180+ enum values"
+        +string ID
+        +SecretType SecretType
         +string Description
-        +Severity Severity "Info|Low|Medium|High|Critical"
+        +Severity Severity
         +string RuleID
         +Source Source
-        +string RawMatch "Cleared by pipeline"
-        +string RedactedMatch "AKIA****MPLE"
-        +string SecretHash "SHA-256"
-        +string Fingerprint "Cross-scan dedup"
+        +string RawMatch
+        +string RedactedMatch
+        +string SecretHash
+        +string Fingerprint
         +float64 Entropy
-        +float64 Confidence "0.0 – 1.0"
+        +float64 Confidence
         +bool Verified
         +time.Time DetectedAt
-        +string FileType "go-source, yaml-config..."
-        +string Environment "production, staging..."
-        +string Category "cloud, database, auth..."
-        +map Metadata "Extensible key-value"
+        +string FileType
+        +string Environment
+        +string Category
+        +map Metadata
         +Redact()
         +ClearRawMatch()
     }
 
     class Source {
-        +string Type "file | git-commit | stdin"
-        +string Location "file path"
+        +string Type
+        +string Location
         +int Line
         +int Column
         +int EndLine
-        +string Context "surrounding lines"
-        +string CommitHash "git only"
-        +string Author "git only"
-        +string Branch "git only"
+        +string Context
+        +string CommitHash
+        +string Author
+        +string Branch
         +string MachineID
         +string ProcessName
     }
@@ -489,8 +489,8 @@ classDiagram
     }
 
     class ScanRequest {
-        +string Content "text to scan"
-        +Source Source "where it came from"
+        +string Content
+        +Source Source
     }
 
     class ScanMetadata {
@@ -532,12 +532,12 @@ graph LR
         I4["Critical = 4"]
     end
 
-    subgraph "JSON Output (string)"
-        J0['"info"']
-        J1['"low"']
-        J2['"medium"']
-        J3['"high"']
-        J4['"critical"']
+    subgraph "JSON Output - string"
+        J0["'info'"]
+        J1["'low'"]
+        J2["'medium'"]
+        J3["'high'"]
+        J4["'critical'"]
     end
 
     I0 --> J0
@@ -2033,19 +2033,19 @@ graph TD
 
 ```mermaid
 mindmap
-    root((Design Patterns<br/>in CredVigil))
+    root((Design Patterns in CredVigil))
         Creational
             Factory Method
-                NewEngine()
-                NewDefault() pipeline
-                DefaultRuleSet()
-                DefaultConfig()
+                NewEngine
+                NewDefault pipeline
+                DefaultRuleSet
+                DefaultConfig
             Builder
-                ScanOptions with field-by-field config
+                ScanOptions config
                 Config structs with defaults
         Structural
-            Façade
-                GitScanner wraps walker + parser + engine + pipeline
+            Facade
+                GitScanner wraps 7 subsystems
                 cmdScan wraps everything
             Composite
                 Pipeline composes Processors
@@ -2056,20 +2056,20 @@ mindmap
             Chain of Responsibility
                 Pipeline stages
             Iterator
-                CommitWalker.WalkCommits
+                CommitWalker WalkCommits
             Observer
-                File watcher + handler callback
+                File watcher handler callback
             Template Method
-                ScanContent dual-mode flow
+                ScanContent dual mode flow
         Concurrency
             Worker Pool
                 FileScanner goroutine pool
             Semaphore
-                Channel-based concurrency limit
-            Fan-Out/Fan-In
-                Parallel scan, merge results
+                Channel based concurrency limit
+            Fan Out Fan In
+                Parallel scan merge results
             Monitor
-                Mutex-protected shared state
+                Mutex protected shared state
 ```
 
 ### Pattern 1: Strategy Pattern — Processor Interface
@@ -2079,28 +2079,28 @@ classDiagram
     class Processor {
         <<interface>>
         +Name() string
-        +Process(ctx, *Finding, *ScanMetadata) error
+        +Process() error
     }
 
     class HashProcessor {
-        +Name() "hash"
-        +Process() SHA-256 hash
+        +Name() string
+        +Process() error
     }
     class RedactProcessor {
-        +Name() "redact"
-        +Process() mask secret
+        +Name() string
+        +Process() error
     }
     class EnrichProcessor {
-        +Name() "enrich"
-        +Process() add metadata
+        +Name() string
+        +Process() error
     }
     class FingerprintProcessor {
-        +Name() "fingerprint"
-        +Process() dedup ID
+        +Name() string
+        +Process() error
     }
     class SanitizeProcessor {
-        +Name() "sanitize"
-        +Process() clear raw
+        +Name() string
+        +Process() error
     }
 
     Processor <|.. HashProcessor
