@@ -2,8 +2,8 @@
 
 > **Version**: 0.1.0  
 > **Component**: Secure Hashing & Metadata Pipeline (Component 2 of 15)  
-> **Audience**: Developers, security engineers, DevOps teams  
-> **Prerequisites**: Completion of Module 1 (Core Detection Engine). Go 1.21+ installed.
+> **Audience**: Everyone — no programming or IT background required. Written for learners preparing for interviews.  
+> **Prerequisites**: Completion of Module 1 (Core Detection Engine). Go 1.21+ installed (for hands-on exercises only).
 
 ---
 
@@ -140,42 +140,192 @@ flowchart LR
 
 ### 3.2 What Is SHA-256 Hashing?
 
-SHA-256 is a **one-way cryptographic function** that converts any input into a fixed-length 64-character hexadecimal string.
+SHA-256 is a **one-way mathematical function** that converts any input into a fixed-length 64-character code. Think of it as a **magic blender** — you put ingredients in and get a unique smoothie out, but you can never "un-blend" the smoothie back into the original ingredients.
 
-```
-Input:  "AKIAIOSFODNN7EXAMPLE"
-SHA-256: "5e6bf1b9e9c6e0b93a3e1f4f2c0aec8d7b9e0f1a2c3d4e5f6a7b8c9d0e1f2a3b"
-```
+#### Real-World Analogy: The Library Card Catalog
 
-Key properties:
-- **Deterministic**: The same input always produces the same hash
-- **One-way**: You cannot reverse the hash to get the original secret
-- **Unique**: Different inputs produce different hashes (collision-resistant)
-- **Fixed-length**: Always 64 hex characters, regardless of input size
+Imagine a library with millions of books. Instead of carrying the actual book around to prove you own it, the librarian gives you a **unique catalog number** for each book:
 
-We use SHA-256 so that we can track and deduplicate secrets without ever storing them.
+| Book Title | Catalog Number |
+|---|---|
+| "Harry Potter and the Philosopher's Stone" | `A7B3C9` |
+| "The Great Gatsby" | `F2E8D1` |
+| "Harry Potter and the Philosopher's Stone" (same book!) | `A7B3C9` (same number!) |
+
+You can show someone the catalog number without showing them the book. Two people with the same book always get the same number. But looking at `A7B3C9` alone, nobody can reconstruct the book.
+
+**SHA-256 works exactly the same way, but for secrets.**
 
 ```mermaid
-flowchart LR
-    A["AKIAIOSFODNN7EXAMPLE"] -->|"SHA-256"| B["5e6bf1b9...e1f2a3b\n(64 hex chars)"]
-    C["AKIAIOSFODNN7EXAMPLE"] -->|"SHA-256"| D["5e6bf1b9...e1f2a3b\n(identical!)"]
-    E["ghp_ABCDEFGHIJKLMN..."] -->|"SHA-256"| F["a3c7d9e1...f4b2c8d\n(different)"]
+flowchart TD
+    subgraph RealWorld["Real-World Analogy"]
+        A["Actual Book"] -->|"Library stamps it"| B["Catalog Number\nA7B3C9"]
+        C["Same Book Again"] -->|"Library stamps it"| D["Same Number\nA7B3C9"]
+        E["Different Book"] -->|"Library stamps it"| F["Different Number\nF2E8D1"]
+    end
+    subgraph Digital["How SHA-256 Works"]
+        G["Actual Secret\nAKIA...EXAMPLE"] -->|"SHA-256"| H["Hash\n5e6bf1b9..."]
+        I["Same Secret Again"] -->|"SHA-256"| J["Same Hash\n5e6bf1b9..."]
+        K["Different Secret\nghp_ABCDEF..."] -->|"SHA-256"| L["Different Hash\na3c7d9e1..."]
+    end
     style B fill:#9B59B6,stroke:#8E44AD,color:#fff
     style D fill:#9B59B6,stroke:#8E44AD,color:#fff
     style F fill:#E67E22,stroke:#D35400,color:#fff
+    style H fill:#9B59B6,stroke:#8E44AD,color:#fff
+    style J fill:#9B59B6,stroke:#8E44AD,color:#fff
+    style L fill:#E67E22,stroke:#D35400,color:#fff
 ```
+
+#### The Four Superpowers of SHA-256
+
+| Property | What It Means | Everyday Example |
+|---|---|---|
+| **Deterministic** | Same input = same output, every single time | Scanning the same barcode always shows the same price |
+| **One-way** | You can NOT reverse it to find the original | You can taste a cake but can't figure out the exact recipe |
+| **Unique** | Different inputs produce different outputs | Every person's fingerprint is unique |
+| **Fixed-length** | Output is always 64 characters, no matter the input | A zip code is always 5 digits whether the city is "LA" or "San Francisco" |
+
+#### Step-by-Step Example
+
+Let's trace what happens when CredVigil hashes an AWS secret key:
+
+```
+Step 1: The secret is detected
+  RawMatch = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+
+Step 2: SHA-256 processes it (math happens inside)
+  → The algorithm chops, shuffles, and transforms the text
+  → This is done 64 rounds internally (seriously!)
+
+Step 3: Out comes the hash
+  SecretHash = "78314b11a2177f39cff3a45008a0e2b0f5e6c0d1...080e0598"
+  (always exactly 64 hex characters)
+
+Step 4: Now we can throw away the original secret!
+  → We keep only the hash for tracking
+  → If we see hash "78314b11..." again next week, we know it's the SAME secret
+```
+
+```mermaid
+sequenceDiagram
+    participant S as Secret
+    participant H as SHA-256 Algorithm
+    participant R as Result
+
+    S->>H: "wJalrXUtnFEMI/K7MDENG..."
+    Note over H: Chop into 512-bit blocks
+    Note over H: Run 64 rounds of math
+    Note over H: Mix, shift, combine
+    H->>R: "78314b11...080e0598"
+    Note over R: Always 64 hex chars
+    Note over R: Cannot be reversed!
+```
+
+#### Why Can't You Reverse a Hash?
+
+Think of it like this:
+
+- **Forward (easy):** You have 3 and 5. Multiply them: 3 x 5 = 15 ✅
+- **Reverse (hard):** You have 15. What two numbers made it? Could be 3x5, or 1x15, or 2.5x6... 🤷
+
+Now imagine that problem with numbers that are **78 digits long**. That's why SHA-256 is practically impossible to reverse — even the fastest supercomputer would take longer than the age of the universe.
+
+#### Why Do We Need This in CredVigil?
+
+| Use Case | How SHA-256 Helps |
+|---|---|
+| **"Is this the same secret we saw last week?"** | Compare hashes — if they match, it's the same secret |
+| **"How many unique secrets leaked?"** | Count unique hashes instead of comparing raw secrets |
+| **"Store findings safely"** | Save the hash in a database, never the raw secret |
+| **"Report to management"** | Say "we found hash 78314b11..." instead of sharing the actual key |
 
 ### 3.3 What Is Redaction?
 
 Redaction replaces most of a secret with asterisks while keeping just enough characters to identify it.
 
-| Secret Length | Redaction Rule | Example |
-|:---:|---|---|
-| > 12 chars | First 4 + `****` + Last 4 | `AKIAIOSFODNN7EXAMPLE` → `AKIA****MPLE` |
-| 5–12 chars | First 2 + `****` | `Secret!` → `Se****` |
-| ≤ 4 chars | `****` | `pass` → `****` |
+#### Real-World Analogy: Credit Card Receipts
 
-This lets security teams identify *which* key was leaked (e.g., "the AWS key starting with AKIA") without exposing the full credential.
+When you buy something with a credit card, the receipt doesn't show your full card number. It shows something like:
+
+```
+Card ending in **** **** **** 4242
+```
+
+This tells you *which* card was used (the one ending in 4242) without exposing the full number to anyone who sees the receipt. That's exactly what redaction does for secrets!
+
+```mermaid
+flowchart LR
+    subgraph CreditCard["Credit Card Receipt"]
+        CC1["4532 1234 5678 4242"] -->|"Redact"| CC2["**** **** **** 4242"]
+    end
+    subgraph AWSKey["CredVigil Redaction"]
+        AK1["AKIAIOSFODNN7EXAMPLE"] -->|"Redact"| AK2["AKIA****MPLE"]
+    end
+    style CC2 fill:#27AE60,stroke:#1E8449,color:#fff
+    style AK2 fill:#27AE60,stroke:#1E8449,color:#fff
+    style CC1 fill:#E74C3C,stroke:#C0392B,color:#fff
+    style AK1 fill:#E74C3C,stroke:#C0392B,color:#fff
+```
+
+#### The Three Redaction Rules
+
+CredVigil uses three simple rules based on how long the secret is:
+
+| Secret Length | Rule | Why? |
+|:---:|---|---|
+| **More than 12 characters** | Show first 4 + `****` + last 4 | Long secrets have enough characters to show a snippet safely |
+| **5 to 12 characters** | Show first 2 + `****` | Short secrets need less revealed to stay safe |
+| **4 or fewer characters** | Just show `****` | Too short to reveal anything safely |
+
+#### Step-by-Step Examples
+
+**Example 1: A long AWS secret key (40 characters)**
+```
+Original:  wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+Length:    40 characters (> 12, so use Rule 1)
+First 4:   wJal
+Last 4:    EKEY
+Redacted:  wJal****EKEY
+```
+
+**Example 2: A GitHub token (40 characters)**
+```
+Original:  ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef1234
+Length:    40 characters (> 12, so use Rule 1)
+First 4:   ghp_
+Last 4:    1234
+Redacted:  ghp_****1234
+```
+
+**Example 3: A short API key (8 characters)**
+```
+Original:  MyKey123
+Length:    8 characters (5–12, so use Rule 2)
+First 2:   My
+Redacted:  My****
+```
+
+**Example 4: A tiny password (3 characters)**
+```
+Original:  abc
+Length:    3 characters (≤ 4, so use Rule 3)
+Redacted:  ****
+```
+
+#### Why Not Just Hide Everything?
+
+You might think: "Why not replace the ENTIRE secret with asterisks?" Because security teams need to know **which specific key** was leaked so they can rotate (replace) the right one!
+
+Imagine a company has 50 AWS keys. If CredVigil just says "an AWS key was found," they'd have to rotate all 50. But if it says `AKIA****MPLE`, they can look up exactly which key starts with AKIA and ends with MPLE and rotate just that one.
+
+```mermaid
+flowchart TD
+    A["50 AWS Keys in Use"] --> B{"Which one leaked?"}
+    B -->|"Full redaction: ****"| C["🤷 No idea which one!\nMust rotate ALL 50"]
+    B -->|"Smart redaction: AKIA****MPLE"| D["🎯 Found it!\nRotate only this one"]
+    style C fill:#E74C3C,stroke:#C0392B,color:#fff
+    style D fill:#27AE60,stroke:#1E8449,color:#fff
+```
 
 ```mermaid
 flowchart TD
@@ -183,7 +333,7 @@ flowchart TD
     B --> C["AKIA + **** + MPLE"]
     D["Secret!\n(7 chars)"] --> E["5–12 chars"]
     E --> F["Se + ****"]
-    G["pass\n(4 chars)"] --> H["≤ 4 chars"]
+    G["pass\n(4 chars)"] --> H["4 or fewer chars"]
     H --> I["****"]
     style C fill:#27AE60,stroke:#1E8449,color:#fff
     style F fill:#F39C12,stroke:#D68910,color:#fff
@@ -192,7 +342,18 @@ flowchart TD
 
 ### 3.4 What Is Enrichment?
 
-Enrichment adds **context** to a finding based on where it was found and what type of secret it is:
+#### Real-World Analogy: Crime Scene Investigation
+
+When police find evidence at a crime scene, they don't just bag the item and walk away. They also record:
+
+- **Where was it found?** (kitchen, bedroom, parking lot)
+- **What type of evidence?** (weapon, DNA, fingerprint, document)
+- **What environment?** (residential home, office building, public park)
+- **When was it collected?** (timestamp, officer ID, case number)
+
+The evidence itself is important, but the **context around it** is what makes it useful in court.
+
+CredVigil's EnrichProcessor works the same way — it adds context to each detected secret:
 
 - **File Type**: Was this found in a `.go` file? A `.env` file? A `Dockerfile`?
 - **Environment**: Is the file in a `production/` directory? A `staging/` config? A `test/` fixture?
@@ -200,6 +361,35 @@ Enrichment adds **context** to a finding based on where it was found and what ty
 - **Scan Metadata**: What scanner version produced this finding? What was the scan ID?
 
 Enrichment transforms a bare match into an actionable intelligence report.
+
+```mermaid
+flowchart TD
+    subgraph Crime["Crime Scene Analogy"]
+        EV["Knife Found"] --> L1["Where: Kitchen"]
+        EV --> L2["Type: Weapon"]
+        EV --> L3["Environment: Residential"]
+        EV --> L4["Collected: 3pm, Officer Smith"]
+    end
+    subgraph CV["CredVigil Enrichment"]
+        F["AWS Key Found"] --> M1["FileType: env"]
+        F --> M2["Category: cloud"]
+        F --> M3["Environment: production"]
+        F --> M4["Scan: v0.1.0, ID: scan-abc"]
+    end
+    style Crime fill:#3498DB,stroke:#2980B9,color:#fff
+    style CV fill:#E67E22,stroke:#D35400,color:#fff
+```
+
+#### Why Does Context Matter?
+
+The same secret in different places means very different things:
+
+| Finding | Without Enrichment | With Enrichment | Priority |
+|---|---|---|---|
+| AWS key in `prod/config.env` | "AWS key found" | "AWS key in **production** environment, **env** file" | 🔴 URGENT |
+| AWS key in `test/fixtures/fake.env` | "AWS key found" | "AWS key in **test** environment, **env** file" | 🟢 Probably fake |
+| Stripe key in `billing/charges.go` | "Stripe key found" | "Payment key in **production**, **go** file" | 🔴 URGENT |
+| API key in `docs/example.yaml` | "API key found" | "Generic key in **unknown** env, **yaml** file" | 🟡 Review |
 
 ```mermaid
 flowchart TD
@@ -216,19 +406,60 @@ flowchart TD
 
 ### 3.5 What Is a Fingerprint?
 
+#### Real-World Analogy: Package Tracking Numbers
+
+When you order something from Amazon, you get a **tracking number** like `1Z999AA10123456784`. This number doesn't describe what's in the package — it uniquely identifies **this specific shipment** (this item, from this warehouse, on this date, to this address).
+
+If you order the exact same item again tomorrow, you get a **different tracking number** because it's a different shipment.
+
+CredVigil fingerprints work the same way — they uniquely identify **this specific finding** (this secret, in this file, on this line, detected by this rule).
+
 A **fingerprint** is a stable identifier that uniquely identifies a specific finding across multiple scans. It is computed as:
 
 ```
 SHA-256(ruleID + ":" + location + ":" + line + ":" + secretHash)
 ```
 
-Why do we need this?
+#### Fingerprint vs. Hash — What's the Difference?
 
-- **Deduplication across scans**: If you scan the same project twice, the same finding produces the same fingerprint
-- **Tracking over time**: You can track whether a specific finding has been fixed, suppressed, or is still active
-- **Ignore lists**: You can add a fingerprint to an ignore list to suppress known false positives
+This is a common source of confusion, so let's make it crystal clear:
 
-A fingerprint is different from a hash — the hash identifies the *secret*, while the fingerprint identifies the *finding* (secret + location).
+| | **Hash** | **Fingerprint** |
+|---|---|---|
+| **Identifies** | The **secret itself** | The **finding** (secret + where it was found) |
+| **Analogy** | A person's DNA | A person's home address |
+| **Same secret, 2 files** | Same hash | **Different** fingerprints |
+| **Same secret, same file** | Same hash | Same fingerprint |
+| **Different secrets, same file** | **Different** hashes | **Different** fingerprints |
+
+```mermaid
+flowchart TD
+    subgraph Example1["Same secret in TWO files"]
+        S1["AWS key AKIA...\nin config.env line 5"] --> H1["Hash: abc123"]
+        S2["AWS key AKIA...\nin backup.env line 10"] --> H2["Hash: abc123\n(same secret!)"]
+        S1 --> F1["Fingerprint: xxx111"]
+        S2 --> F2["Fingerprint: yyy222\n(different location!)"]
+    end
+    subgraph Example2["Scan today vs next week"]
+        T1["AWS key AKIA...\nin config.env line 5\nScanned Monday"] --> FP1["Fingerprint: xxx111"]
+        T2["AWS key AKIA...\nin config.env line 5\nScanned Friday"] --> FP2["Fingerprint: xxx111\n(identical!)"]
+    end
+    style H1 fill:#9B59B6,stroke:#8E44AD,color:#fff
+    style H2 fill:#9B59B6,stroke:#8E44AD,color:#fff
+    style F1 fill:#1ABC9C,stroke:#16A085,color:#fff
+    style F2 fill:#E67E22,stroke:#D35400,color:#fff
+    style FP1 fill:#1ABC9C,stroke:#16A085,color:#fff
+    style FP2 fill:#1ABC9C,stroke:#16A085,color:#fff
+```
+
+#### Why Do We Need Fingerprints?
+
+| Use Case | How Fingerprints Help | Real-World Parallel |
+|---|---|---|
+| **"Is this a new finding or one we already know about?"** | Compare fingerprints across scans | Checking if a package was already delivered |
+| **"We reviewed this and it's a false alarm"** | Add fingerprint to ignore list | Marking a spam email as "not spam" |
+| **"When did this secret first appear?"** | Track fingerprint appearance over time | Checking when a warranty claim was first filed |
+| **"Has this been fixed yet?"** | If fingerprint is missing from latest scan, it's fixed! | Checking if a recalled product was returned |
 
 ```mermaid
 flowchart TD
@@ -245,11 +476,46 @@ flowchart TD
 
 ### 3.6 What Is Sanitization?
 
+#### Real-World Analogy: Shredding Documents
+
+Imagine a hospital that processes patient records. After extracting the needed information (diagnosis, billing codes, appointment dates), they **shred the original paper forms** that contained Social Security numbers and credit card details. The useful information has been extracted; the dangerous originals are destroyed.
+
+That's exactly what sanitization does in CredVigil:
+
+1. The pipeline has already extracted everything useful (hash, redacted version, fingerprint, enrichment)
+2. Now the **original raw secret is permanently erased** from the computer's memory
+3. It's like running the original through a paper shredder — gone forever
+
 Sanitization is the **final, irreversible step** that clears the raw secret from memory. After sanitization:
 
 - `RawMatch` is set to an empty string
 - The finding can safely be logged, stored, transmitted, or displayed
 - No component downstream can access the original secret
+
+```mermaid
+flowchart TD
+    subgraph Hospital["Hospital Analogy"]
+        H1["📄 Patient Form\nSSN: 123-45-6789"] --> H2["📝 Extract Info\nDiagnosis, billing"] --> H3["🗏️ Shred Original\nSSN destroyed"]
+    end
+    subgraph CV["CredVigil Sanitization"]
+        C1["🔑 Finding\nRawMatch: AKIA..."] --> C2["⚙️ Extract Info\nhash, redact, enrich"] --> C3["🗑️ Erase Original\nRawMatch = empty"]
+    end
+    style H3 fill:#7F8C8D,stroke:#616A6B,color:#fff
+    style C3 fill:#7F8C8D,stroke:#616A6B,color:#fff
+    style H1 fill:#E74C3C,stroke:#C0392B,color:#fff
+    style C1 fill:#E74C3C,stroke:#C0392B,color:#fff
+```
+
+#### What Exactly Gets Erased?
+
+| Before Sanitization | After Sanitization |
+|---|---|
+| `RawMatch = "AKIAIOSFODNN7EXAMPLE"` | `RawMatch = ""` (empty — gone forever) |
+| `SecretHash = "5e6bf1b9..."` | `SecretHash = "5e6bf1b9..."` (kept! We need this) |
+| `RedactedMatch = "AKIA****MPLE"` | `RedactedMatch = "AKIA****MPLE"` (kept! Safe to display) |
+| `Fingerprint = "a1b2c3d4..."` | `Fingerprint = "a1b2c3d4..."` (kept! For tracking) |
+
+Notice: **only** the dangerous raw secret is erased. Everything else (the hash, redacted display, fingerprint, enrichment data) is safe and remains intact.
 
 ```mermaid
 flowchart LR
@@ -266,6 +532,38 @@ flowchart LR
 
 ### 3.7 What Is the Zero-Trust Guarantee?
 
+#### Real-World Analogy: Airport Security
+
+Think about airport security. The principle is: **trust nobody, verify everything**. It doesn't matter if you're the pilot, a frequent flyer, or the airport CEO — everyone goes through the same security checkpoint. No exceptions.
+
+This is the **zero-trust model**:
+- In the old days ("castle and moat"), once you were inside the company network, you were trusted
+- In zero-trust, **nobody is trusted** — every request is verified, every piece of data is checked
+
+CredVigil applies zero-trust to secret handling: **no raw secret is allowed to leave the pipeline, ever, period.** It doesn't matter if the output is going to a trusted dashboard, a secure database, or just your own terminal — the raw secret is always erased first.
+
+#### How Does CredVigil Enforce This?
+
+Think of the pipeline as having a **mandatory security gate at the exit**:
+
+```mermaid
+flowchart TD
+    subgraph Airport["Airport Security Analogy"]
+        P1["Passenger Arrives"] --> G1{"Security Gate"}
+        G1 -->|"Has weapons?"| R1["Denied Boarding"]
+        G1 -->|"Clean"| B1["Allowed to Board"]
+    end
+    subgraph Pipeline["CredVigil Pipeline"]
+        P2["Finding Ready"] --> G2{"Sanitize Check"}
+        G2 -->|"RawMatch present?"| R2["BLOCKED"]
+        G2 -->|"RawMatch empty"| B2["Allowed to Output"]
+    end
+    style R1 fill:#E74C3C,stroke:#C0392B,color:#fff
+    style B1 fill:#27AE60,stroke:#1E8449,color:#fff
+    style R2 fill:#E74C3C,stroke:#C0392B,color:#fff
+    style B2 fill:#27AE60,stroke:#1E8449,color:#fff
+```
+
 The zero-trust guarantee means: **every finding that exits the pipeline has been sanitized**. The raw secret is never present in the output, regardless of the output format (text, JSON, or future API responses).
 
 The pipeline enforces this by:
@@ -273,16 +571,67 @@ The pipeline enforces this by:
 2. Clearing `RawMatch` unconditionally
 3. Being the only path findings take before output
 
+#### Why Is This So Important?
+
+| Without Zero-Trust | With Zero-Trust |
+|---|---|
+| A log file might contain `AWS_KEY=wJalrXUtn...` | Log file only shows `AWS_KEY=wJal****EKEY` |
+| A crash dump could expose 50 raw passwords | Crash dump shows only hashes and redacted versions |
+| Sending findings to Slack might leak credentials | Slack message shows `AKIA****MPLE` — safe to share |
+| A screenshot of your terminal reveals everything | Screenshot shows hash `78314b11...` — useless to attackers |
+
+#### The Guarantee in Action
+
+Let's trace a finding through the entire pipeline to see how zero-trust works:
+
+```
+STEP 1 - Detection:
+  RawMatch = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"  DANGER
+
+STEP 2 - HashProcessor:
+  SecretHash = "78314b11a2177f39..."   Safe (can't be reversed)
+  RawMatch still exists   (needed by next steps)
+
+STEP 3 - RedactProcessor:
+  RedactedMatch = "wJal****EKEY"   Safe (partial, not useful to attacker)
+  RawMatch still exists   (will be cleaned soon)
+
+STEP 4 - EnrichProcessor:
+  FileType = "env", Environment = "production", Category = "cloud"   Safe
+  RawMatch still exists   (one more step...)
+
+STEP 5 - FingerprintProcessor:
+  Fingerprint = "a1b2c3d4e5f6..."   Safe
+  RawMatch still exists   (almost there!)
+
+STEP 6 - SanitizeProcessor:
+  RawMatch = ""   ERASED PERMANENTLY
+
+RESULT: Everything useful is preserved. The dangerous raw secret is GONE.
+```
+
 ```mermaid
-flowchart LR
-    A["🔍 Detection"] --> B["⚙️ Pipeline"]
-    B --> C["🧹 Sanitize\n(always last)"]
-    C --> D{"RawMatch == ''?"}
-    D -->|"✅ Yes"| E["📄 Output"]
-    D -->|"❌ No"| F["🛑 BLOCKED\n(never happens)"]
-    style C fill:#7F8C8D,stroke:#616A6B,color:#fff
-    style E fill:#27AE60,stroke:#1E8449,color:#fff
-    style F fill:#E74C3C,stroke:#C0392B,color:#fff
+sequenceDiagram
+    participant F as Finding
+    participant H as Hash
+    participant R as Redact
+    participant E as Enrich
+    participant FP as Fingerprint
+    participant S as Sanitize
+
+    Note over F: RawMatch = "wJalr..."
+    F->>H: Process
+    Note over H: SecretHash = "78314..."
+    H->>R: Process
+    Note over R: RedactedMatch = "wJal****EKEY"
+    R->>E: Process
+    Note over E: FileType, Env, Category
+    E->>FP: Process
+    Note over FP: Fingerprint = "a1b2c3..."
+    FP->>S: Process
+    Note over S: RawMatch = "" (ERASED!)
+    S-->>F: Safe Finding
+    Note over F: Raw secret is GONE forever
 ```
 
 ---
@@ -685,6 +1034,44 @@ flowchart LR
 
 ### Thread Safety
 
+#### What Is "Thread Safety"? (For Non-Programmers)
+
+Imagine a **shared bathroom** in an office. If two people try to use it at the same time, chaos ensues. The solution? A **lock on the door**. When someone's inside, the door is locked. Others must wait their turn.
+
+In software, "threads" are like people, and "data" is like the bathroom. When multiple parts of a program try to modify the same data simultaneously, things can break. A **mutex** (mutual exclusion) is the lock on the door.
+
+```mermaid
+flowchart TD
+    subgraph Bathroom["Bathroom Analogy"]
+        P1["Person A"] --> D1{"Door locked?"}
+        D1 -->|"No"| E1["Enter and lock door"]
+        P2["Person B"] --> D2{"Door locked?"}
+        D2 -->|"Yes"| W1["Wait outside..."]
+        E1 --> U1["Use bathroom"]
+        U1 --> X1["Exit and unlock"]
+        X1 --> W1
+        W1 --> E2["Now enter"]
+    end
+    subgraph Software["CredVigil Thread Safety"]
+        T1["Scanner Thread 1"] --> L1{"Pipeline locked?"}
+        L1 -->|"No"| R1["Lock and process"]
+        T2["Scanner Thread 2"] --> L2{"Pipeline locked?"}
+        L2 -->|"Yes"| W2["Wait..."]
+        R1 --> D3["Process findings"]
+        D3 --> X2["Unlock"]
+        X2 --> W2
+        W2 --> R2["Now process"]
+    end
+    style E1 fill:#27AE60,stroke:#1E8449,color:#fff
+    style W1 fill:#F39C12,stroke:#D68910,color:#fff
+    style R1 fill:#27AE60,stroke:#1E8449,color:#fff
+    style W2 fill:#F39C12,stroke:#D68910,color:#fff
+```
+
+CredVigil's Pipeline uses a **read-write lock** — a smarter version of a lock:
+- **Reading** (processing findings): Multiple threads can read at the same time, like many people reading the same bulletin board
+- **Writing** (adding a new processor): Only one thread can modify the pipeline at a time, like only one person can edit the bulletin board
+
 The Pipeline uses a `sync.RWMutex` to protect concurrent access to the processor list. This means:
 - Multiple goroutines can call `ProcessFindings` concurrently (read lock)
 - Adding/inserting processors acquires an exclusive write lock
@@ -719,9 +1106,58 @@ sequenceDiagram
 
 ## 8. How It Integrates with the Detection Engine
 
+### What Is "Separation of Concerns"? (For Non-Programmers)
+
+Imagine a **hospital**. In a tiny rural clinic, one doctor does EVERYTHING — diagnoses the illness, performs surgery, fills prescriptions, does physical therapy, and sends the bill. That doctor is overwhelmed, and when something goes wrong, it's impossible to know which part failed.
+
+Now imagine a **large modern hospital**:
+
+| Specialist | Role |
+|-----------|------|
+| **Diagnostic Doctor** | Figures out what's wrong |
+| **Surgeon** | Performs operations |
+| **Pharmacist** | Prepares medications |
+| **Physical Therapist** | Helps recovery |
+| **Billing Department** | Handles payments |
+
+Each specialist does **ONE thing extremely well**, and they all work together through a shared patient chart.
+
+```mermaid
+flowchart TD
+    subgraph Clinic["Tiny Clinic: One Doctor Does Everything"]
+        D1["Dr. Smith"] --> ALL["Diagnose + Operate +\nMedicate + Therapy + Bill"]
+        ALL --> P1["Overwhelmed!\nHard to improve"]
+    end
+    subgraph Hospital["Modern Hospital: Specialists"]
+        P2["Patient"] --> DIAG["Diagnostics"]
+        DIAG --> SURG["Surgery"]
+        SURG --> PHARM["Pharmacy"]
+        PHARM --> THER["Therapy"]
+        THER --> BILL["Billing"]
+    end
+    style Clinic fill:#E74C3C,stroke:#C0392B,color:#fff
+    style Hospital fill:#27AE60,stroke:#1E8449,color:#fff
+```
+
+**This is exactly what happened with CredVigil!**
+
+In Component 1 (Module 1), the detection engine was like the overworked rural doctor — it detected secrets AND hashed them AND redacted them AND added metadata. In Component 2, we hired specialists (the pipeline processors), and now the detection engine only does what it's best at: **finding secrets**.
+
+#### Why Is Separation of Concerns So Important?
+
+| Benefit | Hospital Analogy | CredVigil Reality |
+|---------|-----------------|-------------------|
+| **Easier to improve** | You can hire a better surgeon without replacing the pharmacist | You can improve redaction without touching detection |
+| **Easier to test** | You can test if the pharmacy gives correct medicine, separately | You can test hashing alone, redaction alone, etc. |
+| **Easier to understand** | A new nurse only needs to learn their department | A new developer only needs to understand one processor |
+| **Easier to replace** | You can switch billing companies without affecting patient care | You can swap our hash algorithm without changing enrichment |
+| **Fewer mistakes** | A pharmacist focused on medications makes fewer errors than a doctor who also does surgery while filling prescriptions | Each processor does one thing, so bugs are isolated |
+
+> **Interview Tip**: "Separation of concerns means each piece of the system has one specific job. Just like a hospital where the surgeon doesn't also handle billing, our detection engine doesn't also handle redaction — that's the pipeline's job."
+
 ### Before Component 2 (Module 1)
 
-In Component 1, hashing, redaction, and metadata were handled **inline** inside the detection engine:
+In Component 1, hashing, redaction, and metadata were handled **inline** inside the detection engine — our "overworked doctor":
 
 ```go
 // Old approach (inside matchRule):
@@ -729,15 +1165,20 @@ finding.Metadata["sha256"] = hashSecret(secretValue)
 finding.Redact()
 ```
 
+The engine was doing detection AND post-processing, which made it:
+- Harder to test (you couldn't test redaction without running the full engine)
+- Harder to modify (changing how we hash meant editing the detection code)
+- More fragile (a bug in redaction could break detection)
+
 ### After Component 2
 
-Now, the detection engine focuses purely on **detection**. Post-processing is a separate concern:
+Now, the detection engine focuses purely on **detection**. Post-processing is a separate concern, handled by the pipeline:
 
 ```go
 // New approach (in main.go):
 results := engine.ScanContent(request)
 
-// Pipeline handles everything
+// Pipeline handles everything — the engine doesn't need to know about any of this
 pipe := pipeline.NewDefault()
 meta := &models.ScanMetadata{
     ScannerVersion: version,
@@ -747,29 +1188,53 @@ meta := &models.ScanMetadata{
 pipe.ProcessResult(ctx, &results, meta)
 ```
 
-**What the engine still does**:
+**What the engine still does** (its ONE specialty):
+- Scans code for secrets using pattern matching and entropy analysis
 - Computes `SecretHash` during detection for **deduplication** (removing duplicate findings of the same secret)
 - Sets `RawMatch`, `Confidence`, `Severity`, `Source`, and other detection-related fields
 
-**What the engine no longer does**:
-- No redaction (`Redact()` is not called)
-- No metadata injection (no `Metadata["sha256"]`)
-- No post-processing of any kind
-
-This **separation of concerns** makes both components simpler, more testable, and independently evolvable.
+**What the engine no longer does** (handed to specialists):
+- No redaction (`Redact()` is not called) — that's the RedactProcessor's job now
+- No metadata injection (no `Metadata["sha256"]`) — that's the HashProcessor's job now
+- No post-processing of any kind — that's the Pipeline's job now
 
 ```mermaid
 flowchart TD
-    subgraph Before["Before: Component 1 Only"]
+    subgraph Before["Before: Overworked Doctor"]
         A1["Engine"] --> A2["Detect + Hash + Redact + Metadata"]
+        A2 --> A3["Hard to test\nHard to improve\nMore bugs"]
     end
-    subgraph After["After: Component 1 + 2"]
-        B1["Engine"] --> B2["Detect Only"]
+    subgraph After["After: Specialist Hospital"]
+        B1["Engine"] --> B2["Detect Only\n(one job)"]
         B2 --> B3["Pipeline"]
-        B3 --> B4["Hash + Redact + Enrich + Fingerprint + Sanitize"]
+        B3 --> B4["Hash"] --> B5["Redact"] --> B6["Enrich"] --> B7["Fingerprint"] --> B8["Sanitize"]
     end
     style Before fill:#E74C3C,stroke:#C0392B,color:#fff
     style After fill:#27AE60,stroke:#1E8449,color:#fff
+    style B2 fill:#3498DB,stroke:#2980B9,color:#fff
+```
+
+#### Step-by-Step: How the Handoff Works
+
+Think of it like a relay race — the detection engine runs the first leg and hands the baton to the pipeline:
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant CLI as Command Line
+    participant E as Detection Engine
+    participant P as Pipeline
+    participant O as Output
+
+    U->>CLI: "Scan my code"
+    CLI->>E: ScanContent(files)
+    Note over E: Engine finds secrets\n(its ONE job)
+    E-->>CLI: Raw findings with secrets still visible
+    CLI->>P: ProcessResult(findings)
+    Note over P: Pipeline processes each finding:\n1. Hash  2. Redact  3. Enrich\n4. Fingerprint  5. Sanitize
+    P-->>CLI: Safe findings (secrets erased)
+    CLI->>O: Display results
+    Note over O: User sees redacted output\nNever sees raw secrets
 ```
 
 ---
@@ -1115,7 +1580,49 @@ func (sp *SanitizeProcessor) Process(_ context.Context, f *models.Finding, _ *mo
 
 ## 12. Writing Custom Processors
 
-You can create custom processors by implementing the `Processor` interface:
+### What Are Custom Processors? (For Non-Programmers)
+
+Remember the **assembly line analogy** from earlier? The default pipeline has 5 stations (Hash, Redact, Enrich, Fingerprint, Sanitize). But what if your factory needs an extra step? Maybe you want to **stamp each product with your company logo** before it's shipped out.
+
+Custom processors let you **add your own stations** to the assembly line. You get to choose:
+- **What** the station does (its job)
+- **Where** it goes in the line (its position)
+
+#### The LEGO Analogy
+
+Think of the pipeline like a **LEGO tower**. The default tower has 5 blocks:
+
+```mermaid
+flowchart TD
+    subgraph Default["Default Tower (5 blocks)"]
+        B1["🔢 Hash"]
+        B2["🔒 Redact"]
+        B3["📊 Enrich"]
+        B4["🧬 Fingerprint"]
+        B5["🧹 Sanitize"]
+        B1 --> B2 --> B3 --> B4 --> B5
+    end
+    subgraph Custom["Your Custom Tower (6 blocks)"]
+        C1["🔢 Hash"]
+        C2["🔒 Redact"]
+        C3["📊 Enrich"]
+        C4["🧬 Fingerprint"]
+        C5["🏷️ YOUR\nCustom Block"]
+        C6["🧹 Sanitize"]
+        C1 --> C2 --> C3 --> C4 --> C5 --> C6
+    end
+    style C5 fill:#F39C12,stroke:#D68910,color:#fff
+    style Default fill:#3498DB,stroke:#2980B9,color:#fff
+    style Custom fill:#27AE60,stroke:#1E8449,color:#fff
+```
+
+You can snap in your custom LEGO block wherever you want — but you MUST keep the Sanitize block at the end (because the secret must always be erased before the data leaves the pipeline).
+
+> **Interview Tip**: "CredVigil's pipeline is extensible — you can add custom processing steps without modifying the existing ones. This follows the Open/Closed Principle: open for extension, closed for modification."
+
+#### Example: Adding a "Tag" Processor
+
+Let's say your security team wants every finding tagged with the **team name** and **project name**. This is like adding a "stamp" station to the assembly line that marks each product with your department's label.
 
 ```go
 package mypipeline
@@ -1126,6 +1633,7 @@ import (
 )
 
 // TagProcessor adds custom tags to findings
+// Think of it as a "stamp station" that labels each finding
 type TagProcessor struct {
     Tags map[string]string
 }
@@ -1166,19 +1674,83 @@ flowchart LR
     style T fill:#F39C12,stroke:#D68910,color:#fff
 ```
 
+#### Step-by-Step: What Happens to a Finding
+
+Let's trace a finding through the pipeline with our custom TagProcessor added:
+
+| Step | Station | What Goes In | What Changes | What Comes Out |
+|------|---------|-------------|-------------|----------------|
+| 1 | Hash | Raw finding | `SecretHash` gets set | Finding + hash |
+| 2 | Redact | Finding + hash | `RedactedMatch` gets set | Finding + hash + redacted |
+| 3 | Enrich | Finding + hash + redacted | `FileType`, `Environment`, `Category` set | Finding + all metadata |
+| 4 | Fingerprint | Finding + metadata | `Fingerprint` gets set | Finding + fingerprint |
+| 5 | **Tag** (custom) | Finding + fingerprint | `team=platform`, `project=credvigil` added | Finding + tags |
+| 6 | Sanitize | Finding + tags | `RawMatch` permanently erased | Safe finding |
+
+#### Why Custom Processors Are Powerful — Real-World Examples
+
+| Custom Processor Idea | What It Does | Real-World Analogy |
+|----------------------|--------------|-------------------|
+| **Priority Scorer** | Assigns urgency (P1-P4) based on rules | Hospital triage — "this patient needs attention NOW" |
+| **Team Router** | Tags findings with the responsible team | Mail room sorting letters into department mailboxes |
+| **Slack Notifier** | Sends alerts for critical findings | Fire alarm — when smoke is detected, ring the bell |
+| **Duplicate Filter** | Skips findings already seen before | Library — "we already have this book, no need to catalog it again" |
+| **Compliance Tagger** | Adds regulatory labels (PCI, HIPAA) | Customs inspector stamping packages with import classifications |
+
 ### Guidelines for Custom Processors
 
-| Guideline | Why |
-|-----------|-----|
-| Never store `RawMatch` externally | Violates zero-trust |
-| Always handle `nil` Metadata maps | Prevent nil-pointer panics |
-| Return `error` to drop a finding | Use for validation/filtering |
-| Keep processors stateless when possible | Enables concurrent processing |
-| Use `Name()` for logging and debugging | Helps trace pipeline issues |
+| Guideline | Why | Everyday Analogy |
+|-----------|-----|-----------------|
+| Never store `RawMatch` externally | Violates zero-trust — leaks the raw secret | A hospital nurse shouldn't photocopy patient credit cards "just in case" |
+| Always handle `nil` Metadata maps | Prevents the program from crashing | Check if a mailbox exists before putting mail in it |
+| Return `error` to drop a finding | Use for validation/filtering | A quality inspector can reject a defective product |
+| Keep processors stateless | Enables multiple workers (threads) at once | A stamp machine doesn't need to remember the LAST item it stamped |
+| Use `Name()` for logging | Helps trace pipeline issues | Every station on an assembly line has a sign with its name |
+
+> **Key Rule**: Custom processors MUST be inserted **before** the SanitizeProcessor. Since Sanitize erases the raw secret, any custom processor that needs access to `RawMatch` must run before sanitization. Think of it like this: you can't stamp a letter after it's been shredded.
 
 ---
 
 ## 13. Verification Hooks (Preview)
+
+### What Is "Verification"? (For Non-Programmers)
+
+Imagine you're a building inspector. You find a **fire alarm** on the wall. You've detected it! But here's the important question: **does it actually work?** If you pull the alarm and it rings, it's a **verified, active alarm**. If you pull it and nothing happens, it's a **dead alarm** — detected but not actually functional.
+
+This is exactly what verification does in CredVigil. The detection engine finds things that LOOK like secrets (like a string that matches the pattern of an AWS key). But is that key actually valid? Can someone use it right now to access your systems?
+
+```mermaid
+flowchart TD
+    subgraph DetectOnly["Detection Only (Current)"]
+        D1["Found: AKIA...EXAMPLE"] --> D2{"Is it a real key?"}
+        D2 --> D3["We don't know yet..."]
+    end
+    subgraph WithVerify["Detection + Verification (Future)"]
+        V1["Found: AKIA...EXAMPLE"] --> V2["Try safe API call"]
+        V2 --> V3{"Response?"}
+        V3 -->|"Access denied"| V4["Verified: ACTIVE key!\nURGENT - revoke now"]
+        V3 -->|"Invalid key"| V5["Verified: DEAD key\nLow priority"]
+        V3 -->|"Can't check"| V6["Unverified\nTreat as active"]
+    end
+    style D3 fill:#F39C12,stroke:#D68910,color:#fff
+    style V4 fill:#E74C3C,stroke:#C0392B,color:#fff
+    style V5 fill:#27AE60,stroke:#1E8449,color:#fff
+    style V6 fill:#F39C12,stroke:#D68910,color:#fff
+```
+
+#### Why Does Verification Matter?
+
+| Scenario | Without Verification | With Verification |
+|----------|---------------------|-------------------|
+| AWS key found in old code | "We found a key, it MIGHT be active" | "This key is STILL ACTIVE — revoke it NOW" |
+| GitHub token in deleted branch | "There's a token here" | "This token expired 6 months ago — low priority" |
+| Database password in config | "A password was detected" | "This password works! Someone could access your database RIGHT NOW" |
+
+Think of it like a doctor's diagnosis versus a lab test:
+- **Detection** = The doctor says, "This LOOKS like strep throat" (educated guess based on symptoms)
+- **Verification** = The lab test confirms, "Yes, it IS strep throat" (confirmed by testing)
+
+#### The Verification Hook Interface
 
 The pipeline includes a `VerificationHook` interface that extends `Processor`:
 
@@ -1189,7 +1761,23 @@ type VerificationHook interface {
 }
 ```
 
+This interface adds one extra question: **"Can you verify this TYPE of secret?"** Not all verifiers can check all secret types — an AWS verifier can check AWS keys, but it can't check GitHub tokens.
+
 A `NoOpVerifier` placeholder is included but **not** part of the default pipeline. Future components will implement actual verification (e.g., checking if an AWS key is still active by making a safe API call).
+
+#### How Verification Will Fit in the Pipeline
+
+```mermaid
+flowchart LR
+    A["Hash"] --> B["Redact"]
+    B --> C["Enrich"]
+    C --> D["Fingerprint"]
+    D --> E["Verify\n(future)"]
+    E --> F["Sanitize"]
+    style E fill:#F39C12,stroke:#D68910,color:#fff,stroke-dasharray: 5 5
+```
+
+Notice that Verify comes **before** Sanitize. This is critical — the verifier might need the raw secret to make the API call, so it must run before the secret is permanently erased.
 
 To add verification to the pipeline:
 
@@ -1199,21 +1787,66 @@ verifier := myVerifier  // Implements VerificationHook
 pipe.InsertProcessor(4, verifier)  // Before sanitize
 ```
 
-```mermaid
-flowchart LR
-    A["Hash"] --> B["Redact"]
-    B --> C["Enrich"]
-    C --> D["Fingerprint"]
-    D --> E["🔍 Verify\n(future)"]
-    E --> F["Sanitize"]
-    style E fill:#F39C12,stroke:#D68910,color:#fff,stroke-dasharray: 5 5
-```
+> **Interview Tip**: "Our pipeline supports verification hooks — pluggable modules that can check if a detected secret is actually still active. This turns a passive scanner into an active security tool that can prioritize real threats over expired credentials."
 
 ---
 
 ## 14. Error Handling & Resilience
 
-### Processor Errors
+### What Is "Resilience"? (For Non-Programmers)
+
+Imagine you're at a **post office** sorting 100 packages. You pick up package #47 and notice it's damaged — the label is torn and you can't read the address. Do you:
+
+**(A)** Throw away ALL 100 packages and go home?  
+**(B)** Set aside the damaged package, note the problem, and continue sorting the other 99?
+
+Obviously **(B)**! That's exactly how CredVigil's pipeline handles errors. If one finding causes a problem during processing, we don't crash the entire scan. We **set aside the bad one**, record what went wrong, and keep processing the rest.
+
+```mermaid
+flowchart TD
+    A["100 Findings enter the Pipeline"]
+    A --> B["Finding #1 - OK"]
+    A --> C["Finding #2 - OK"]
+    A --> D["..."]
+    A --> E["Finding #47 - ERROR!\nProcessor couldn't handle it"]
+    A --> F["..."]
+    A --> G["Finding #100 - OK"]
+    B --> H["97 Kept Findings\n(Successfully processed)"]
+    C --> H
+    D --> H
+    G --> H
+    E --> I["3 Dropped Findings\n(Logged for review)"]
+    H --> J["Output to User"]
+    I --> K["Logged to stderr"]
+    style H fill:#27AE60,stroke:#1E8449,color:#fff
+    style I fill:#E74C3C,stroke:#C0392B,color:#fff
+    style E fill:#F39C12,stroke:#D68910,color:#fff
+```
+
+#### The Airplane Engine Analogy
+
+Modern airplanes have **multiple engines**. If one engine fails mid-flight, the plane doesn't crash — it continues flying safely on the remaining engines. The pilot is alerted, the problem is logged, and the plane lands safely. After landing, mechanics diagnose and fix the failed engine.
+
+CredVigil's pipeline works the same way:
+- **Each finding is processed independently** (like each engine runs independently)
+- **One failure doesn't stop the others** (the pipeline keeps going)
+- **Failures are logged** (so you can investigate later)
+- **The scan still succeeds** (you get all the good results)
+
+| Concept | Airplane Analogy | CredVigil Pipeline |
+|---------|-----------------|-------------------|
+| **Normal operation** | All engines running | All findings processed successfully |
+| **Partial failure** | One engine out | One finding fails a processor step |
+| **System response** | Keep flying on other engines | Keep processing other findings |
+| **Alert** | Cockpit warning light | Error logged to stderr |
+| **Recovery** | Land safely, fix engine later | Output good results, investigate errors later |
+| **Total failure** | Would need ALL engines to fail | Would need the pipeline itself to crash (extremely rare) |
+
+> **Interview Tip**: "Our pipeline is designed for resilience. If processing fails for one finding out of a hundred, the other 99 are still processed and delivered. We follow the principle of 'partial failure tolerance' — a single bad input shouldn't bring down the entire system."
+
+### How It Works in Practice
+
+#### Processor Errors
 
 If a processor returns an error for a finding, that finding is **dropped** from the results and the error is recorded:
 
@@ -1223,7 +1856,52 @@ kept, errs := pipe.ProcessFindings(ctx, findings, meta)
 // errs  = errors from findings that were dropped
 ```
 
-This ensures that partial failures don't corrupt the entire scan. If 100 findings are processed and 3 fail, you get 97 clean results and 3 errors.
+Let's trace through an example with 5 findings:
+
+```mermaid
+sequenceDiagram
+    participant P as Pipeline
+    participant H as HashProcessor
+    participant R as RedactProcessor
+
+    Note over P: Processing Finding #1
+    P->>H: Process(finding1)
+    H-->>P: OK
+    P->>R: Process(finding1)
+    R-->>P: OK
+    Note over P: Finding #1 kept
+
+    Note over P: Processing Finding #2
+    P->>H: Process(finding2)
+    H-->>P: ERROR!
+    Note over P: Finding #2 DROPPED\nError recorded\nSkip remaining processors
+
+    Note over P: Processing Finding #3
+    P->>H: Process(finding3)
+    H-->>P: OK
+    P->>R: Process(finding3)
+    R-->>P: OK
+    Note over P: Finding #3 kept
+```
+
+Notice that when Finding #2 fails at the Hash step, the pipeline:
+1. Records the error
+2. Does NOT try the remaining processors for that finding
+3. Moves on to Finding #3 as if nothing happened
+
+#### A Concrete Example
+
+Imagine you scan a project and get 100 findings:
+
+| What Happens | Count | Result |
+|-------------|-------|--------|
+| Findings that pass all 5 processors perfectly | 97 | Included in output |
+| Finding with corrupt data that crashes the hash step | 1 | Dropped, error logged |
+| Finding with unusual characters that breaks redaction | 1 | Dropped, error logged |
+| Finding with missing file path that causes enrich to fail | 1 | Dropped, error logged |
+| **Total findings processed** | **100** | **97 good + 3 errors** |
+
+You get 97 clean, enriched, safe results — AND you get 3 error messages telling you exactly which findings had problems and why.
 
 ### Error Reporting in CLI
 
@@ -1233,40 +1911,103 @@ When running via the CLI, pipeline errors are logged to stderr:
 [pipeline] warning: 3 findings dropped due to processing errors
 ```
 
-This does not affect the exit code — the scan is still considered successful if at least some findings were processed.
+This does not affect the exit code — the scan is still considered successful if at least some findings were processed. Think of it like a teacher grading 30 exams — if 3 papers are illegible, the teacher grades the other 27 and notes that 3 couldn't be read. The grading session was still successful.
 
 ```mermaid
 flowchart TD
-    A["100 Findings"] --> B["⚙️ Pipeline"]
+    A["100 Findings"] --> B["Pipeline"]
     B --> C{"Processor Error?"}
-    C -->|"✅ No Error"| D["97 Kept Findings"]
-    C -->|"❌ Error"| E["3 Dropped\n(logged to stderr)"]
-    D --> F["📄 Output"]
+    C -->|"No Error"| D["97 Kept Findings"]
+    C -->|"Error"| E["3 Dropped\n(logged to stderr)"]
+    D --> F["Output\n(text or JSON)"]
+    E --> G["Warning message\nfor investigation"]
     style D fill:#27AE60,stroke:#1E8449,color:#fff
     style E fill:#E74C3C,stroke:#C0392B,color:#fff
+    style F fill:#3498DB,stroke:#2980B9,color:#fff
 ```
+
+### Why Not Try to Fix the Error?
+
+You might ask: "Why not try to fix the finding and process it again?" Great question! Here's why:
+
+| Approach | Problem |
+|----------|---------|
+| **Retry the failing processor** | If it failed once, it'll likely fail again with the same input — wasting time |
+| **Skip just that one processor** | Dangerous! If the Hash step fails, the finding has no hash. If Sanitize is skipped, the raw secret leaks! |
+| **Try to "fix" the data** | The pipeline shouldn't guess what the data should look like — guessing could introduce security issues |
+| **Drop the finding and log it (current approach)** | Safe, fast, and gives humans the information to investigate |
+
+> **Key Takeaway**: CredVigil's pipeline follows a simple philosophy: **do it right or don't do it at all**. A partially processed finding is more dangerous than a dropped finding with an error log.
 
 ---
 
 ## 15. Frequently Asked Questions
 
+### General Questions
+
+**Q: What does the pipeline actually DO in one sentence?**  
+A: It takes a raw detected secret and transforms it into a safe, enriched report — hashing it for identification, masking it for display, adding context, creating a tracking ID, and permanently erasing the original secret. Think of it as a factory assembly line that turns a dangerous raw material into a safe, labeled, tracked product.
+
 **Q: Can I disable the SanitizeProcessor?**  
-A: Technically yes (by using `pipeline.New()` and adding only the processors you want), but this is **strongly discouraged**. Disabling sanitization breaks the zero-trust guarantee and may leak raw secrets.
+A: Technically yes (by using `pipeline.New()` and adding only the processors you want), but this is **strongly discouraged**. Disabling sanitization breaks the zero-trust guarantee and may leak raw secrets. It's like removing the safety belt from a car — technically possible, but extremely dangerous. The SanitizeProcessor exists to protect you.
 
 **Q: Does the pipeline modify the original findings?**  
-A: `ProcessFindings` works on copies of the finding slice. `ProcessResult` modifies the `ScanResult` in-place. The detection engine's internal state is not affected.
+A: `ProcessFindings` works on copies of the finding slice. `ProcessResult` modifies the `ScanResult` in-place. The detection engine's internal state is not affected. Think of it like making photocopies of documents — the pipeline works on the copies, not the originals.
 
 **Q: Can I run the pipeline multiple times?**  
-A: Yes, but the SanitizeProcessor will clear `RawMatch` on the first run. Subsequent runs will hash/redact empty strings. Design your workflow to run the pipeline once.
+A: Yes, but the SanitizeProcessor will clear `RawMatch` on the first run. Subsequent runs will hash/redact empty strings. Design your workflow to run the pipeline once. It's like washing dishes — wash them once and they're clean. Washing already-clean dishes doesn't help.
+
+### Hash & Fingerprint Questions
+
+**Q: What's the difference between a hash and a fingerprint?**  
+A: 
+
+| Feature | Hash (`SecretHash`) | Fingerprint |
+|---------|-------------------|-------------|
+| **What it identifies** | The secret VALUE itself | The secret in its LOCATION |
+| **Same secret, two files** | Same hash (same value) | Different fingerprints (different locations) |
+| **Secret changes, same file** | Different hash (different value) | Different fingerprint (different content) |
+| **Analogy** | DNA test — identifies the PERSON | Home address — identifies WHERE they live |
+| **Used for** | "Have we seen this password before?" | "Is this the same finding we saw last Tuesday?" |
 
 **Q: Why does the engine still compute SecretHash?**  
-A: The engine needs `SecretHash` during scanning for **deduplication** — if the same secret appears on multiple lines, it only reports it once. The HashProcessor respects this pre-computed value.
+A: The engine needs `SecretHash` during scanning for **deduplication** — if the same secret appears on multiple lines, it only reports it once. Think of it like a librarian checking if a book is already on the shelf before adding a new copy. The HashProcessor respects this pre-computed value and doesn't overwrite it.
 
 **Q: How does fingerprinting handle file renames?**  
-A: If a file is renamed, the fingerprint changes (because the location is part of the fingerprint input). This is intentional — a renamed file represents a new "finding location" for tracking purposes.
+A: If a file is renamed, the fingerprint changes (because the location is part of the fingerprint input). This is intentional — a renamed file represents a new "finding location" for tracking purposes. It's like how your mailing address changes when you move, even though you're still the same person.
+
+### Security Questions
+
+**Q: Can someone reverse the hash to get the original secret?**  
+A: No. SHA-256 is a one-way function. Given the hash, it is computationally impossible to determine the original input. It's like knowing that a cake weighs 2 pounds — you can't figure out the exact recipe from just the weight. See section 3.2 for more details on why hashing is irreversible.
+
+**Q: What if the same secret is found in multiple files?**  
+A: Each location gets its own finding with its own fingerprint, but they'll share the same `SecretHash` (because the secret value is the same). Think of it like finding the same person's photo in three different rooms — the person (hash) is the same, but the locations (fingerprints) are different.
 
 **Q: What happens if a finding has no RawMatch?**  
-A: The HashProcessor skips it (no hash), the RedactProcessor sets `"****"`, and the SanitizeProcessor clears the (already empty) field. The pipeline handles edge cases gracefully.
+A: The HashProcessor skips it (no hash), the RedactProcessor sets `"****"`, and the SanitizeProcessor clears the (already empty) field. The pipeline handles edge cases gracefully. It's like an empty package on the assembly line — each station checks "is there anything here?" and acts accordingly.
+
+### Pipeline Design Questions
+
+**Q: Why is the order of processors so important?**  
+A: Because each processor depends on the work of previous ones. The FingerprintProcessor needs the hash (computed by HashProcessor) to create its identifier. The SanitizeProcessor must be last because it erases the raw secret — no processor after it can access that data. Think of building a house: you must pour the foundation before building the walls, and the walls must exist before you add the roof.
+
+```mermaid
+flowchart LR
+    H["Hash\n(needs RawMatch)"] --> R["Redact\n(needs RawMatch)"]
+    R --> E["Enrich\n(needs file path)"]
+    E --> F["Fingerprint\n(needs Hash)"]
+    F --> S["Sanitize\n(erases RawMatch)"]
+    S --> X["After this point:\nRawMatch is GONE forever"]
+    style S fill:#E74C3C,stroke:#C0392B,color:#fff
+    style X fill:#7F8C8D,stroke:#616A6B,color:#fff
+```
+
+**Q: Can I add a processor AFTER the SanitizeProcessor?**  
+A: You can, but it won't have access to `RawMatch` (it's been erased). Only add processors after sanitization if they don't need the raw secret — for example, a logging processor that records which findings were processed.
+
+**Q: What happens if the pipeline crashes completely?**  
+A: If the pipeline itself crashes (not just a single finding), no output is produced and an error is returned. This is by design — a partially sanitized output could leak raw secrets. It's better to produce no output than to produce unsafe output. Think of it like a bank vault: if the locking mechanism fails, the vault stays sealed rather than opening accidentally.
 
 ---
 
