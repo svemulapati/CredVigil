@@ -2676,4 +2676,6 @@ flowchart TB
 
 ---
 
+*CredVigil — Your watchful guard against leaked credentials.*
+
 *Copyright 2026 CredVigil Contributors. Licensed under the Apache License, Version 2.0.*

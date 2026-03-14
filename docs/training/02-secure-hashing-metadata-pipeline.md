@@ -2228,4 +2228,6 @@ Continue to [Module 3: Git Integration Layer](03-git-integration-layer.md) (comi
 
 ---
 
+*CredVigil — Your watchful guard against leaked credentials.*
+
 *Copyright 2026 CredVigil Contributors. Licensed under Apache License 2.0.*
