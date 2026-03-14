@@ -37,7 +37,9 @@
 14. [Error Handling & Resilience](#14-error-handling--resilience)
 15. [Frequently Asked Questions](#15-frequently-asked-questions)
 16. [Glossary](#16-glossary)
-17. [What's Next?](#17-whats-next)
+17. [Interview Tips — Secure Hashing & Metadata Pipeline](#17-interview-tips--secure-hashing--metadata-pipeline)
+18. [Marketing Tips — Secure Hashing & Metadata Pipeline](#18-marketing-tips--secure-hashing--metadata-pipeline)
+19. [What's Next?](#19-whats-next)
 
 ---
 
@@ -647,7 +649,7 @@ sequenceDiagram
 │       ▼                                                                         │
 │  ┌──────────────────────────────────┐                                           │
 │  │   Core Detection Engine          │  ← Component 1                            │
-│  │   (276 rules, entropy, scoring)  │                                           │
+│  │   (309 rules, entropy, scoring)  │                                           │
 │  │   Output: []Finding with         │                                           │
 │  │   RawMatch, SecretHash, etc.     │                                           │
 │  └──────────────┬───────────────────┘                                           │
@@ -2056,7 +2058,164 @@ flowchart TD
 
 ---
 
-## 17. What's Next?
+## 17. Interview Tips — Secure Hashing & Metadata Pipeline
+
+These interview-ready answers focus on post-processing, pipeline architecture, hashing, and zero-trust concepts. Module 2 is rich territory for system design and security interview questions.
+
+### 17.1 "What happens after a secret is detected?"
+
+> **Interview Tip**: "Detection is only step one. CredVigil runs every finding through a 5-stage post-processing pipeline: SHA-256 hashing, smart redaction, metadata enrichment, fingerprint generation, and raw-secret sanitization. The pipeline follows the Chain of Responsibility pattern — each processor transforms the finding and passes it to the next stage."
+
+### 17.2 "Why SHA-256 and not MD5 or SHA-1?"
+
+> **Interview Tip**: "MD5 has known collision attacks — two different inputs can produce the same hash. SHA-1 was broken by Google's SHAttered attack in 2017. SHA-256 has no known practical attacks and produces a 256-bit digest (64 hex characters). For secret fingerprinting, collision resistance is critical — if two different secrets produce the same hash, you'd incorrectly deduplicate them."
+
+### 17.3 "What is the Processor Interface pattern?"
+
+> **Interview Tip**: "Each pipeline stage implements a single interface: `Process(finding) -> finding`. This is the Strategy pattern combined with Chain of Responsibility. New processors can be added without modifying existing ones — the Open/Closed Principle in action. For example, we can add a VerificationProcessor that checks if a secret is still live, without touching the hash or redaction logic."
+
+### 17.4 "How do you ensure the raw secret is never leaked?"
+
+> **Interview Tip**: "The SanitizeProcessor is always the last stage in the pipeline. It calls `ClearRawMatch()` which first generates the redacted preview, then permanently sets `RawMatch` to empty string. After this point, no code — not even CredVigil itself — can access the original secret. The SHA-256 hash is the only trace, and hashes are one-way functions — you can't reverse them."
+
+### 17.5 "Explain idempotency in your pipeline"
+
+> **Interview Tip**: "Every processor is idempotent — running it twice produces the same result as running it once. SHA-256 of the same input always gives the same hash. Redacting an already-redacted string is a no-op. This matters because in distributed systems, messages can be delivered more than once. Idempotent processors mean duplicate processing is harmless."
+
+### 17.6 "How does fingerprinting work for deduplication?"
+
+> **Interview Tip**: "The fingerprint is SHA-256 of three things concatenated: rule_id + source_location + secret_hash. This means the same secret detected by the same rule at the same location always gets the same fingerprint, even across different scan runs. This enables cross-scan deduplication and trend tracking — you can tell if a finding is new or was seen in yesterday's scan."
+
+### 17.7 "What is enrichment and why does it matter?"
+
+> **Interview Tip**: "The EnrichProcessor adds contextual metadata that humans need for triage: file type (is it a .py file or a .env?), environment detection (is the file path under /production/ or /staging/?), and category grouping (is this a cloud credential, a database password, or an auth token?). Without enrichment, every finding is just a regex match with no actionable context."
+
+### 17.8 "How does your pipeline handle errors?"
+
+> **Interview Tip**: "Partial failure tolerance. If processor stage 3 fails on finding #47 out of 100, findings #1-46 and #48-100 are still processed and delivered. The failed finding is dropped and the error is recorded. This is critical for production reliability — a malformed input shouldn't crash the entire pipeline. We follow the same principle as Erlang's 'let it crash' philosophy but at the finding level, not the process level."
+
+### 17.9 "Why is the pipeline composable?"
+
+> **Interview Tip**: "You can insert, remove, or reorder processors without changing any code in the pipeline itself. Want to add encryption? Insert an EncryptProcessor before Sanitize. Want to skip enrichment for speed? Remove the EnrichProcessor. The pipeline just iterates through whatever processors are registered. This is the Plugin pattern — the pipeline is the framework, processors are the plugins."
+
+### 17.10 "What is smart redaction?"
+
+> **Interview Tip**: "Our redaction preserves enough of the secret for humans to identify which key it is without exposing it. For secrets longer than 12 characters, we show the first 4 and last 4 characters: 'AKIA****MPLE'. For shorter secrets, first 2 characters plus asterisks. This lets a developer look at a finding and say 'Oh, that's the production AWS key for the billing service' without the key being usable by an attacker."
+
+### 17.11 "How does your system handle the same secret in multiple files?"
+
+> **Interview Tip**: "CredVigil reports each occurrence as a separate finding with its own source location, but they share the same secret_hash since they're the same underlying secret. The fingerprint is different because location is part of the fingerprint formula. This lets you answer two questions: 'How many unique secrets are leaked?' (count unique secret_hashes) and 'How many places is each secret exposed?' (count findings per secret_hash)."
+
+### 17.12 "What concurrency model does the pipeline use?"
+
+> **Interview Tip**: "The pipeline uses sync.RWMutex for thread-safe processor registration. Multiple goroutines can process findings concurrently (read lock), while processor registration requires an exclusive write lock. Each finding is processed independently, so the pipeline is embarrassingly parallel — you can shard findings across worker pools with zero coordination overhead."
+
+---
+
+## 18. Marketing Tips — Secure Hashing & Metadata Pipeline
+
+Detailed marketing content specifically about Component 2's differentiators: zero-trust output, pipeline architecture, and compliance-ready results.
+
+### 18.1 Positioning Statement
+
+> **Marketing Copy**: "CredVigil is the only secret scanner whose output is safe to store, transmit, and share. Raw secrets never appear in scan results — only SHA-256 hashes and smart redacted previews. Your CI/CD logs, SIEM, and Slack alerts stay clean."
+
+### 18.2 The Problem Statement (For Landing Page — Pipeline Section)
+
+**Headline**: "Your secret scanner is leaking secrets."
+
+**Subheadline**: "Most scanners put the actual API key right in the output JSON. That means your CI logs, Slack alerts, Jira tickets, and SIEM dashboards now contain the secret you're trying to protect. CredVigil's zero-trust pipeline ensures the raw secret never leaves the scanning process."
+
+**Visual**: A before/after comparison showing a typical scanner's output with `"match": "AKIAIOSFODNN7EXAMPLE"` vs CredVigil's `"secret_hash": "a3f2...", "redacted_match": "AKIA****MPLE"`.
+
+### 18.3 Feature-Benefit Matrix (Pipeline-Specific)
+
+| Feature | Benefit | What to Say |
+|---------|---------|-------------|
+| SHA-256 hashing | Track secrets without storing them | "We fingerprint secrets cryptographically. You can track, deduplicate, and audit without ever seeing the raw value" |
+| Smart redaction | Identify without exposing | "Developers know WHICH key leaked — 'AKIA****MPLE' — without the key being exploitable" |
+| Metadata enrichment | Actionable context | "Every finding includes file type, environment, category, and severity — your team triages in seconds, not hours" |
+| Cross-scan fingerprinting | Trend tracking | "Is this secret new or was it in yesterday's scan? Fingerprints give you drift detection for free" |
+| Composable pipeline | Extensibility | "Add custom processing stages — encryption, webhook notification, SIEM forwarding — without modifying core code" |
+| Raw secret sanitization | Compliance | "SOC2 auditors love us. The scan output itself passes a security review because it contains no sensitive data" |
+
+### 18.4 Compliance & Audit Messaging
+
+**For SOC2 / ISO 27001 / PCI-DSS conversations:**
+
+> "CredVigil's pipeline was designed for compliance from day one. Three key properties make it audit-friendly:
+> 1. **Secret non-retention**: Raw secrets are hashed and cleared in-memory. Scan results contain only hashes and redacted previews.
+> 2. **Deterministic fingerprinting**: Every finding has a reproducible fingerprint. An auditor can re-run the same scan and verify the same fingerprint — proving the finding is real.
+> 3. **Full metadata trail**: Every finding includes scan ID, scanner version, config hash, timestamp, and source location. This is the audit trail auditors need."
+
+### 18.5 Competitor Comparison Points
+
+**vs TruffleHog output:**
+> "Run TruffleHog and look at the JSON. The raw secret is right there in the `rawV2` field. Now imagine that output goes to your CI log, your Slack channel, your Jira ticket. You just created 4 new places where the secret is exposed. CredVigil outputs `secret_hash` and `redacted_match` — safe to store everywhere."
+
+**vs GitLeaks output:**
+> "GitLeaks puts the secret in the `Secret` field of its JSON output. Their documentation explicitly says 'the actual secret.' CredVigil's zero-trust pipeline means even we don't keep the secret after processing."
+
+### 18.6 Blog Post Ideas (Pipeline-Specific)
+
+| # | Title | Hook |
+|---|-------|------|
+| 1 | **"Your Secret Scanner's Output Is a Security Vulnerability"** | Expose how most scanners leak secrets in their own output |
+| 2 | **"SHA-256 for Secret Tracking: How to Fingerprint Without Exposing"** | Technical deep-dive with code examples |
+| 3 | **"Building a Zero-Trust Pipeline in 500 Lines of Go"** | Open-source engineering blog — show pipeline architecture |
+| 4 | **"Why Smart Redaction Beats Full Masking"** | UX angle — 'AKIA****MPLE' is more useful than '********' |
+| 5 | **"From Detection to SIEM: How CredVigil's Pipeline Feeds Your SOC"** | Enterprise integration use case |
+| 6 | **"The Composable Processor Pattern: Plugin Architecture for Security Tools"** | Architecture blog for the developer community |
+
+### 18.7 Social Media Copy (Pipeline-Focused)
+
+**LinkedIn Post:**
+> 🔒 Hot take: Your secret scanner is probably leaking secrets.
+>
+> I just checked the output of three popular scanners. All three put the actual API key in their JSON output.
+>
+> That means your CI logs now contain the secret. Your Slack alerts contain the secret. Your Jira tickets contain the secret.
+>
+> CredVigil's approach: SHA-256 hash + smart redaction. The output shows "AKIA****MPLE" — enough to identify which key, useless for exploitation.
+>
+> Zero-trust doesn't stop at network architecture. Your tooling output matters too.
+>
+> #zerotrust #devsecops #appsec #credvigil
+
+**Twitter/X Thread:**
+> 🧵 Most secret scanners have a dirty secret of their own:
+>
+> They put the actual leaked credential IN THEIR OWN OUTPUT.
+>
+> Your CI log? Now contains the secret.
+> Your Slack alert? Contains the secret.
+> Your SIEM? Contains the secret.
+>
+> We fixed this. Here's how ↓
+
+### 18.8 Demo Script (For Live Presentations)
+
+> **Step 1**: "Let me run a competitor on this test repo. Look at the output... there's the raw AWS key, right in the JSON."
+>
+> **Step 2**: "Now let me run CredVigil on the same repo. Same finding, same file, same line number. But look at the output: `secret_hash: a3f2...`, `redacted_match: AKIA****MPLE`. The actual key? Gone. Permanently cleared from memory."
+>
+> **Step 3**: "Both tools found the secret. Only one is safe to put in your CI log."
+
+### 18.9 Enterprise Sales Talking Points
+
+> **For CISOs**: "CredVigil's zero-trust pipeline means your secret scanning program doesn't create new exposure surfaces. The scan results are safe to store in your SIEM, safe to forward to Jira, safe to post in Slack. No secondary leak risk."
+>
+> **For Compliance Officers**: "Every finding includes a scan ID, scanner version, config hash, and timestamp. This is the tamper-evident audit trail your SOC2 assessor needs. Re-run the scan, get the same fingerprints — proving findings are reproducible."
+>
+> **For Engineering Leads**: "The pipeline is extensible. Your team can add custom processors — maybe a Jira ticket creator, a PagerDuty alerter, or a secret rotation trigger — without forking the project. It follows the Open/Closed Principle."
+
+### 18.10 Elevator Pitch (Pipeline-Specific, 15 Seconds)
+
+> "CredVigil is the only secret scanner whose output itself passes a security review. Raw secrets are SHA-256 hashed and redacted before they leave the scanning process. Your CI logs stay clean."
+
+---
+
+## 19. What's Next?
 
 You've now learned how CredVigil post-processes detected secrets through a composable, zero-trust pipeline. In the next module, we'll build **Component 3: Git Integration Layer**, which will enable:
 

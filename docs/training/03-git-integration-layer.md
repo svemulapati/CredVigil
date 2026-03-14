@@ -45,7 +45,9 @@
 14. [Error Handling & Resilience](#14-error-handling--resilience)
 15. [Frequently Asked Questions](#15-frequently-asked-questions)
 16. [Glossary](#16-glossary)
-17. [What's Next?](#17-whats-next)
+17. [Interview Tips — Git Integration Layer](#17-interview-tips--git-integration-layer)
+18. [Marketing Tips — Git Integration Layer](#18-marketing-tips--git-integration-layer)
+19. [What's Next?](#19-whats-next)
 
 ---
 
@@ -62,7 +64,7 @@ The Git Integration Layer adds the ability to scan an entire repository's **comm
 ```mermaid
 flowchart TB
     subgraph M1["Module 1: Detection Engine"]
-        ENGINE["276 Rules +\nEntropy Analysis"]
+        ENGINE["309 Rules +\nEntropy Analysis"]
     end
     subgraph M2["Module 2: Pipeline"]
         PIPE["Hash → Redact → Enrich\n→ Fingerprint → Sanitize"]
@@ -1213,7 +1215,7 @@ flowchart TB
         S2["Walk each commit"]
         S3["Extract diff entries"]
         S4["Build scannable content<br/>from added lines"]
-        S5["Run detection engine<br/>(276 rules + entropy)"]
+        S5["Run detection engine<br/>(309 rules + entropy)"]
         S6["Adjust line numbers"]
         S7["Run pipeline<br/>(hash → redact → enrich<br/>→ fingerprint → sanitize)"]
         S8["Aggregate results"]
@@ -1300,7 +1302,7 @@ flowchart TB
     end
     
     subgraph C1["Component 1: Detection Engine"]
-        ENGINE["ScanContent<br/>276 rules + entropy"]
+        ENGINE["ScanContent<br/>309 rules + entropy"]
     end
     
     subgraph C2["Component 2: Pipeline"]
@@ -2342,12 +2344,12 @@ Yes. The initial commit has no parent to diff against. CredVigil handles this by
 
 ### Q9: How does the scanner know which detection rules to use?
 
-It uses the same detection engine from Module 1 — all 276 rules plus entropy detection. The scanner simply feeds the added lines from each diff entry into `engine.ScanContent()`. No git-specific rules are needed because the content is just text, regardless of where it came from.
+It uses the same detection engine from Module 1 — all 309 rules plus entropy detection. The scanner simply feeds the added lines from each diff entry into `engine.ScanContent()`. No git-specific rules are needed because the content is just text, regardless of where it came from.
 
 ```mermaid
 flowchart LR
     GIT["Added lines from git diff"] --> BUILD["Build content string"]
-    BUILD --> ENGINE["Same 276-rule engine<br/>from Module 1"]
+    BUILD --> ENGINE["Same 309-rule engine<br/>from Module 1"]
     ENGINE --> FINDINGS["Findings"]
     
     FILE["File content<br/>from disk"] --> ENGINE
@@ -2413,7 +2415,213 @@ Currently, the CLI shows results at the end. Real-time progress display will be 
 
 ---
 
-## 17. What's Next?
+## 17. Interview Tips — Git Integration Layer
+
+Module 3 already has ~20 inline interview tips scattered throughout the document at relevant sections. This section adds **additional consolidated tips** specifically for system design interviews, behavioral interviews, and deep-dive technical discussions about git scanning.
+
+### 17.1 "How does your tool handle repositories with 100,000+ commits?"
+
+> **Interview Tip**: "Three strategies: (1) Incremental scanning with `--git-since` — only scan commits after the last known scan point, turning O(n) into O(delta). (2) Shallow clones with `--git-depth` — download only the last N commits when you don't need full history. (3) Context cancellation — if the scan is taking too long, Ctrl+C gracefully stops the walker and returns partial results. The bottleneck is disk I/O from `git diff`, not CPU."
+
+### 17.2 "Why shell out to git instead of using a Go git library?"
+
+> **Interview Tip**: "Two reasons: zero dependencies and correctness. Libraries like go-git add thousands of lines of transitive dependencies and their own bugs. By shelling out to the system git binary, we get the exact same parsing that every developer already trusts, and we keep our dependency count at zero. The trade-off is requiring git to be installed, which is a reasonable assumption for any development environment."
+
+### 17.3 "How do you parse diffs reliably?"
+
+> **Interview Tip**: "We parse the unified diff format line by line using a state machine. Lines starting with `diff --git` signal a new file entry. `@@` lines are hunk headers with line numbers. `+` lines are additions — those are the only lines we scan for secrets. `-` lines are deletions, space-prefixed lines are context. The parser is deterministic and handles edge cases like binary files, renames, and empty diffs."
+
+### 17.4 "What's the difference between scanning current files vs git history?"
+
+> **Interview Tip**: "Current file scanning only sees what exists right now. Git history scanning sees every version that ever existed. If a developer commits an API key, realizes the mistake, and deletes it in the next commit — the key is gone from current files but still in git history. Anyone who clones the repo can see it. That's why 'git never forgets' is a security property, not just a feature."
+
+### 17.5 "Explain the DAG traversal algorithm"
+
+> **Interview Tip**: "Git commits form a Directed Acyclic Graph. Our walker does a topological traversal from HEAD backwards — newest to oldest. At each commit, we run `git diff` against its parent to extract what changed. Merge commits have two parents; we skip them by default because the actual changes were already in the individual branch commits. This prevents double-counting secrets that appear in both a branch and its merge."
+
+### 17.6 "How do you handle merge commits?"
+
+> **Interview Tip**: "By default, we skip merge commits. A merge commit combines two branches, and the changes were already present in the individual branch commits. Scanning merge commits would double-count findings. However, there's a `ScanMergeCommits` option for cases where you specifically want to audit what the merged state looks like — useful for detecting merge conflict resolution that accidentally included credentials."
+
+### 17.7 "What metadata do you capture from git?"
+
+> **Interview Tip**: "Each finding from a git scan includes: commit hash (which exact commit introduced the secret), author name and email (who committed it), branch name (was it main or a feature branch?), commit date (when was the exposure window opened?), and file path within the commit. This metadata is critical for incident response — you can immediately calculate how long the secret was exposed and who to contact."
+
+### 17.8 "How does this compare to GitHub's secret scanning?"
+
+> **Interview Tip**: "GitHub's built-in secret scanning only works on GitHub-hosted repos and only scans push events — new commits as they arrive. CredVigil scans the entire history of any git repository, anywhere. GitHub's scanning doesn't give you confidence scores. And GitHub's scanning alerts go to the GitHub UI — CredVigil gives you structured JSON you can feed into any SIEM, dashboard, or ticketing system."
+
+### 17.9 "What's your testing strategy for the git layer?"
+
+> **Interview Tip**: "We test at three levels: (1) Unit tests for the diff parser — feed it known diff strings and verify the parsed DiffEntry structures. (2) Integration tests using real git repositories created in temporary directories — actual git init, git add, git commit operations. (3) End-to-end tests that scan a repo with planted secrets and verify the findings include the correct commit hash, author, line number, and severity."
+
+### 17.10 "How do you handle binary files in git diffs?"
+
+> **Interview Tip**: "Binary files produce diffs like `Binary files /dev/null and b/image.png differ`. Our diff parser recognizes this and skips them. Scanning binary diffs would produce meaningless regex matches on raw bytes. However, some 'binary' files like .p12 keystores or .pem private keys are text-encodable — we catch those through the text-based content that git does diff for PEM-formatted keys."
+
+### 17.11 "How does branch-aware scanning work?"
+
+> **Interview Tip**: "The walker can filter commits by branch. In CI/CD, you typically scan only the feature branch being pushed — not all branches. We support `--git-branch` to specify which branch to walk. Combined with `--git-since`, you can scan only the new commits on the current PR, making the scan sub-second even for large repositories."
+
+### 17.12 "What happens if a commit is force-pushed away?"
+
+> **Interview Tip**: "Force-push replaces the commit history on the remote, but anyone who already cloned the repo still has the old commits locally. Git garbage collection eventually removes orphaned objects, but there's a grace period. More importantly, the secret was already exposed to everyone who cloned during that window. This is why detection at commit time (pre-push hooks) is better than post-hoc scanning — but both are needed for defense in depth."
+
+### 17.13 System Design: "Design a secret scanning service for an enterprise"
+
+> **Interview Tip**: "I'd use CredVigil's architecture as the foundation: (1) A scanner service that clones repos and walks commit history — this is Component 3. (2) A detection engine with 309+ rules — Component 1. (3) A zero-trust pipeline for post-processing — Component 2. (4) A message queue (Kafka/NATS) for async processing — scan requests go in, findings come out. (5) A database for findings with fingerprint-based dedup. (6) A dashboard for triage. (7) Webhook integration for CI/CD gates. Scale horizontally by running multiple scanner workers — each scan is independent and stateless."
+
+### 17.14 Behavioral: "Tell me about a time you solved a complex parsing problem"
+
+> **Interview Tip**: "The git diff parser was deceptively complex. A unified diff has file-level headers, hunk headers with line numbers, context lines, and addition/removal lines. Edge cases include: binary files, renamed files, deleted files, files with spaces in names, empty files, and diffs with no newline at end of file. I built a line-by-line state machine with explicit states for each section. Each state only transitions on specific line prefixes. This made the parser both correct and readable — each state handles one concern."
+
+---
+
+## 18. Marketing Tips — Git Integration Layer
+
+Detailed marketing content for Component 3: git history scanning, the "git never forgets" narrative, and CI/CD integration positioning.
+
+### 18.1 Positioning Statement
+
+> **Marketing Copy**: "Git never forgets — and neither does CredVigil. Scan every commit ever made, find secrets that were 'deleted' years ago, and pinpoint exactly who committed them and when. Full git history scanning with zero-trust output."
+
+### 18.2 The Problem Statement (For Landing Page — Git Section)
+
+**Headline**: "You deleted the API key. Git didn't."
+
+**Subheadline**: "When a developer commits a secret and removes it in the next commit, the secret is gone from the current code — but it's still in git history. Anyone who clones your repo can find it. CredVigil scans every commit, every branch, every line ever added."
+
+**Visual Concept**: A timeline showing commits with a red dot at "commit #47: added AWS key" and a green dot at "commit #48: removed AWS key" — with a magnifying glass showing that commit #47 still exists in history.
+
+### 18.3 The "Git Never Forgets" Campaign
+
+This is the strongest marketing narrative for Component 3. It's visual, it's scary, and it's true.
+
+**Campaign Concept**:
+> "Run `git log --all -p | grep -i 'api_key\|secret\|password'` on any repository that's been active for more than a year. The results will terrify you."
+
+**Demo Script**:
+> 1. Create a fresh repo and add a file with a fake AWS key
+> 2. Commit it
+> 3. Remove the key and commit again
+> 4. Show that `cat config.py` has no key
+> 5. Show that `git log -p` reveals the key in commit history
+> 6. Run CredVigil git scan — it finds the key, shows the commit hash, author, and date
+> 7. Punchline: "The file is clean. The history is not. CredVigil sees both."
+
+### 18.4 Feature-Benefit Matrix (Git-Specific)
+
+| Feature | Benefit | What to Say |
+|---------|---------|-------------|
+| Full history scanning | Find removed secrets | "Secrets deleted from current code are still in git history — we find those too" |
+| Commit attribution | Know who and when | "Every finding includes the commit hash, author, date, and branch — instant incident response" |
+| Incremental scanning | Fast CI/CD integration | "Only scan new commits since the last run — sub-second scans on every push" |
+| Shallow clone support | Efficient PR scanning | "Scan only the last N commits — perfect for pull request checks" |
+| Branch-aware scanning | Focused analysis | "Scan just the feature branch being deployed — not the entire repository" |
+| Zero-trust output | Safe results even from git | "Even commit-level findings use SHA-256 hashes — the actual secret never appears in output" |
+
+### 18.5 CI/CD Integration Messaging
+
+**For DevOps Teams:**
+
+> "Add CredVigil to your CI/CD pipeline in one line:
+> ```
+> credvigil scan --git --git-depth 1 --min-severity high --output json
+> ```
+> Exit code 1 = secrets found = pipeline fails. Exit code 0 = clean. That's it. No configuration files, no API keys, no SaaS subscription. A single binary in your pipeline."
+
+**For Platform Engineers:**
+
+> "CredVigil's incremental scanning mode (`--git-since`) means you only scan new commits on each push. Store the last scanned commit hash in your CI cache. Next run, pass it as `--git-since <hash>`. A 10-minute full scan becomes a 2-second incremental scan."
+
+### 18.6 Competitive Differentiators (Git-Specific)
+
+**vs TruffleHog git scanning:**
+> "TruffleHog's git scanning pulls in the go-git library — thousands of lines of third-party Go code in your supply chain. CredVigil shells out to your system git binary. Zero dependency risk. Same detection quality, smaller attack surface."
+
+**vs GitHub Secret Scanning:**
+> "GitHub only scans push events on github.com. CredVigil scans any git repo — GitHub, GitLab, Bitbucket, self-hosted, local. And you get confidence scores, severity ratings, and structured output. GitHub gives you an email alert; CredVigil gives you actionable JSON."
+
+**vs Pre-commit hooks:**
+> "Pre-commit hooks prevent new secrets but can't find old ones. CredVigil's git history scan finds every secret ever committed — even ones from 3 years ago that the developer who committed them has since left the company. Use both: pre-commit for prevention, CredVigil for detection."
+
+### 18.7 Blog Post Ideas (Git-Specific)
+
+| # | Title | Hook |
+|---|-------|------|
+| 1 | **"I Found 47 API Keys in a Repo That Passed Every Security Scan"** | Show that current-state scanning misses git history |
+| 2 | **"Git History Is Your Biggest Secret Leak — Here's the Math"** | Calculate how many 'deleted' secrets exist in an average repo |
+| 3 | **"Sub-Second Secret Scanning in CI/CD with Incremental Git Scans"** | Technical how-to for DevOps teams |
+| 4 | **"The Developer Left the Company. Their API Keys Didn't."** | Scary but true — secrets in history outlive team members |
+| 5 | **"Why We Shell Out to Git Instead of Using a Library"** | Zero-dependency architecture decision blog |
+| 6 | **"Branch-Aware Scanning: Stop Scanning Main When You're Deploying a Feature"** | Performance optimization post |
+
+### 18.8 Social Media Copy (Git-Focused)
+
+**LinkedIn Post:**
+> 🔍 Quick experiment: Run this on any repo your team has worked on for 6+ months:
+> 
+> `git log --all --diff-filter=D -p -- '*.env' '*.key' '*.pem'`
+> 
+> Those are DELETED files that still exist in git history.
+> 
+> "We deleted the credentials" is not the same as "The credentials are gone."
+> 
+> Git never forgets. CredVigil remembers that git never forgets.
+> 
+> Full git history scanning. Every commit. Every branch. Every line ever added.
+> 
+> #gitsecurity #devsecops #credentialexposure #credvigil
+
+**Twitter/X Thread:**
+> 🧵 A developer commits an API key.
+> 
+> They realize the mistake.
+> They delete it in the next commit.
+> They push to GitHub.
+> 
+> Is the key gone?
+> 
+> No. `git clone` + `git log -p` = key is right there.
+> 
+> This is why you need git HISTORY scanning, not just file scanning ↓
+
+### 18.9 Case Study Template
+
+> **Scenario**: A startup with 3 years of git history, 5 developers, 2,000 commits.
+>
+> **CredVigil scan results**:
+> - 12 API keys found in current files (known risk)
+> - 31 API keys found ONLY in git history (unknown risk!)
+> - The oldest secret was committed 2.5 years ago by a developer who left the company 18 months ago
+> - 8 of the historical secrets were still active (not rotated)
+>
+> **Impact**: Without CredVigil, 31 active credentials would remain exploitable in git history indefinitely. The company rotated all 8 active secrets within 24 hours of the scan.
+
+### 18.10 Enterprise Sales Talking Points (Git-Specific)
+
+> **For CISOs**: "How many credentials are buried in your git history from developers who left the company 2 years ago? CredVigil tells you in minutes. Every finding includes who committed it, when, and from which branch — instant incident response metadata."
+>
+> **For Engineering VPs**: "CredVigil's incremental git scanning adds less than 3 seconds to your CI/CD pipeline. It only scans new commits, not the full history. Set it once, forget it — it catches secrets before they reach production."
+>
+> **For Compliance**: "PCI-DSS Requirement 6.5.3 requires detection of exposed authentication credentials in source code. CredVigil's git history scanning provides evidence of scanning EVERY commit, not just the current state. This is the level of depth auditors want to see."
+
+### 18.11 Conference Talk Pitches (Git-Specific)
+
+| Talk Title | Audience | Duration |
+|-----------|----------|----------|
+| "Git Never Forgets: Finding Secrets in 3 Years of Commit History" | Security engineers | 30 min |
+| "From 10 Minutes to 2 Seconds: Incremental Secret Scanning in CI/CD" | DevOps engineers | 20 min |
+| "The DAG Walk: How CredVigil Traverses Git History for Secrets" | Developers | 25 min |
+| "Zero-Dependency Git History Scanning in Pure Go" | Go developers | 30 min |
+
+### 18.12 Elevator Pitch (Git-Specific, 15 Seconds)
+
+> "CredVigil scans your entire git history — every commit, every branch — and finds secrets that were committed and 'deleted' years ago. With commit-level attribution, you know exactly who, when, and where. Sub-second CI/CD integration included."
+
+---
+
+## 19. What's Next?
 
 In **Module 4: File System Watcher**, you'll learn how CredVigil monitors files in real-time — watching for changes as they happen, rather than scanning after the fact. This enables instant detection of secrets as developers save files.
 
@@ -2422,7 +2630,7 @@ In **Module 4: File System Watcher**, you'll learn how CredVigil monitors files 
 ```mermaid
 flowchart LR
     subgraph DONE["✅ Completed"]
-        M1["Module 1<br/>Detection Engine<br/>276 rules + entropy"]
+        M1["Module 1<br/>Detection Engine<br/>309 rules + entropy"]
         M2["Module 2<br/>Pipeline<br/>5-stage zero-trust"]
         M3["Module 3<br/>Git Integration<br/>History scanning"]
     end
@@ -2464,7 +2672,7 @@ flowchart TB
 1. **File System Events** — How operating systems notify programs about file changes
 2. **Event Debouncing** — Why you can't scan on every keystroke
 3. **Watch Patterns** — Monitoring specific directories and file types
-4. **Integration with the Detection Engine** — Feeding changed files into the same 276-rule engine
+4. **Integration with the Detection Engine** — Feeding changed files into the same 309-rule engine
 
 ---
 

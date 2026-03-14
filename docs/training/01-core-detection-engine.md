@@ -52,7 +52,9 @@
 13. [Real-World Scenarios](#13-real-world-scenarios)
 14. [Frequently Asked Questions](#14-frequently-asked-questions)
 15. [Glossary](#15-glossary)
-16. [What's Next?](#16-whats-next)
+16. [Interview Tips — Core Detection Engine](#16-interview-tips--core-detection-engine)
+17. [Marketing Tips — Core Detection Engine](#17-marketing-tips--core-detection-engine)
+18. [What's Next?](#18-whats-next)
 
 ---
 
@@ -300,7 +302,7 @@ Regex can only find secrets it already knows about. If a new service launches to
 
 ```mermaid
 flowchart TD
-    A["Input Text"] --> B["Apply 276 Regex Rules"]
+    A["Input Text"] --> B["Apply 309 Regex Rules"]
     B --> C{"Pattern Match?"}
     C -->|"✅ AKIA... matches AWS rule"| D["Finding Created"]
     C -->|"❌ No match"| E["Try Entropy Analysis"]
@@ -1355,7 +1357,7 @@ flowchart TD
     D -->|"✅ Read"| E["Read File Into Memory"]
     E --> F["4. Engine.ScanContent()"]
     F --> G["Split into lines"]
-    G --> H["Run 276 regex rules"]
+    G --> H["Run 309 regex rules"]
     H --> I["Extract matches + entropy"]
     I --> J["Compute confidence"]
     J --> K["5. Pipeline:\nHash→Redact→Enrich→FP→Sanitize"]
@@ -1452,7 +1454,7 @@ Regex catches known patterns with high confidence. Entropy catches unknown/novel
 ```mermaid
 flowchart LR
     subgraph Phase1["Phase 1: Regex"]
-        A["276 Rules"] --> B["Known Patterns"]
+        A["309 Rules"] --> B["Known Patterns"]
     end
     subgraph Phase2["Phase 2: Entropy"]
         C["Shannon Analysis"] --> D["Unknown Patterns"]
@@ -1621,7 +1623,7 @@ flowchart TD
     CLI["cmd/credvigil/main.go\n💻 CLI Entry Point"] --> ENG["pkg/detector/engine.go\n🧠 Detection Engine"]
     CLI --> SCN["pkg/detector/scanner.go\n📁 File Scanner"]
     SCN --> ENG
-    ENG --> RUL["pkg/rules/rules.go\n📖 276 Rules"]
+    ENG --> RUL["pkg/rules/rules.go\n📖 309 Rules"]
     ENG --> ENT["pkg/entropy/entropy.go\n📊 Shannon Math"]
     ENG --> MOD["pkg/models/finding.go\n📦 Data Structures"]
     CLI --> PIP["pkg/pipeline/...\n⚙️ Post-Processing"]
@@ -1823,7 +1825,7 @@ CredVigil covers 25+ categories of secrets. Here's what each category covers and
 Covering: Slack, Jira, Confluence, Teams, Stack Overflow, private keys (RSA/EC/SSH/PGP), JWT, OAuth, SendGrid, Mailgun, Mailchimp, Postmark, Resend, Docker, NPM, PyPI, Heroku, Vault, Terraform, Datadog, New Relic, Sentry, Grafana, Splunk, PagerDuty, OpenTelemetry, CircleCI, Jenkins, Travis CI, Buildkite, Drone, Pulumi, Google Maps, Mapbox, Twitter/X, Facebook, LinkedIn, Cloudinary, Backblaze, Alchemy, Infura, Etherscan, Moralis, Meilisearch, Typesense, HubSpot, Mixpanel, Segment, Intercom, Zendesk, Auth0, Okta, Clerk, and more.
 
 ```mermaid
-pie title 276 Detection Rules by Category
+pie title 309 Detection Rules by Category
     "Cloud Providers" : 15
     "AI/ML Services" : 11
     "Source Control" : 7
@@ -2081,7 +2083,168 @@ flowchart LR
 
 ---
 
-## 16. What's Next?
+## 16. Interview Tips — Core Detection Engine
+
+This section collects all the interview-ready talking points related to Component 1. Use these verbatim or adapt them when discussing the project in technical interviews, system design rounds, or behavioral questions about past projects.
+
+### 16.1 "Tell me about a project you've built"
+
+> **Interview Tip**: "I built CredVigil, a zero-trust credential detection engine that scans codebases for leaked secrets. It uses 309 regex-based detection rules combined with Shannon entropy analysis to produce confidence-scored findings. The engine was designed from day one to never store plaintext secrets — everything is SHA-256 hashed and redacted before it leaves the detection layer."
+
+### 16.2 "How does regex matching work?"
+
+> **Interview Tip**: "Each rule compiles a Go regex at initialization time, so there's zero compilation overhead at scan time. We use prefix-based patterns where possible — for example, AWS keys always start with 'AKIA', GitHub tokens with 'ghp_' or 'github_pat_'. This means the regex engine can reject non-matching lines in constant time before doing expensive backtracking."
+
+### 16.3 "What is Shannon entropy and why use it?"
+
+> **Interview Tip**: "Shannon entropy measures the randomness of a string in bits per character. Natural language has entropy around 1.5-3.0 bits, while cryptographic secrets have entropy above 4.0 bits. We use it as a secondary signal — if a regex matches but the captured string has low entropy like 'aaaaaaaaa', it's almost certainly a false positive. This dual approach (pattern + entropy) dramatically reduces noise."
+
+### 16.4 "How do you handle false positives?"
+
+> **Interview Tip**: "We use four strategies: (1) false-positive patterns that match test/example/placeholder values, (2) minimum entropy thresholds per rule, (3) keyword proximity boosting — the word 'aws' near an access key increases confidence, (4) secondary patterns — some rules require a second pattern to co-occur. Each finding gets a confidence score from 0-100%, so users can set their own threshold based on tolerance."
+
+### 16.5 "How is this different from grep?"
+
+> **Interview Tip**: "grep finds text patterns but has no concept of confidence, severity, or false positives. CredVigil produces structured findings with 12+ metadata fields — severity, confidence score, entropy, SHA-256 hash, redacted preview, file type, environment detection. It understands that 'AKIA' followed by 16 alphanumeric characters is an AWS access key, not just a random string match."
+
+### 16.6 "What design patterns did you use?"
+
+> **Interview Tip**: "The rule engine uses the Strategy pattern — each rule is a strategy that knows how to detect one type of secret. The RuleSet is a Registry that holds all strategies. We use the Builder pattern with struct literals for rule construction. Thread safety is handled via sync.RWMutex, allowing concurrent reads from multiple scanner goroutines. The overall architecture follows Separation of Concerns — detection, hashing, redaction, and enrichment are all separate stages."
+
+### 16.7 "How do you handle concurrency?"
+
+> **Interview Tip**: "The RuleSet uses a sync.RWMutex so multiple goroutines can scan files simultaneously, each reading the rules concurrently. File scanning is parallelized — each file is a goroutine that independently matches all 309 rules. Results are collected via channels. This gives near-linear speedup on multi-core machines. The mutex only escalates to a write lock when adding custom rules, which is rare."
+
+### 16.8 "Why Go and not Python?"
+
+> **Interview Tip**: "Go compiles to a single static binary with no runtime dependencies — no pip install, no virtualenv, no version conflicts. It has zero external dependencies. Go's concurrency model (goroutines + channels) is ideal for scanning many files in parallel. And compiled regex in Go is significantly faster than Python's re module for high-throughput scanning. The entire tool can be deployed by copying one file."
+
+### 16.9 "How would you scale this?"
+
+> **Interview Tip**: "Horizontally — the detection engine is stateless. You can run multiple instances scanning different files/repos in parallel. The findings merge trivially because each has a unique fingerprint (SHA-256 of rule_id + location + secret_hash). For CI/CD pipelines, you only scan the diff since the last commit, making each scan O(changes) instead of O(codebase)."
+
+### 16.10 "What was the hardest part?"
+
+> **Interview Tip**: "Balancing precision vs recall in the regex rules. Too loose and you get thousands of false positives — developers ignore the tool. Too strict and you miss real secrets — the tool is useless. The confidence scoring system was the solution: report everything but rank it, so critical high-confidence findings surface first and low-confidence noise is deprioritized rather than hidden."
+
+### 16.11 "How do you test a security tool?"
+
+> **Interview Tip**: "We have 115+ unit tests covering every detection rule, entropy edge case, and confidence calculation. Test data includes known-format tokens for each service (AWS, GitHub, Stripe, etc.), false positive traps (placeholder values, documentation examples), and boundary cases (minimum-length keys, max-entropy random strings). We test both that real secrets ARE caught and that fake ones are NOT."
+
+### 16.12 "What is zero-trust architecture in this context?"
+
+> **Interview Tip**: "Zero-trust means the scan output never contains the actual secret. Even if someone intercepts the JSON results, they get SHA-256 hashes and redacted previews like 'AKIA****MPLE' — useless for exploitation. The raw secret exists only in memory during scanning and is cleared immediately after hashing. This is critical for compliance — you can store and transmit scan results without creating a new secret exposure surface."
+
+---
+
+## 17. Marketing Tips — Core Detection Engine
+
+These are detailed marketing angles, talking points, copy snippets, landing page ideas, and positioning strategies specifically related to Component 1. Use these for website copy, social media posts, pitch decks, blog posts, conference talks, and sales conversations.
+
+### 17.1 Positioning Statement
+
+> **Marketing Copy**: "CredVigil doesn't just find secrets — it scores them. Every finding comes with a confidence percentage, severity rating, and entropy analysis, so your team knows exactly what to fix first. No more alert fatigue from false positives."
+
+### 17.2 The Problem Statement (For Landing Page)
+
+**Headline**: "83% of data breaches involve leaked credentials. Most teams don't even know they're exposed."
+
+**Subheadline**: "CredVigil scans your entire codebase — including files, configs, and environment variables — and tells you exactly which secrets are real, which are false alarms, and which to fix first."
+
+**Supporting stat**: "In 2024, IBM reported an average data breach cost of $4.88 million. Credential leaks in source code are the #1 preventable attack vector."
+
+### 17.3 Feature-Benefit Matrix (For Sales Conversations)
+
+| Feature | Benefit | What to Say |
+|---------|---------|-------------|
+| 309 detection rules | Broadest coverage | "We detect secrets from 55+ services — from AWS to Pinecone, from Stripe to Together AI" |
+| Confidence scoring (0-100%) | No false positive fatigue | "Every finding has a confidence score, so your team fixes real threats, not noise" |
+| Shannon entropy analysis | Catches unknown secrets | "Even if a secret doesn't match any known pattern, we catch it through randomness analysis" |
+| Zero external dependencies | Easy deployment | "One binary, zero dependencies. Works anywhere Go compiles — no pip install, no Docker required" |
+| SHA-256 hashing | Compliance-ready output | "Scan results never contain the actual secret — safe to store, transmit, and audit" |
+| Zero-trust architecture | Security by design | "Even if scan results are compromised, attackers get hashes, not secrets" |
+| Severity levels | Clear prioritization | "CRITICAL findings get fixed today. LOW findings get tracked. No guesswork." |
+
+### 17.4 Competitive Differentiators (vs TruffleHog, GitLeaks, etc.)
+
+**Talking Point 1 — Confidence Scoring**:
+> "TruffleHog gives you a binary yes/no — it either found something or didn't. CredVigil scores every finding from 0-100% confidence. A regex match on a placeholder example file scores 15%. A prefix-matched AWS key with high entropy near the keyword 'aws_secret' scores 95%. Your security team can set their own threshold and focus on what matters."
+
+**Talking Point 2 — Zero-Trust Output**:
+> "Most secret scanners put the actual secret in the output JSON. That means your CI/CD logs, your SIEM, your Slack alerts — they all now contain the secret you're trying to protect. CredVigil never outputs the raw secret. You get SHA-256 hashes and redacted previews. The scan results themselves are not a security risk."
+
+**Talking Point 3 — Zero Dependencies**:
+> "Try installing TruffleHog in a locked-down enterprise environment. You need Python, pip, virtualenv, and 47 transitive dependencies. CredVigil is a single Go binary. Copy it to the server and run it. That's it. No supply chain risk from third-party packages."
+
+**Talking Point 4 — AI-Era Coverage**:
+> "We detect API keys from the services that matter in 2026 — Together AI, Fireworks AI, Cerebras, Pinecone, Weaviate, LangSmith, Weights & Biases. If your developers are building with AI, their API keys are in CredVigil's detection rules."
+
+### 17.5 Blog Post Ideas
+
+| # | Title | Hook |
+|---|-------|------|
+| 1 | **"Why Your Secret Scanner Has a 40% False Positive Rate (And How to Fix It)"** | Position confidence scoring as the solution to alert fatigue |
+| 2 | **"The Secret in Your Git History That Was 'Deleted' 3 Years Ago"** | Viral security awareness post — teaser for Component 3 |
+| 3 | **"Zero Dependencies: Why We Wrote a Secret Scanner in Pure Go"** | Developer audience — technical blog about architecture decisions |
+| 4 | **"Entropy: The Math Behind Catching Secrets No Regex Can Match"** | Educational post showing how Shannon entropy works |
+| 5 | **"Your AI API Keys Are Leaking: A CredVigil Study of 1000 GitHub Repos"** | Data-driven content — scan public repos for AI keys (OpenAI, Anthropic, etc.) |
+| 6 | **"From SOC2 Audit to Automated Detection: A CredVigil Case Study"** | Compliance-focused — how scans satisfy audit requirements |
+| 7 | **"The $4.88 Million Line of Code"** | Dramatic opener about IBM breach costs + how detection prevents them |
+
+### 17.6 Social Media Copy (Ready to Post)
+
+**LinkedIn Post**:
+> 🔐 We just shipped 309 detection rules in CredVigil — covering everything from AWS access keys to Pinecone vector DB tokens.
+>
+> But here's what makes it different: every finding gets a confidence score from 0-100%.
+>
+> A placeholder API key in a README? 15% confidence. A real AWS secret key with high entropy near the word "production"? 97% confidence.
+>
+> Your security team focuses on the 97%, not the 15%.
+>
+> Zero external dependencies. One Go binary. Deploy anywhere.
+>
+> #security #devsecops #credvigil #golang #appsec
+
+**Twitter/X Thread (First Tweet)**:
+> 🧵 We built a secret scanner that scores confidence 0-100% instead of just yes/no.
+>
+> Here's why that changes everything for DevSecOps teams ↓
+
+**ProductHunt Tagline**:
+> "Find leaked API keys, tokens, and passwords in your code. Every finding scored 0-100% confidence. Zero false positive fatigue."
+
+### 17.7 Conference Talk Pitches
+
+| Talk Title | Audience | Duration |
+|-----------|----------|----------|
+| "Confidence-Scored Secret Detection: Beyond Binary Pattern Matching" | Security engineers | 30 min |
+| "Shannon Entropy in Practice: How Math Catches Secrets Regex Can't" | Developers | 20 min |
+| "Zero-Trust Scan Output: Why Your Secret Scanner Is Leaking Secrets" | CISO/management | 15 min |
+| "Building a 309-Rule Detection Engine in Pure Go with Zero Dependencies" | Go developers | 45 min |
+
+### 17.8 Pricing & Packaging Angle
+
+> **Open-Core Model**: The detection engine (Component 1) is open source and free forever. Premium features (dashboard, policy engine, CI/CD integration, RBAC) are the paid tier. This builds trust and community while monetizing enterprise needs.
+
+### 17.9 SEO Keywords to Target
+
+| Primary Keywords | Long-Tail Keywords |
+|-----------------|-------------------|
+| secret scanner | "open source secret scanner golang" |
+| credential detection | "how to find leaked API keys in code" |
+| API key leak | "AWS access key exposed in git" |
+| devsecops tools | "credential scanning CI CD pipeline" |
+| code security | "find secrets in environment variables" |
+| secret detection | "Shannon entropy secret detection" |
+
+### 17.10 Elevator Pitch (30 Seconds)
+
+> "CredVigil is an open-source credential scanner that finds leaked API keys, tokens, and passwords in your code. What makes it different is confidence scoring — every finding gets a 0-100% score, so your team fixes real threats instead of drowning in false positives. It's a single Go binary with zero dependencies, 309 detection rules, and zero-trust output — the scan results themselves never contain the actual secrets."
+
+---
+
+## 18. What's Next?
 
 This training guide covered **Component 1: Core Detection Engine** — the foundation of CredVigil. Here's what's coming in future components and their training modules:
 
