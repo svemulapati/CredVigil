@@ -19,6 +19,9 @@
    - 3.5 [What Is a Clone?](#35-what-is-a-clone)
    - 3.6 [What Is "Walking" Commit History?](#36-what-is-walking-commit-history)
    - 3.7 [What Is Incremental Scanning?](#37-what-is-incremental-scanning)
+   - 3.8 [What Is a DAG (Directed Acyclic Graph)?](#38-what-is-a-dag-directed-acyclic-graph)
+   - 3.9 [What Is the Git Object Model?](#39-what-is-the-git-object-model)
+   - 3.10 [What Is a Hunk?](#310-what-is-a-hunk)
 4. [Architecture Overview](#4-architecture-overview)
 5. [The Five Source Files](#5-the-five-source-files)
    - 5.1 [git.go — Core Types](#51-gitgo--core-types)
@@ -54,6 +57,31 @@ In Modules 1 and 2, you learned how CredVigil scans **files** for secrets and th
 
 The Git Integration Layer adds the ability to scan an entire repository's **commit history** — every change ever made — to find secrets that were introduced at any point, even if they were removed weeks or years ago.
 
+### How This Component Connects to the Others
+
+```mermaid
+flowchart TB
+    subgraph M1["Module 1: Detection Engine"]
+        ENGINE["276 Rules +\nEntropy Analysis"]
+    end
+    subgraph M2["Module 2: Pipeline"]
+        PIPE["Hash → Redact → Enrich\n→ Fingerprint → Sanitize"]
+    end
+    subgraph M3["Module 3: Git Integration"]
+        GIT["Clone → Walk History\n→ Parse Diffs → Feed Engine"]
+    end
+    
+    GIT -->|"Added lines\nfrom each commit"| ENGINE
+    ENGINE -->|"Raw findings"| PIPE
+    PIPE -->|"Safe findings"| OUTPUT["Report"]
+    
+    style M1 fill:#f3e5f5
+    style M2 fill:#e8f5e9
+    style M3 fill:#e3f2fd
+```
+
+> **Interview Tip**: If asked "How do the three components connect?", say: "Component 3 extracts added lines from git history, feeds them to Component 1 for detection, and the results go through Component 2's pipeline for zero-trust processing."
+
 ### Real-World Analogy: The Security Camera Archive
 
 Think of your codebase as a store. Scanning current files is like checking the store shelves *right now*. But what if someone placed something dangerous on a shelf last Tuesday and removed it on Wednesday? Looking at the shelves today won't help — you need to review the **security camera footage** (the git history).
@@ -74,6 +102,36 @@ flowchart LR
 
 > **Key Insight**: Even though the shelf (current code) looks clean, the security footage (git history) reveals that a dangerous item (API key) was once there. Anyone who saw the footage (cloned the repo) still has access to it.
 
+### What CredVigil's Git Scanner Does (Bird's-Eye View)
+
+```mermaid
+flowchart TB
+    subgraph INPUTS["What You Give It"]
+        LOCAL["📁 Local repo path\n./my-project/"]
+        REMOTE["🌐 Remote URL\nhttps://github.com/..."]
+    end
+    
+    subgraph PROCESS["What It Does"]
+        CLONE["1️⃣ Open or clone\nthe repository"]
+        WALK["2️⃣ Walk every commit\nin history"]
+        DIFF["3️⃣ Parse each commit's\ndiff (changes)"]
+        DETECT["4️⃣ Scan added lines\nfor secrets"]
+        PIPELINE["5️⃣ Hash, redact,\nenrich, sanitize"]
+    end
+    
+    subgraph OUTPUTS["What You Get"]
+        REPORT["📊 Report showing:\n• Which commits have secrets\n• Who committed them\n• When they were introduced"]
+    end
+    
+    LOCAL --> CLONE
+    REMOTE --> CLONE
+    CLONE --> WALK --> DIFF --> DETECT --> PIPELINE --> REPORT
+    
+    style INPUTS fill:#e3f2fd
+    style PROCESS fill:#fff3e0
+    style OUTPUTS fill:#e8f5e9
+```
+
 ---
 
 ## 2. Why Do We Need Git History Scanning?
@@ -88,6 +146,24 @@ When a developer accidentally commits a secret:
 4. They think the problem is solved ❌
 
 **But the secret is still in the git history.** Anyone who clones the repository — including attackers — can see every version of every file that was ever committed.
+
+### The Secret Lifecycle in Git
+
+```mermaid
+flowchart LR
+    subgraph TIMELINE["⏰ Timeline"]
+        T1["Day 1\nDeveloper commits\nAPI key to config.env"]
+        T2["Day 2\nDeveloper realizes\nmistake"]
+        T3["Day 3\nDeletes key,\ncommits removal"]
+        T4["Day 30\nAttacker finds key\nin git log -p"]
+        T1 --> T2 --> T3 --> T4
+    end
+    style T1 fill:#ff6b6b,color:white
+    style T4 fill:#ff6b6b,color:white
+    style T3 fill:#ffd43b,color:black
+```
+
+> **Interview Tip**: "Git never forgets. Deleting a file from the current version doesn't erase it from history. That's why we need to scan every commit, not just the current state."
 
 ### Real-World Analogy: Writing in Ink Books
 
@@ -134,6 +210,28 @@ Here are documented incidents where deleted secrets in git history caused breach
 
 > **The Git Integration Layer exists because "git rm" doesn't mean "gone."**
 
+### The Attack Surface: How Attackers Find Secrets in Git
+
+```mermaid
+flowchart TB
+    ATTACKER["🏴‍☠️ Attacker"] --> GITHUB["Finds public repo\non GitHub"]
+    GITHUB --> CLONE["git clone repo"]
+    CLONE --> METHODS{"Search Methods"}
+    METHODS --> M1["git log -p\nRead every patch"]
+    METHODS --> M2["git log -S 'password'\nSearch for keyword"]
+    METHODS --> M3["Automated tools\nScan all history"]
+    M1 --> FOUND["🔑 Secret found\nin old commit!"]
+    M2 --> FOUND
+    M3 --> FOUND
+    FOUND --> EXPLOIT["💀 Use key to access\nAWS / database / API"]
+    
+    style ATTACKER fill:#ff6b6b,color:white
+    style FOUND fill:#ff6b6b,color:white
+    style EXPLOIT fill:#ff6b6b,color:white
+```
+
+> **Key Principle**: CredVigil does the same search an attacker would — but proactively, so you find the secrets before they do.
+
 ---
 
 ## 3. Key Concepts Explained
@@ -153,6 +251,34 @@ flowchart LR
     style D fill:#4dabf7,color:white
     style F fill:#4dabf7,color:white
 ```
+
+#### Git vs. Other Approaches
+
+| Feature | Git | Google Docs | Manual Backups |
+|---------|-----|-------------|----------------|
+| **Tracks every change** | ✅ Every line | ✅ Every keystroke | ❌ Only when you remember |
+| **Who made each change** | ✅ Author per commit | ✅ Per keystroke | ❌ No tracking |
+| **Branches (parallel work)** | ✅ Full support | ❌ Linear only | ❌ Copy-paste |
+| **Works offline** | ✅ Fully local | ❌ Needs internet | ✅ Local files |
+| **Can revert to any point** | ✅ Any commit | ✅ Any timestamp | ❌ Only saved copies |
+
+```mermaid
+flowchart TB
+    subgraph CENTRAL["📊 What Git Tracks"]
+        direction TB
+        WHO["👤 WHO changed it<br/>(author name & email)"]
+        WHAT["📝 WHAT changed<br/>(exact lines added/removed)"]
+        WHEN["🕐 WHEN it changed<br/>(timestamp)"]
+        WHY["💬 WHY it changed<br/>(commit message)"]
+    end
+    
+    style WHO fill:#4dabf7,color:white
+    style WHAT fill:#69db7c,color:black
+    style WHEN fill:#ffd43b,color:black
+    style WHY fill:#b197fc,color:white
+```
+
+> **Interview Tip**: "Git is a distributed version control system — every developer has a complete copy of the entire history on their local machine. This is both its strength (offline work, speed) and its security risk (every clone has every secret ever committed)."
 
 ### 3.2 What Is a Commit?
 
@@ -174,6 +300,38 @@ flowchart LR
     C2 --> C3["Commit 3<br/>ghi789<br/>'Fix typo'<br/>by Alice"]
     C3 --> C4["Commit 4<br/>jkl012<br/>'Add feature'<br/>by Charlie"]
 ```
+
+#### Inside a Commit Object
+
+```mermaid
+flowchart TB
+    subgraph COMMIT["📌 Commit Object (abc123)"]
+        direction TB
+        HASH["Hash: abc123def456..."]
+        PARENT["Parent: 000000 (none — first commit)"]
+        TREE["Tree: points to file snapshot"]
+        AUTHOR["Author: Alice &lt;alice@co.com&gt;"]
+        DATE["Date: 2026-03-14 10:30 UTC"]
+        MSG["Message: Initial setup"]
+    end
+    
+    TREE --> FILES["📁 Snapshot of all files<br/>at this exact moment"]
+    
+    style HASH fill:#ffd43b,color:black
+    style PARENT fill:#b197fc,color:white
+```
+
+> **Interview Tip**: "A commit is not a set of changes — it's a full snapshot of the project. The 'diff' between two commits is computed by comparing their snapshots. This is a common misconception."
+
+#### How CredVigil Uses Commit Fields
+
+| Commit Field | How CredVigil Uses It |
+|-------------|----------------------|
+| **Hash** | Unique ID in scan results — links findings to exact commits |
+| **Author** | Included in findings so you know who to contact for remediation |
+| **Date** | Tells you when the secret was first exposed |
+| **Parents** | Determines if it's a merge commit (2 parents) or initial commit (0 parents) |
+| **Message** | Displayed in the report for context |
 
 ### 3.3 What Is a Diff?
 
@@ -211,6 +369,21 @@ flowchart TB
     style UNCHANGED fill:#868e96,color:white
 ```
 
+#### Diff Output Trace Table
+
+Let's trace through a real diff line by line:
+
+| Line | Prefix | Meaning | CredVigil Action |
+|------|--------|---------|------------------|
+| `--- a/config.env` | `---` | Old file name | Extract file path |
+| `+++ b/config.env` | `+++` | New file name | Confirm file path |
+| `@@ -1,2 +1,3 @@` | `@@` | Hunk header | Parse line numbers |
+| ` APP_NAME=CredVigil` | (space) | Unchanged line | Skip |
+| `+AWS_SECRET_KEY=wJal...` | `+` | Added line | **SCAN THIS** |
+| ` DATABASE_HOST=localhost` | (space) | Unchanged line | Skip |
+
+> **Interview Tip**: "CredVigil only scans lines prefixed with `+` (added lines). This is where new secrets are introduced. Unchanged lines and removed lines are not relevant for new secret detection."
+
 ### 3.4 What Is a Branch?
 
 A **branch** is like a parallel timeline. Developers create branches to work on features independently, then merge them back into the main codebase.
@@ -232,6 +405,26 @@ gitGraph
 
 > Secrets can be introduced on any branch. CredVigil can scan all branches or just the default branch.
 
+#### Branch Scanning Strategy
+
+```mermaid
+flowchart TB
+    REPO["Repository"] --> STRATEGY{"Scanning Strategy"}
+    STRATEGY -->|"--git-branch main"| SINGLE["Single Branch<br/>Only scan 'main'"]
+    STRATEGY -->|"--git-all-branches"| ALL["All Branches<br/>Scan every branch"]
+    STRATEGY -->|"(default)"| HEAD["HEAD Branch<br/>Scan default branch"]
+    
+    SINGLE --> S_FAST["⚡ Fastest"]
+    ALL --> S_THOROUGH["🔍 Most thorough"]
+    HEAD --> S_DEFAULT["📋 Good default"]
+    
+    style SINGLE fill:#69db7c,color:black
+    style ALL fill:#4dabf7,color:white
+    style HEAD fill:#ffd43b,color:black
+```
+
+> **Interview Tip**: "A branch in git is just a pointer to a commit — it's not a copy of the code. Creating a branch is instant and free. But from a security perspective, feature branches are where developers often experiment with credentials, thinking 'I'll clean this up before merging.'"
+
 ### 3.5 What Is a Clone?
 
 **Cloning** means downloading a complete copy of a remote repository — including its entire history — to your local machine.
@@ -251,6 +444,28 @@ sequenceDiagram
 
 > **CredVigil Auto-Cleanup**: When CredVigil clones a repository for scanning, it automatically deletes the clone afterward. This prevents the cloned secrets from lingering on your machine — a **zero-trust** practice.
 
+#### Clone Depth: Full vs. Shallow
+
+```mermaid
+flowchart TB
+    subgraph FULL["📦 Full Clone (default)"]
+        direction LR
+        FC1["C1"] --> FC2["C2"] --> FC3["C3"] --> FC4["C4"] --> FC5["C5"]
+    end
+    subgraph SHALLOW["📦 Shallow Clone (--depth 2)"]
+        direction LR
+        SC4["C4"] --> SC5["C5"]
+    end
+    
+    FULL --> FFIND["✅ Finds ALL secrets"]
+    SHALLOW --> SFIND["⚠️ Only finds secrets<br/>in last 2 commits"]
+    
+    style FULL fill:#e3f2fd
+    style SHALLOW fill:#fff3e0
+```
+
+> **Interview Tip**: "A shallow clone trades thoroughness for speed. In CI/CD pipelines where you scan on every push, a shallow clone of the latest commits is often sufficient because older commits were already scanned in previous runs."
+
 ### 3.6 What Is "Walking" Commit History?
 
 **Walking** commit history means going through each commit one by one, from the most recent to the oldest (or vice versa), and examining the changes.
@@ -269,6 +484,38 @@ flowchart LR
     C3 --> D3["Get diff → Scan"]
     C2 --> D2["Get diff → Scan"]
     C1 --> D1["Get diff → Scan"]
+```
+
+#### Walking Order: Newest to Oldest
+
+CredVigil walks commits from newest to oldest (reverse chronological). This is the natural order `git log` returns.
+
+```mermaid
+flowchart TB
+    subgraph ORDER["Walk Order"]
+        direction TB
+        STEP1["🟢 Step 1: HEAD (newest)<br/>Most likely to have active secrets"]
+        STEP2["🟡 Step 2: HEAD~1"]
+        STEP3["🟠 Step 3: HEAD~2"]
+        STEP4["🔴 Step 4: Initial commit (oldest)<br/>Foundation of the repo"]
+        STEP1 --> STEP2 --> STEP3 --> STEP4
+    end
+```
+
+> **Interview Tip**: "Walking from newest to oldest means recent secrets (most likely to still be active and exploitable) are found first. If you set `--git-max-commits 50`, you get the 50 most recent commits — where the most actionable secrets are."
+
+#### What Happens at Each Step
+
+```mermaid
+flowchart LR
+    subgraph STEP["Processing One Commit"]
+        GET["1️⃣ Get commit<br/>metadata"] --> DIFF["2️⃣ Get diff<br/>(changes)"]
+        DIFF --> PARSE["3️⃣ Parse diff<br/>into DiffEntries"]
+        PARSE --> FILTER["4️⃣ Filter<br/>by patterns"]
+        FILTER --> CALLBACK["5️⃣ Call scanner<br/>callback"]
+    end
+    style GET fill:#4dabf7,color:white
+    style CALLBACK fill:#b197fc,color:white
 ```
 
 ### 3.7 What Is Incremental Scanning?
@@ -298,6 +545,291 @@ flowchart LR
 ```
 
 > In the incremental scan, gray = already scanned before, blue = scan now. You pass `--git-since <commit-hash>` to tell CredVigil where you left off.
+
+#### When to Use Each Scanning Mode
+
+| Scenario | Recommended Mode | Flag |
+|----------|-----------------|------|
+| First-ever scan of a repo | Full scan | (no flags) |
+| Daily CI/CD check | Incremental | `--git-since <last-hash>` |
+| Quick security audit | Limited | `--git-max-commits 100` |
+| Scanning a fork/new repo | Shallow | `--git-depth 200` |
+| Compliance audit | Full + all branches | `--git-all-branches` |
+
+```mermaid
+flowchart TB
+    subgraph MODES["Scanning Modes Compared"]
+        FULL_MODE["🐢 Full Scan<br/>Every commit<br/>Slowest, most thorough"]
+        INCR_MODE["🚀 Incremental<br/>Only new commits<br/>Fast, for regular use"]
+        LIMIT_MODE["⚙️ Limited<br/>N most recent<br/>Good balance"]
+        SHALLOW_MODE["⚡ Shallow Clone<br/>Limited history<br/>Fastest for remote"]
+    end
+    
+    style FULL_MODE fill:#ff8787,color:white
+    style INCR_MODE fill:#69db7c,color:black
+    style LIMIT_MODE fill:#ffd43b,color:black
+    style SHALLOW_MODE fill:#4dabf7,color:white
+```
+
+> **Interview Tip**: "Incremental scanning is critical for CI/CD integration. You don't want to re-scan 10,000 commits on every push. Store the last scanned commit hash and pass it via `--git-since` — this turns a 10-minute scan into a 2-second scan."
+
+### 3.8 What Is a DAG (Directed Acyclic Graph)?
+
+This is the most important computer science concept behind git. Understanding it will impress interviewers and help you understand why git history scanning works the way it does.
+
+#### The Simple Explanation
+
+A **DAG** is a type of graph (a network of connected nodes) with two rules:
+1. **Directed**: Connections go in only one direction (like one-way streets)
+2. **Acyclic**: You can never follow the connections and end up back where you started (no loops)
+
+**Everyday Analogy — A Family Tree**: Your family tree is a DAG. Each person has parents (directed: children point to parents). And no one can be their own grandparent (acyclic: no loops).
+
+```mermaid
+flowchart BT
+    subgraph FAMILY["👨‍👩‍👧‍👦 Family Tree = DAG"]
+        YOU["You"] --> MOM["Mom"]
+        YOU --> DAD["Dad"]
+        MOM --> GRANDMA_M["Grandma<br/>(Mom's side)"]
+        MOM --> GRANDPA_M["Grandpa<br/>(Mom's side)"]
+        DAD --> GRANDMA_D["Grandma<br/>(Dad's side)"]
+        DAD --> GRANDPA_D["Grandpa<br/>(Dad's side)"]
+    end
+```
+
+#### How Git Uses a DAG
+
+Every commit in git is a **node** in a DAG. The **edges** (connections) point from each commit to its **parent commit(s)**. This creates a timeline you can walk backward through:
+
+```mermaid
+flowchart RL
+    subgraph DAG["Git Commit DAG"]
+        C5["Commit 5<br/>jkl012<br/>HEAD"] --> C4["Commit 4<br/>ghi789"]
+        C4 --> C3["Commit 3<br/>def456"]
+        C3 --> C2["Commit 2<br/>abc123"]
+        C2 --> C1["Commit 1<br/>000aaa<br/>(initial)"]
+    end
+    style C5 fill:#4dabf7,color:white
+    style C1 fill:#ffd43b,color:black
+```
+
+> **Key insight**: Arrows point backward in time (child → parent). This is how `git log` works — it starts at HEAD and follows parent pointers backward.
+
+#### Branching Creates a Diamond Shape
+
+When two branches diverge and then merge, the DAG forms a **diamond** (or "merge diamond"):
+
+```mermaid
+flowchart RL
+    subgraph DIAMOND["Diamond Pattern in Git DAG"]
+        MERGE["Merge Commit<br/>(2 parents!)"] --> FEAT["feature commit 2"]
+        MERGE --> MAIN["main commit 2"]
+        FEAT --> BASE2["feature commit 1"]
+        MAIN --> BASE1["main commit 1"]
+        BASE2 --> ROOT["Common<br/>Ancestor"]
+        BASE1 --> ROOT
+    end
+    style MERGE fill:#b197fc,color:white
+    style ROOT fill:#ffd43b,color:black
+```
+
+> **Interview Tip**: "A merge commit is special because it has TWO parent pointers in the DAG, not one. That's why CredVigil skips merge commits by default — the actual changes were already in the individual branch commits."
+
+#### Why the DAG Matters for CredVigil's Walker
+
+The CommitWalker follows the DAG to enumerate commits. Understanding the DAG explains:
+
+```mermaid
+flowchart TB
+    subgraph WHY["Why DAG Matters for Scanning"]
+        direction TB
+        R1["🔢 Ordering<br/>DAG ensures a valid order —<br/>we never process a commit<br/>before its parent"]
+        R2["🔀 Branches<br/>DAG handles branches naturally —<br/>each branch is just a different<br/>path through the graph"]
+        R3["🚫 No Infinite Loops<br/>Acyclic = we're guaranteed<br/>to finish walking eventually"]
+        R4["⏩ Incremental Scans<br/>We can cut the DAG at any node<br/>and only walk the newer part"]
+    end
+```
+
+#### The Three Key Rules of Git's DAG
+
+| Rule | What It Means | Why It Matters |
+|------|---------------|---------------|
+| **Every commit points to its parent(s)** | You can trace the full history backward from any commit | CredVigil walks backward from HEAD |
+| **No commit can have itself as an ancestor** | The graph never loops | Walking is guaranteed to terminate |
+| **Merkle tree integrity** | Each commit hash includes its parent hash | Tampering with history changes all subsequent hashes |
+
+#### DAG vs. Simple Timeline
+
+Many people think git history is a straight line. It's not — it's a graph:
+
+```mermaid
+flowchart LR
+    subgraph WRONG["❌ What People Think (Linear)"]
+        direction LR
+        W1["C1"] --> W2["C2"] --> W3["C3"] --> W4["C4"] --> W5["C5"]
+    end
+```
+
+```mermaid
+flowchart RL
+    subgraph RIGHT["✅ What Git Actually Is (DAG)"]
+        R5["C5<br/>(merge)"] --> R4["C4<br/>(feature)"]
+        R5 --> R3["C3<br/>(main)"]
+        R4 --> R2["C2"]
+        R3 --> R2
+        R2 --> R1["C1"]
+    end
+    style R5 fill:#b197fc,color:white
+```
+
+> **Interview tip**: "Git history is not a linked list — it's a DAG. A linked list has one parent per node. A DAG lets merge commits have two parents, which is what makes branching and merging work."
+
+#### Walking the DAG: Topological Sort
+
+When CredVigil walks commits, it uses **topological ordering** — processing commits so that a child is always processed before its parents. This is the natural order `git log` outputs.
+
+```mermaid
+flowchart TB
+    subgraph TOPO["Topological Walk Order"]
+        direction TB
+        STEP1["Step 1: Process C5 (newest)"]
+        STEP2["Step 2: Process C4 (feature)"]
+        STEP3["Step 3: Process C3 (main)"]
+        STEP4["Step 4: Process C2"]
+        STEP5["Step 5: Process C1 (oldest)"]
+        STEP1 --> STEP2 --> STEP3 --> STEP4 --> STEP5
+    end
+    
+    subgraph DAG["The Actual DAG"]
+        C5["C5"] --> C4["C4"]
+        C5 --> C3["C3"]
+        C4 --> C2["C2"]
+        C3 --> C2
+        C2 --> C1["C1"]
+    end
+    
+    style STEP1 fill:#4dabf7,color:white
+    style STEP5 fill:#ffd43b,color:black
+```
+
+> **Everyday Analogy**: Imagine you're baking a layered cake. You must frost the bottom layer before putting the next layer on top. You can't do it out of order. That's topological sorting — respecting the dependency order.
+
+### 3.9 What Is the Git Object Model?
+
+Under the hood, git stores everything as **objects** in a content-addressable database. Understanding this helps explain why secrets persist in history.
+
+```mermaid
+flowchart TB
+    subgraph OBJECTS["Git's Four Object Types"]
+        BLOB["📄 Blob<br/>(file content)"]
+        TREE["📁 Tree<br/>(directory listing)"]
+        COMMIT["📌 Commit<br/>(snapshot + metadata)"]
+        TAG["🏷️ Tag<br/>(named reference)"]
+    end
+    
+    COMMIT --> TREE
+    TREE --> BLOB
+    TREE --> TREE2["📁 Subtree"]
+    TREE2 --> BLOB2["📄 Blob"]
+    COMMIT --> PARENT["📌 Parent Commit"]
+    
+    style BLOB fill:#4dabf7,color:white
+    style TREE fill:#69db7c,color:black
+    style COMMIT fill:#b197fc,color:white
+    style TAG fill:#ffd43b,color:black
+```
+
+**Everyday Analogy — A Filing Cabinet**:
+- **Blob** = a single document (the actual content of a file)
+- **Tree** = a folder label listing which documents are inside
+- **Commit** = a timestamped receipt saying "at this moment, the filing cabinet looked like this"
+- **Tag** = a sticky note on a commit saying "this is version 2.0"
+
+#### Why Secrets Persist
+
+When you commit a file containing a secret, git creates a **blob object** with that content. Even if you delete the file in a later commit, the blob still exists in the object database:
+
+```mermaid
+flowchart TB
+    subgraph COMMIT1["Commit 1: Add secret"]
+        T1["Tree"] --> B1["Blob: config.env<br/>AWS_KEY=AKIA..."]
+    end
+    subgraph COMMIT2["Commit 2: Delete secret"]
+        T2["Tree"] --> B2["Blob: config.env<br/>(empty or removed)"]
+    end
+    
+    COMMIT2 -.->|"parent"| COMMIT1
+    
+    subgraph STORE["Git Object Store"]
+        OBJ1["Blob AKIA... still exists! 💀"]
+    end
+    
+    B1 -.->|"still stored"| OBJ1
+    
+    style B1 fill:#ff6b6b,color:white
+    style OBJ1 fill:#ff6b6b,color:white
+    style B2 fill:#51cf66,color:black
+```
+
+> **Interview Tip**: "When someone says 'I deleted the secret from git', they removed it from the current tree, but the blob object with the secret content still exists in git's object store. That's why git history scanning is essential."
+
+#### Content-Addressable Storage
+
+Every git object is identified by its **SHA-1 hash** — if two files have identical content, they share the same blob object. This is efficient but also means: **same secret content = same blob hash = trackable across commits**.
+
+```mermaid
+flowchart LR
+    F1["config.env v1<br/>API_KEY=secret123"] -->|"SHA-1"| H1["Blob: a1b2c3..."]
+    F2["backup.env<br/>API_KEY=secret123"] -->|"Same content!<br/>Same SHA-1"| H1
+    F3["config.env v2<br/>API_KEY=newkey456"] -->|"SHA-1"| H2["Blob: d4e5f6..."]
+    
+    style H1 fill:#ff6b6b,color:white
+```
+
+### 3.10 What Is a Hunk?
+
+A **hunk** is a section of a diff showing a group of consecutive changed lines. A single file diff can have multiple hunks if changes happened in different parts of the file.
+
+**Everyday Analogy**: If you made edits on page 3 and page 47 of a 100-page document, you'd have two hunks — one showing what changed on page 3 and another showing page 47. You don't need to review the unchanged pages 4–46.
+
+```mermaid
+flowchart TB
+    subgraph FILE["config.env (100 lines)"]
+        H1["Hunk 1: Lines 3-5<br/>@@ -3,2 +3,3 @@<br/>Changed near the top"]
+        DOTS1["... unchanged lines 6-46 ..."]
+        H2["Hunk 2: Lines 47-49<br/>@@ -47,1 +47,2 @@<br/>Changed near the middle"]
+        DOTS2["... unchanged lines 50-100 ..."]
+    end
+    
+    style H1 fill:#4dabf7,color:white
+    style H2 fill:#4dabf7,color:white
+    style DOTS1 fill:#e9ecef,color:black
+    style DOTS2 fill:#e9ecef,color:black
+```
+
+#### Anatomy of a Hunk Header
+
+```
+@@ -15,7 +15,9 @@  func loadConfig()
+ │    │ │   │ │        └── optional context (function name)
+ │    │ │   │ └── new file: 9 lines shown
+ │    │ │   └── new file: starting at line 15
+ │    │ └── old file: 7 lines shown
+ │    └── old file: starting at line 15
+ └── hunk marker
+```
+
+```mermaid
+flowchart LR
+    HEADER["@@ -15,7 +15,9 @@"] --> OLD["Old file:<br/>starts at line 15<br/>shows 7 lines"]
+    HEADER --> NEW["New file:<br/>starts at line 15<br/>shows 9 lines"]
+    NEW --> CALC["9 - 7 = 2 lines added<br/>(net change)"]
+    
+    style OLD fill:#ff8787,color:white
+    style NEW fill:#51cf66,color:black
+```
+
+> **Why hunks matter for CredVigil**: The `parseHunkNewStart()` function extracts the starting line number from the hunk header. This is how CredVigil knows the actual line number in the file where the secret appears — not just "line 2 of the diff output."
 
 ---
 
@@ -348,6 +880,39 @@ flowchart TB
 | **diff.go** | Parses raw diff text into structured data | The **translator** — converts raw text into something a computer can understand |
 | **walker.go** | Walks through commit history one-by-one | The **security guard** — reviews each day's footage |
 | **scanner.go** | Coordinates the whole process | The **detective** — tells the guard what to look for and files the reports |
+
+> **Interview Tip**: "The Git Integration Layer uses a clean separation of concerns: types (git.go), I/O (clone.go), parsing (diff.go), traversal (walker.go), and orchestration (scanner.go). Each file has a single responsibility, which makes the code testable and maintainable."
+
+#### Data Flow Between Files
+
+```mermaid
+flowchart LR
+    subgraph TYPES["git.go 📚"]
+        T["Repository<br/>Commit<br/>DiffEntry<br/>ScanOptions"]
+    end
+    subgraph IO["clone.go 📚"]
+        C["Open / Clone<br/>Cleanup"]
+    end
+    subgraph PARSE["diff.go 🔍"]
+        D["ParseDiff<br/>FilterEntries"]
+    end
+    subgraph TRAVERSE["walker.go 🚶"]
+        W["ListCommits<br/>GetDiff<br/>WalkCommits"]
+    end
+    subgraph ORCH["scanner.go 🎯"]
+        S["ScanRepository<br/>ScanLocalRepo<br/>ScanRemoteRepo"]
+    end
+    
+    T -.->|"types used by"| C
+    T -.->|"types used by"| D
+    T -.->|"types used by"| W
+    T -.->|"types used by"| S
+    S --> W
+    W --> C
+    W --> D
+    
+    style ORCH fill:#ff8787,color:white
+```
 
 ---
 
@@ -436,6 +1001,26 @@ flowchart TB
     OPTS --> EP["ExcludePatterns<br/>Skip *.test files?"]
     OPTS --> MS["MaxDiffSize<br/>Skip huge diffs?"]
     OPTS --> IM["IncludeMerges<br/>Include merges?"]
+```
+
+> **Interview Tip**: "ScanOptions follows the Options Pattern — a struct with sensible defaults that can be selectively overridden. This makes the API flexible without requiring dozens of function parameters."
+
+#### ScanOptions Decision Tree
+
+```mermaid
+flowchart TB
+    Q1{"Scanning local<br/>or remote?"}
+    Q1 -->|"Local"| Q2{"Full or<br/>incremental?"}
+    Q1 -->|"Remote"| Q3{"Full or<br/>shallow clone?"}
+    Q2 -->|"Full"| R1["No special options<br/>Scans all commits"]
+    Q2 -->|"Incremental"| R2["Set SinceCommit<br/>to last scanned hash"]
+    Q3 -->|"Full"| R3["Depth = 0<br/>Downloads everything"]
+    Q3 -->|"Shallow"| R4["Depth = 100<br/>Faster, less history"]
+    
+    style R1 fill:#69db7c,color:black
+    style R2 fill:#4dabf7,color:white
+    style R3 fill:#ffd43b,color:black
+    style R4 fill:#b197fc,color:white
 ```
 
 ### 5.2 clone.go — Repository Management
@@ -741,6 +1326,32 @@ flowchart TB
     style C2 fill:#e8f5e9
 ```
 
+> **Interview Tip**: "The three components form a pipeline: Component 3 extracts data, Component 1 detects patterns, and Component 2 secures the output. Each component is independently testable and has zero knowledge of the others' internals — they communicate only through well-defined interfaces (ScanRequest, Finding)."
+
+#### The Trust Boundary
+
+```mermaid
+flowchart TB
+    subgraph UNTRUSTED["🔴 Untrusted Zone"]
+        GIT_DATA["Raw git data<br/>(contains actual secrets)"]
+        RAW_FINDINGS["Raw findings<br/>(contains actual secrets)"]
+    end
+    
+    subgraph BOUNDARY["🟡 Trust Boundary"]
+        PIPELINE["Pipeline Processing<br/>Hash → Redact → Sanitize"]
+    end
+    
+    subgraph TRUSTED["🟢 Trusted Zone"]
+        SAFE_OUTPUT["Safe findings<br/>(secrets hashed & redacted)"]
+    end
+    
+    GIT_DATA --> RAW_FINDINGS --> PIPELINE --> SAFE_OUTPUT
+    
+    style UNTRUSTED fill:#ffdeeb
+    style BOUNDARY fill:#fff3bf
+    style TRUSTED fill:#d3f9d8
+```
+
 ---
 
 ## 7. The Scanning Flow Step by Step
@@ -802,6 +1413,32 @@ sequenceDiagram
 
 > **Key takeaway**: The secret was deleted in commit ghi789, but CredVigil found it in commit def456 where it was *introduced*. Deleting a secret doesn't erase it from history.
 
+#### The Scan in Numbers
+
+| Metric | Value | Explanation |
+|--------|-------|-------------|
+| Commits scanned | 3 | All three commits were processed |
+| Commits with added lines | 2 | ghi789 only removed lines, nothing to scan |
+| Detection engine calls | 2 | One per commit with added lines |
+| Findings | 1 | AWS key found in def456 |
+| Pipeline stages run | 5 | Hash → Redact → Enrich → Fingerprint → Sanitize |
+
+```mermaid
+flowchart TB
+    subgraph TRACE["Visual Trace: Where the Secret Lives"]
+        C1["abc123<br/>README.md<br/>✅ Clean"] 
+        C2["def456<br/>config.env<br/>❌ AWS_KEY found!"]
+        C3["ghi789<br/>config.env<br/>✅ Key removed<br/>(but still in C2!)"]
+        C1 --> C2 --> C3
+    end
+    
+    style C2 fill:#ff6b6b,color:white
+    style C1 fill:#69db7c,color:black
+    style C3 fill:#ffd43b,color:black
+```
+
+> **Interview Tip**: "When explaining git secret scanning, use a concrete 3-commit example like this one. It immediately demonstrates why the current file state is insufficient — the secret exists in a specific historical commit, identifiable by its hash."
+
 ---
 
 ## 8. CLI Usage for Git Scanning
@@ -852,6 +1489,34 @@ sequenceDiagram
 | `--git-max-commits` | Maximum commits to scan | 0 (unlimited) |
 | `--git-all-branches` | Scan all branches | false |
 | `--git-include-merges` | Include merge commits | false |
+
+#### CLI Flag Decision Flowchart
+
+```mermaid
+flowchart TB
+    START["Start: credvigil scan"] --> LOCAL{"Local or remote<br/>repo?"}
+    LOCAL -->|"Local"| L_GIT["--git ./path/"]
+    LOCAL -->|"Remote"| R_GIT["--git https://..."]
+    R_GIT --> DEPTH{"Need full<br/>history?"}
+    DEPTH -->|"Yes"| NO_DEPTH["(no --git-depth)"]
+    DEPTH -->|"No"| SET_DEPTH["--git-depth 100"]
+    L_GIT --> INCR{"First scan or<br/>incremental?"}
+    INCR -->|"First"| FULL_SCAN["(no --git-since)"]
+    INCR -->|"Incremental"| SINCE["--git-since abc123"]
+    SET_DEPTH --> BRANCH
+    NO_DEPTH --> BRANCH
+    FULL_SCAN --> BRANCH
+    SINCE --> BRANCH
+    BRANCH{"Which branches?"}
+    BRANCH -->|"Default only"| DEFAULT["(no flag)"]
+    BRANCH -->|"All branches"| ALL_BR["--git-all-branches"]
+    DEFAULT --> OUTPUT{"Output format?"}
+    ALL_BR --> OUTPUT
+    OUTPUT -->|"Human"| HUMAN["(no --format)"]
+    OUTPUT -->|"Machine"| JSON["--format json"]
+    
+    style START fill:#4dabf7,color:white
+```
 
 ---
 
@@ -950,6 +1615,31 @@ Each finding in a git scan includes extra information that file scans don't have
 
 > **Why this matters**: When you find a secret in git history, you know exactly *who* to contact, *when* it happened, and *which commit* to reference in your remediation ticket.
 
+#### How Git Findings Differ from File Findings
+
+```mermaid
+flowchart LR
+    subgraph FILE_FINDING["📄 File Scan Finding"]
+        FF1["source: file"]
+        FF2["location: config.env:3"]
+        FF3["No commit info"]
+        FF4["No author info"]
+    end
+    subgraph GIT_FINDING["📜 Git Scan Finding"]
+        GF1["source: git-commit"]
+        GF2["location: config.env:3"]
+        GF3["commit: def4567"]
+        GF4["author: Alice"]
+        GF5["date: 2026-01-15"]
+        GF6["branch: main"]
+    end
+    
+    style GIT_FINDING fill:#e3f2fd
+    style FILE_FINDING fill:#f3e5f5
+```
+
+> **Interview Tip**: "Git scan findings include the full commit context — hash, author, date, and branch. This is critical for incident response because you can immediately identify who introduced the secret, when it happened, and trace its exposure window."
+
 ---
 
 ## 10. Hands-On Exercises
@@ -957,6 +1647,24 @@ Each finding in a git scan includes extra information that file scans don't have
 ### Exercise 1: Set Up a Test Repository
 
 Create a repo with some intentional "secrets" to practice scanning:
+
+#### Exercise Overview
+
+```mermaid
+flowchart TB
+    subgraph EXERCISES["🎯 Six Hands-On Exercises"]
+        E1["Ex 1: Create test repo<br/>with planted secrets"]
+        E2["Ex 2: Full history scan<br/>find the deleted secret"]
+        E3["Ex 3: Incremental scan<br/>only new commits"]
+        E4["Ex 4: Limit commits<br/>control scan scope"]
+        E5["Ex 5: JSON output<br/>for automation"]
+        E6["Ex 6: Multiple secrets<br/>across commits"]
+    end
+    E1 --> E2 --> E3 --> E4 --> E5 --> E6
+    
+    style E1 fill:#4dabf7,color:white
+    style E6 fill:#b197fc,color:white
+```
 
 ```bash
 # Create a test repo
@@ -1394,6 +2102,26 @@ flowchart LR
     style REDACT fill:#51cf66,color:black
 ```
 
+> **Interview Tip**: "Zero-trust in CredVigil means the raw secret value is never persisted in the scan results. The commit hash and author are preserved because they're needed for remediation — but the actual secret is replaced by a SHA-256 hash and redacted preview."
+
+#### The Five Security Layers
+
+```mermaid
+flowchart TB
+    subgraph LAYERS["🛡️ Five Security Layers in Git Scanning"]
+        direction TB
+        L1["🔐 1. Cloned repos deleted after scan<br/>(no lingering secrets on disk)"]
+        L2["🔒 2. Read-only operations only<br/>(never modifies the repo)"]
+        L3["🧹 3. Raw secrets hashed immediately<br/>(SHA-256 one-way hash)"]
+        L4["🔍 4. Match text redacted<br/>(only preview shown)"]
+        L5["🗑️ 5. RawMatch field sanitized<br/>(cleared to empty string)"]
+    end
+    L1 --> L2 --> L3 --> L4 --> L5
+    
+    style L1 fill:#4dabf7,color:white
+    style L5 fill:#69db7c,color:black
+```
+
 ### Local Repo Safety
 
 When scanning a local repository (that already exists on disk), CredVigil:
@@ -1435,6 +2163,17 @@ flowchart LR
         S2["Scanning 10,000+ commits"]
     end
 ```
+
+> **Interview Tip**: "The bottleneck in git history scanning is I/O, not CPU. Cloning the repo and running `git diff` for each commit involves disk and network I/O. That's why shallow clones and incremental scans are the main performance optimizations — they reduce I/O, not computation."
+
+#### Performance Comparison Table
+
+| Strategy | 100 commits | 1,000 commits | 10,000 commits |
+|----------|:-----------:|:-------------:|:--------------:|
+| Full scan | ~1s | ~10s | ~100s |
+| Max commits (50) | ~0.5s | ~0.5s | ~0.5s |
+| Incremental (10 new) | ~0.1s | ~0.1s | ~0.1s |
+| Shallow clone (50) | ~0.5s + clone | ~0.5s + clone | ~0.5s + clone |
 
 ### Recommended Strategies for Large Repos
 
@@ -1501,6 +2240,22 @@ result.Errors = append(result.Errors, err.Error())
 ```
 
 This lets the caller decide how to handle them — log them, display them, or ignore them.
+
+#### Error Handling Summary
+
+```mermaid
+flowchart TB
+    subgraph STRATEGY["🛡️ Error Handling Strategy"]
+        direction TB
+        PRINCIPLE1["🟢 Fail fast for setup errors<br/>(git not installed, bad path)"]
+        PRINCIPLE2["🟡 Continue on per-commit errors<br/>(bad diff, parse failure)"]
+        PRINCIPLE3["🔵 Collect errors for reporting<br/>(non-fatal errors in result)"]
+        PRINCIPLE4["🟣 Respect cancellation<br/>(return partial results)"]
+    end
+    PRINCIPLE1 --> PRINCIPLE2 --> PRINCIPLE3 --> PRINCIPLE4
+```
+
+> **Interview Tip**: "CredVigil's error handling follows the 'fail fast for fatal, recover for non-fatal' pattern. If git isn't installed, there's nothing we can do. But if one commit out of 1000 has a malformed diff, we skip it and keep scanning. The Errors slice in the result lets the caller see what was skipped."
 
 ---
 
@@ -1633,19 +2388,26 @@ Currently, the CLI shows results at the end. Real-time progress display will be 
 
 | Term | Definition |
 |------|-----------|
+| **Blob** | A git object that stores the raw content of a file. Identified by its SHA-1 hash. |
 | **Branch** | A parallel line of development in git. Default branch is usually `main` or `master`. |
 | **Clone** | Download a complete copy of a remote repository, including all history. |
 | **Commit** | A saved snapshot of the project at a point in time, with author, date, and message. |
 | **Commit Hash** | A unique hexadecimal fingerprint (SHA-1) identifying a commit, e.g., `a1b2c3d4e5f6`. |
+| **Content-Addressable Storage** | A storage system where each object is identified by the hash of its content. Git uses this model. |
 | **Context Cancellation** | A Go pattern for gracefully stopping long-running operations (e.g., on Ctrl+C). |
+| **DAG (Directed Acyclic Graph)** | A graph where edges have direction and no cycles exist. Git's commit history forms a DAG. |
 | **Diff** | The difference between two versions of a file — shows added and removed lines. |
 | **DiffEntry** | CredVigil's structured representation of a single file's changes in a commit. |
+| **Git Object Model** | Git's internal storage system consisting of four object types: blobs, trees, commits, and tags. |
 | **GitScanner** | The orchestrating component that connects the walker, detection engine, and pipeline. |
 | **Hunk** | A section of a diff showing consecutive changed lines, prefixed with `@@ ... @@`. |
 | **Incremental Scan** | Scanning only commits that haven't been scanned before (via `--git-since`). |
 | **Initial Commit** | The very first commit in a repository — has no parent commit. |
 | **Merge Commit** | A commit that combines two branches — has two parent commits. |
+| **Merkle Tree** | A tree structure where each node's hash includes its children's hashes. Git uses this for integrity. |
 | **Shallow Clone** | A partial clone with limited history depth (via `--git-depth`). |
+| **Topological Sort** | An ordering of DAG nodes where each node comes before all nodes it points to. Used in commit walking. |
+| **Tree** | A git object that represents a directory — lists the blobs and subtrees it contains. |
 | **Walking** | Iterating through commits one by one, examining each one's changes. |
 | **Zero-Trust** | A security model where nothing is trusted by default — raw secrets are never stored or transmitted. |
 
@@ -1655,20 +2417,54 @@ Currently, the CLI shows results at the end. Real-time progress display will be 
 
 In **Module 4: File System Watcher**, you'll learn how CredVigil monitors files in real-time — watching for changes as they happen, rather than scanning after the fact. This enables instant detection of secrets as developers save files.
 
+### The Journey So Far
+
 ```mermaid
 flowchart LR
     subgraph DONE["✅ Completed"]
-        M1["Module 1<br/>Detection Engine"]
-        M2["Module 2<br/>Pipeline"]
-        M3["Module 3<br/>Git Integration"]
+        M1["Module 1<br/>Detection Engine<br/>276 rules + entropy"]
+        M2["Module 2<br/>Pipeline<br/>5-stage zero-trust"]
+        M3["Module 3<br/>Git Integration<br/>History scanning"]
     end
     subgraph NEXT["⬜ Next"]
-        M4["Module 4<br/>File System Watcher"]
+        M4["Module 4<br/>File System Watcher<br/>Real-time monitoring"]
     end
     M1 --> M2 --> M3 --> M4
     style M3 fill:#51cf66,color:white
     style M4 fill:#ffd43b,color:black
 ```
+
+### How Module 4 Builds on Module 3
+
+| Capability | Module 3 (Git) | Module 4 (Watcher) |
+|-----------|----------------|-------------------|
+| **When it detects** | After the fact (scans history) | In real-time (as files change) |
+| **What it scans** | Every commit ever made | Files as they are saved |
+| **Best for** | Finding old secrets | Preventing new secrets |
+| **Speed** | Seconds to minutes | Milliseconds |
+| **Think of it as** | Security camera footage review | Live security camera monitoring |
+
+```mermaid
+flowchart TB
+    subgraph APPROACH["Two Detection Approaches"]
+        M3_APPROACH["🔍 Module 3: Git Scanning<br/>'Find what happened in the past'<br/>Retrospective"]
+        M4_APPROACH["👁️ Module 4: File Watching<br/>'Catch it as it happens'<br/>Proactive"]
+    end
+    
+    M3_APPROACH --> COMPLETE["Together = Complete Coverage<br/>Past + Present"]
+    M4_APPROACH --> COMPLETE
+    
+    style M3_APPROACH fill:#4dabf7,color:white
+    style M4_APPROACH fill:#69db7c,color:black
+    style COMPLETE fill:#b197fc,color:white
+```
+
+### Key Concepts You'll Learn in Module 4
+
+1. **File System Events** — How operating systems notify programs about file changes
+2. **Event Debouncing** — Why you can't scan on every keystroke
+3. **Watch Patterns** — Monitoring specific directories and file types
+4. **Integration with the Detection Engine** — Feeding changed files into the same 276-rule engine
 
 ---
 
