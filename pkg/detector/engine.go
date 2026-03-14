@@ -136,8 +136,7 @@ func (e *Engine) ScanContent(req models.ScanRequest) models.ScanResult {
 		}
 		findings := e.matchRule(rule, req.Content, lines, req.Source)
 		for _, f := range findings {
-			hash := hashSecret(f.RawMatch)
-			key := fmt.Sprintf("%s:%s:%d", hash, f.RuleID, f.Source.Line)
+			key := fmt.Sprintf("%s:%s:%d", f.SecretHash, f.RuleID, f.Source.Line)
 			if seen[key] {
 				continue
 			}
@@ -170,8 +169,7 @@ func (e *Engine) ScanContent(req models.ScanRequest) models.ScanResult {
 	if e.config.EnableEntropy {
 		entropyFindings := e.entropyDetection(req.Content, lines, req.Source)
 		for _, f := range entropyFindings {
-			hash := hashSecret(f.RawMatch)
-			key := fmt.Sprintf("%s:entropy:%d", hash, f.Source.Line)
+			key := fmt.Sprintf("%s:entropy:%d", f.SecretHash, f.Source.Line)
 			if seen[key] {
 				continue
 			}
@@ -255,6 +253,9 @@ func (e *Engine) matchRule(rule rules.Rule, content string, lines []string, sour
 			ctx = e.getContext(lines, lineNum, e.config.ContextLines)
 		}
 
+		// Compute hash early for dedup (canonical hash set by pipeline)
+		secretHash := hashSecret(secretValue)
+
 		finding := models.Finding{
 			ID:          e.generateID(),
 			SecretType:  rule.SecretType,
@@ -269,12 +270,10 @@ func (e *Engine) matchRule(rule rules.Rule, content string, lines []string, sour
 				Context:  ctx,
 			},
 			RawMatch:   secretValue,
+			SecretHash: secretHash,
 			Entropy:    ent,
 			Confidence: confidence,
 			DetectedAt: time.Now(),
-			Metadata: map[string]string{
-				"sha256": hashSecret(secretValue),
-			},
 		}
 
 		// Copy over source metadata
@@ -291,7 +290,8 @@ func (e *Engine) matchRule(rule rules.Rule, content string, lines []string, sour
 			finding.Source.MachineID = source.MachineID
 		}
 
-		finding.Redact()
+		// NOTE: Redact() and ClearRawMatch() are now handled by the pipeline.
+		// The engine produces raw findings; the pipeline enforces zero-trust.
 		findings = append(findings, finding)
 	}
 	return findings
@@ -415,6 +415,8 @@ func (e *Engine) entropyDetection(content string, lines []string, source models.
 				continue
 			}
 
+			entropyHash := hashSecret(m.Value)
+
 			finding := models.Finding{
 				ID:          e.generateID(),
 				SecretType:  models.SecretHighEntropy,
@@ -428,16 +430,16 @@ func (e *Engine) entropyDetection(content string, lines []string, source models.
 					Context:  ctx,
 				},
 				RawMatch:   m.Value,
+				SecretHash: entropyHash,
 				Entropy:    m.Entropy,
 				Confidence: confidence,
 				DetectedAt: time.Now(),
 				Metadata: map[string]string{
-					"sha256":        hashSecret(m.Value),
 					"charset":       m.Charset.String(),
 					"entropy_score": fmt.Sprintf("%.2f", m.Score),
 				},
 			}
-			finding.Redact()
+			// NOTE: Redact() now handled by the pipeline
 			findings = append(findings, finding)
 		}
 	}

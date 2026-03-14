@@ -436,6 +436,13 @@ type Finding struct {
 	// Redacted/masked version safe for display
 	RedactedMatch string `json:"redacted_match"`
 
+	// SHA-256 hash of the raw secret (zero-trust fingerprint)
+	SecretHash string `json:"secret_hash"`
+
+	// Stable cross-scan fingerprint for deduplication and tracking
+	// Derived from rule_id + source_location + secret_hash
+	Fingerprint string `json:"fingerprint"`
+
 	// Shannon entropy of the matched secret
 	Entropy float64 `json:"entropy"`
 
@@ -447,6 +454,15 @@ type Finding struct {
 
 	// When the finding was detected
 	DetectedAt time.Time `json:"detected_at"`
+
+	// Detected file type / programming language
+	FileType string `json:"file_type,omitempty"`
+
+	// Detected environment (production, staging, development, ci, unknown)
+	Environment string `json:"environment,omitempty"`
+
+	// Secret category for grouping (cloud, auth, database, etc.)
+	Category string `json:"category,omitempty"`
 
 	// Additional contextual metadata
 	Metadata map[string]string `json:"metadata,omitempty"`
@@ -543,4 +559,32 @@ type ScanResult struct {
 
 	// Any non-fatal errors encountered
 	Errors []string `json:"errors,omitempty"`
+}
+
+// ScanMetadata holds scan-level context attached to every finding
+// during pipeline processing. Provides audit trail and reproducibility.
+type ScanMetadata struct {
+	// Unique identifier for this scan run
+	ScanID string `json:"scan_id"`
+
+	// CredVigil version that performed the scan
+	ScannerVersion string `json:"scanner_version"`
+
+	// SHA-256 hash of the effective scan configuration
+	ConfigHash string `json:"config_hash"`
+
+	// When the scan started
+	StartedAt time.Time `json:"started_at"`
+
+	// What type of source was scanned (file, directory, stdin, git)
+	SourceType string `json:"source_type"`
+
+	// The root path or identifier being scanned
+	SourcePath string `json:"source_path"`
+
+	// Hostname of the machine running the scan
+	MachineName string `json:"machine_name,omitempty"`
+
+	// Total number of rules loaded
+	RuleCount int `json:"rule_count"`
 }

@@ -186,7 +186,7 @@ CredVigil is designed as a modular, component-based system. Each component is de
 | # | Component | Status | Description |
 |---|-----------|:------:|-------------|
 | 1 | **Core Detection Engine** | ✅ | Regex + entropy scanning, confidence scoring, false-positive reduction |
-| 2 | Secure Hashing & Metadata Pipeline | 🔜 | Zero-trust pipeline — hash, redact, and enrich findings before storage |
+| 2 | **Secure Hashing & Metadata Pipeline** | ✅ | Zero-trust pipeline — hash, redact, enrich, fingerprint, and sanitize findings |
 | 3 | Git Integration Layer | — | Scan git history, blame, branches, and PR diffs |
 | 4 | File System Watcher | — | Real-time monitoring via fsnotify |
 | 5 | Event Bus | — | Internal pub/sub for decoupled component communication |
@@ -218,10 +218,19 @@ credvigil/
 │   ├── rules/              # 276 compiled regex detection rules
 │   │   ├── rules.go
 │   │   └── rules_test.go
-│   └── detector/           # Detection engine + concurrent file scanner
-│       ├── engine.go
-│       ├── engine_test.go
-│       └── scanner.go
+│   ├── detector/           # Detection engine + concurrent file scanner
+│   │   ├── engine.go
+│   │   ├── engine_test.go
+│   │   └── scanner.go
+│   └── pipeline/           # Post-processing pipeline (Component 2)
+│       ├── pipeline.go     # Orchestrator & Processor interface
+│       ├── hash.go         # SHA-256 hashing
+│       ├── redact.go       # Secret masking
+│       ├── enrich.go       # File type, environment, category classification
+│       ├── fingerprint.go  # Stable cross-scan identifier
+│       ├── sanitize.go     # Zero-trust RawMatch clearing
+│       ├── verify.go       # Verification hook interface (placeholder)
+│       └── pipeline_test.go
 ├── internal/
 │   └── config/             # Application configuration
 │       └── config.go
@@ -253,6 +262,7 @@ go test ./... -race
 go test ./pkg/rules -v        # Rule loading + pattern matching
 go test ./pkg/entropy -v      # Entropy calculation
 go test ./pkg/detector -v     # Engine + scanner integration
+go test ./pkg/pipeline -v     # Post-processing pipeline
 ```
 
 An interactive test suite is also available:
@@ -270,6 +280,7 @@ This runs 14 end-to-end tests covering version checks, full scans, severity/conf
 | Resource | Description |
 |----------|-------------|
 | [Module 1: Core Detection Engine](docs/training/01-core-detection-engine.md) | Concepts, CLI usage, hands-on exercises, and full code walkthrough |
+| [Module 2: Secure Hashing & Metadata Pipeline](docs/training/02-secure-hashing-metadata-pipeline.md) | Pipeline architecture, processors, zero-trust guarantee, custom processors |
 | [SECURITY.md](SECURITY.md) | Security policy, responsible disclosure, zero-trust design, and liability |
 | [LICENSE](LICENSE) | Apache License 2.0 |
 

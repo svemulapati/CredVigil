@@ -10,6 +10,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/credvigil/credvigil/pkg/detector"
 	"github.com/credvigil/credvigil/pkg/models"
+	"github.com/credvigil/credvigil/pkg/pipeline"
 )
 
 const (
@@ -168,6 +170,22 @@ func cmdScan(args []string) {
 
 	totalDuration := time.Since(startTime)
 
+	// Run the zero-trust post-processing pipeline on all results.
+	// This hashes, redacts, enriches, fingerprints, and sanitizes every finding.
+	pipe := pipeline.NewDefault()
+	meta := &models.ScanMetadata{
+		ScannerVersion: version,
+		StartedAt:      startTime,
+		RuleCount:      engine.RuleCount(),
+	}
+	for i := range allResults {
+		if errs := pipe.ProcessResult(context.Background(), &allResults[i], meta); len(errs) > 0 {
+			for _, e := range errs {
+				fmt.Fprintf(os.Stderr, "pipeline: %v\n", e)
+			}
+		}
+	}
+
 	switch outputFormat {
 	case "json":
 		outputJSON(allResults, totalDuration)
@@ -303,8 +321,20 @@ func outputText(results []models.ScanResult, duration time.Duration, ruleCount i
 			fmt.Printf("  Match:      %s\n", f.RedactedMatch)
 			fmt.Printf("  Entropy:    %.2f\n", f.Entropy)
 			fmt.Printf("  Confidence: %.0f%%\n", f.Confidence*100)
-			if hash, ok := f.Metadata["sha256"]; ok {
-				fmt.Printf("  SHA-256:    %s...%s\n", hash[:8], hash[len(hash)-8:])
+			if f.SecretHash != "" {
+				fmt.Printf("  SHA-256:    %s...%s\n", f.SecretHash[:8], f.SecretHash[len(f.SecretHash)-8:])
+			}
+			if f.Fingerprint != "" {
+				fmt.Printf("  Fingerprint:%s\n", f.Fingerprint[:16])
+			}
+			if f.FileType != "" {
+				fmt.Printf("  File Type:  %s\n", f.FileType)
+			}
+			if f.Environment != "" {
+				fmt.Printf("  Environment:%s\n", f.Environment)
+			}
+			if f.Category != "" {
+				fmt.Printf("  Category:   %s\n", f.Category)
 			}
 			if f.Source.Context != "" {
 				fmt.Println("  Context:")
@@ -350,10 +380,7 @@ func outputJSON(results []models.ScanResult, duration time.Duration) {
 
 	total := 0
 	for _, r := range results {
-		// Clear raw matches before JSON output (zero-trust: no plaintext in output)
-		for i := range r.Findings {
-			r.Findings[i].ClearRawMatch()
-		}
+		// Pipeline already sanitized findings (RawMatch cleared by SanitizeProcessor)
 		total += r.TotalFindings
 	}
 

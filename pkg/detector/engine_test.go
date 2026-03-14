@@ -1,11 +1,13 @@
 package detector
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/credvigil/credvigil/pkg/models"
+	"github.com/credvigil/credvigil/pkg/pipeline"
 )
 
 func TestScanContent_AWSKeys(t *testing.T) {
@@ -416,23 +418,32 @@ func TestScanContent_RedactionWorks(t *testing.T) {
 		Source:  models.Source{Type: "file", Location: "redact-test.txt"},
 	})
 
+	// Engine no longer redacts inline; the pipeline handles it.
+	// Verify RawMatch is populated, then run the pipeline.
+	for _, f := range result.Findings {
+		if f.SecretType == models.SecretGitHubToken {
+			if f.RawMatch == "" {
+				t.Error("RawMatch should be populated before pipeline")
+			}
+		}
+	}
+
+	// Run pipeline to populate RedactedMatch (and sanitize RawMatch)
+	pipe := pipeline.NewDefault()
+	pipe.ProcessResult(context.Background(), &result, &models.ScanMetadata{})
+
 	for _, f := range result.Findings {
 		if f.SecretType == models.SecretGitHubToken {
 			if f.RedactedMatch == "" {
-				t.Error("RedactedMatch should not be empty")
-			}
-			if f.RedactedMatch == f.RawMatch {
-				t.Error("RedactedMatch should differ from RawMatch")
+				t.Error("RedactedMatch should not be empty after pipeline")
 			}
 			if !strings.Contains(f.RedactedMatch, "****") {
 				t.Errorf("RedactedMatch should contain ****: %s", f.RedactedMatch)
 			}
-			t.Logf("Redacted: %s", f.RedactedMatch)
-			// Test ClearRawMatch
-			f.ClearRawMatch()
 			if f.RawMatch != "" {
-				t.Error("ClearRawMatch should empty RawMatch")
+				t.Error("RawMatch should be cleared by SanitizeProcessor")
 			}
+			t.Logf("Redacted: %s", f.RedactedMatch)
 		}
 	}
 }
@@ -474,14 +485,14 @@ func TestScanContent_HashMetadata(t *testing.T) {
 
 	for _, f := range result.Findings {
 		if f.SecretType == models.SecretGitHubToken {
-			hash, ok := f.Metadata["sha256"]
-			if !ok {
-				t.Error("Finding should have sha256 hash in metadata")
+			// Hash is now stored in the SecretHash field (set by engine for dedup)
+			if f.SecretHash == "" {
+				t.Error("Finding should have SecretHash set by engine")
 			}
-			if len(hash) != 64 {
-				t.Errorf("SHA-256 hash should be 64 hex chars, got %d", len(hash))
+			if len(f.SecretHash) != 64 {
+				t.Errorf("SecretHash should be 64 hex chars, got %d", len(f.SecretHash))
 			}
-			t.Logf("SHA-256: %s", hash)
+			t.Logf("SecretHash: %s", f.SecretHash)
 		}
 	}
 }
