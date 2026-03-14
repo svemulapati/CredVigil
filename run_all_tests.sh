@@ -74,7 +74,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 $BIN scan testdata/fake_secrets.env --no-context --format json 2>/dev/null | python3 -c "
 import json, sys
 data = json.load(sys.stdin)
-f = data.get('Findings', data.get('findings', []))
+f = [finding for r in data.get('results', []) for finding in r.get('findings', [])]
 print(f'  Valid JSON: YES')
 print(f'  Total findings in JSON: {len(f)}')
 if f:

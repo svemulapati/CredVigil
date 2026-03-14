@@ -62,6 +62,17 @@
    - [8.4 Create Files for Watcher Practice](#84-create-files-for-watcher-practice)
 9. [Advanced Piping & Automation](#9-advanced-piping--automation)
 10. [Quick Reference Card](#10-quick-reference-card)
+11. [CredVigil vs TruffleHog — Command Comparison](#11-credvigil-vs-trufflehog--command-comparison)
+    - [11.1 Installation](#111-installation)
+    - [11.2 Scanning Files & Directories](#112-scanning-files--directories)
+    - [11.3 Git Repository Scanning](#113-git-repository-scanning)
+    - [11.4 Filtering & Severity](#114-filtering--severity)
+    - [11.5 Output & JSON Processing](#115-output--json-processing)
+    - [11.6 Watching (Live Monitoring)](#116-watching-live-monitoring)
+    - [11.7 Additional TruffleHog Sources](#117-additional-trufflehog-sources-not-in-credvigil)
+    - [11.8 JSON Field Comparison](#118-json-field-comparison)
+    - [11.9 Side-by-Side Quick Reference](#119-side-by-side-quick-reference)
+    - [11.10 Summary: When to Use Which](#1110-summary-when-to-use-which)
 
 ---
 
@@ -432,17 +443,17 @@ echo 'hvs.CAESIDhMOEXAMPLETOKENVAL' | ./credvigil scan --stdin --no-context
 
 #### JSON + jq: list all rule IDs found
 ```bash
-./credvigil scan testdata/fake_secrets.env --no-context --format json 2>/dev/null | jq '[.results[].Findings[].rule_id] | unique'
+./credvigil scan testdata/fake_secrets.env --no-context --format json 2>/dev/null | jq '[.results[].findings[].rule_id] | unique'
 ```
 
 #### JSON + jq: show only critical findings
 ```bash
-./credvigil scan testdata/fake_secrets.env --no-context --format json 2>/dev/null | jq '[.results[].Findings[] | select(.severity == "CRITICAL")]'
+./credvigil scan testdata/fake_secrets.env --no-context --format json 2>/dev/null | jq '[.results[].findings[] | select(.severity == "CRITICAL")]'
 ```
 
 #### JSON + jq: group by severity
 ```bash
-./credvigil scan testdata/fake_secrets.env --no-context --format json 2>/dev/null | jq '[.results[].Findings[]] | group_by(.severity) | map({severity: .[0].severity, count: length})'
+./credvigil scan testdata/fake_secrets.env --no-context --format json 2>/dev/null | jq '[.results[].findings[]] | group_by(.severity) | map({severity: .[0].severity, count: length})'
 ```
 
 #### JSON + python: validate structure
@@ -462,7 +473,7 @@ print(f'Scan duration: {data.get(\"scan_duration\")}')
 ./credvigil scan testdata/fake_secrets.env --no-context --format json 2>/dev/null | python3 -c "
 import json, sys
 data = json.load(sys.stdin)
-findings = [f for r in data.get('results', []) for f in r.get('Findings', [])]
+findings = [f for r in data.get('results', []) for f in r.get('findings', [])]
 raw_leaked = [f for f in findings if f.get('raw_match', '') != '']
 print(f'Total findings: {len(findings)}')
 print(f'Raw secrets leaked: {len(raw_leaked)}')
@@ -1701,11 +1712,11 @@ kubectl get secret my-secret -o jsonpath='{.data}' | base64 -d | ./credvigil sca
 ### Scan entire project, output JSON, filter with jq
 ```bash
 ./credvigil scan . --no-context --format json 2>/dev/null | jq '
-  [.results[].Findings[] | {
+  [.results[].findings[] | {
     severity: .severity,
     rule: .rule_id,
     file: .source.location,
-    line: .source.line_number,
+    line: .source.line,
     confidence: (.confidence * 100 | tostring) + "%"
   }]
 '
@@ -1719,12 +1730,12 @@ data = json.load(sys.stdin)
 writer = csv.writer(sys.stdout)
 writer.writerow(['Severity', 'Rule', 'File', 'Line', 'Confidence', 'SHA-256'])
 for r in data.get('results', []):
-    for f in r.get('Findings', []):
+    for f in r.get('findings', []):
         writer.writerow([
             f.get('severity', ''),
             f.get('rule_id', ''),
             f.get('source', {}).get('location', ''),
-            f.get('source', {}).get('line_number', ''),
+            f.get('source', {}).get('line', ''),
             f'{f.get(\"confidence\", 0)*100:.0f}%',
             f.get('secret_hash', '')[:16]
         ])
@@ -1733,7 +1744,7 @@ for r in data.get('results', []):
 
 ### Count findings by rule
 ```bash
-./credvigil scan testdata/fake_secrets.env --no-context --format json 2>/dev/null | jq '[.results[].Findings[].rule_id] | group_by(.) | map({rule: .[0], count: length}) | sort_by(-.count)'
+./credvigil scan testdata/fake_secrets.env --no-context --format json 2>/dev/null | jq '[.results[].findings[].rule_id] | group_by(.) | map({rule: .[0], count: length}) | sort_by(-.count)'
 ```
 
 ### Scan and fail CI if any critical finding
@@ -1743,7 +1754,7 @@ RESULT=$(./credvigil scan . --no-context --min-severity critical --format json 2
 COUNT=$(echo "$RESULT" | jq '.total_findings')
 if [ "$COUNT" -gt "0" ]; then
   echo "❌ FAILED: $COUNT critical secret(s) found"
-  echo "$RESULT" | jq '.results[].Findings[] | {rule: .rule_id, file: .source.location, line: .source.line_number}'
+  echo "$RESULT" | jq '.results[].findings[] | {rule: .rule_id, file: .source.location, line: .source.line}'
   exit 1
 fi
 echo "✅ PASSED: No critical secrets found"
@@ -1841,6 +1852,173 @@ echo "✅ PASSED: No critical secrets found"
 | `/tmp/credvigil_watch_demo/` | ❌ Created by demo | Directory the watcher monitors |
 
 **Important:** All test files in `/tmp/` use fake/example credentials. None of them are real. They are safe to create and delete.
+
+---
+
+## 11. CredVigil vs TruffleHog — Command Comparison
+
+> **How do CredVigil commands relate to TruffleHog?**
+> Both are secret-scanning tools. TruffleHog (by Truffle Security) is the most popular open-source alternative.
+> This section maps CredVigil commands to their TruffleHog equivalents so you can see the similarities and differences.
+
+### 11.1 Installation
+
+| Action | CredVigil | TruffleHog |
+|--------|-----------|------------|
+| Build from source | `go build -o credvigil ./cmd/credvigil` | `go install github.com/trufflesecurity/trufflehog/v3@latest` |
+| macOS install | Build from source | `brew install trufflehog` |
+| Docker | N/A (local binary) | `docker run --rm -it trufflesecurity/trufflehog:latest` |
+| Version check | `./credvigil version` | `trufflehog --version` |
+| Help | `./credvigil help` | `trufflehog --help` |
+
+### 11.2 Scanning Files & Directories
+
+| Action | CredVigil | TruffleHog |
+|--------|-----------|------------|
+| Scan a file | `./credvigil scan myfile.env` | `trufflehog filesystem myfile.env` |
+| Scan a directory | `./credvigil scan ./src/` | `trufflehog filesystem ./src/` |
+| Scan from stdin | `cat file \| ./credvigil scan -` | `cat file \| trufflehog --stdin` |
+| JSON output | `./credvigil scan . --format json` | `trufflehog filesystem . --json` |
+| Text output (default) | `./credvigil scan .` | `trufflehog filesystem .` |
+
+**Key difference:** TruffleHog uses `filesystem` subcommand; CredVigil uses `scan` for everything.
+
+### 11.3 Git Repository Scanning
+
+| Action | CredVigil | TruffleHog |
+|--------|-----------|------------|
+| Scan local repo (all commits) | `./credvigil scan --git .` | `trufflehog git file://./` |
+| Scan remote repo | `./credvigil scan --git https://github.com/user/repo` | `trufflehog git https://github.com/user/repo` |
+| Limit commit depth | `./credvigil scan --git . --max-depth 10` | `trufflehog git file://./ --max-depth 10` |
+| Scan specific branch | `./credvigil scan --git . --branch main` | `trufflehog git file://./ --branch main` |
+| Scan since commit | `./credvigil scan --git . --since-commit abc123` | `trufflehog git file://./ --since-commit abc123` |
+
+**Key difference:** TruffleHog uses `git` subcommand with `file://` prefix for local repos; CredVigil uses `--git` flag.
+
+### 11.4 Filtering & Severity
+
+| Action | CredVigil | TruffleHog |
+|--------|-----------|------------|
+| Filter by severity | `./credvigil scan . --min-severity HIGH` | `trufflehog filesystem . --results=verified` (verification-based) |
+| Filter by confidence | `./credvigil scan . --min-confidence 0.7` | N/A (TruffleHog uses verification instead) |
+| Only verified secrets | N/A (CredVigil uses confidence scores) | `trufflehog filesystem . --only-verified` |
+| Disable entropy detection | `./credvigil scan . --no-entropy` | `trufflehog filesystem . --no-entropy` |
+| Exclude paths | `./credvigil scan . --exclude "vendor/*"` | `trufflehog filesystem . --exclude-paths /path/to/excludes.txt` |
+
+**Key difference:** CredVigil uses severity levels (INFO→CRITICAL) and confidence scores (0.0→1.0). TruffleHog focuses on "verified" vs "unverified" — it actually calls APIs to check if secrets are live.
+
+### 11.5 Output & JSON Processing
+
+```bash
+# CredVigil JSON output → jq
+./credvigil scan . --format json 2>/dev/null | jq '.results[].findings[]'
+
+# TruffleHog JSON output → jq (one JSON object per line, JSONL format)
+trufflehog filesystem . --json 2>/dev/null | jq '.'
+
+# CredVigil: count findings
+./credvigil scan . --format json 2>/dev/null | jq '.total_findings'
+
+# TruffleHog: count findings (JSONL, so count lines)
+trufflehog filesystem . --json 2>/dev/null | wc -l
+```
+
+**Key difference:** CredVigil outputs a single JSON object with `results[].findings[]` nested structure. TruffleHog outputs one JSON object per line (JSONL/newline-delimited JSON). This matters for jq processing.
+
+### 11.6 Watching (Live Monitoring)
+
+| Action | CredVigil | TruffleHog |
+|--------|-----------|------------|
+| Watch for changes | `./credvigil watch ./src/` | N/A (not supported) |
+| Watch with debounce | `./credvigil watch ./src/ --debounce 500ms` | N/A |
+| Watch with custom cooldown | `./credvigil watch ./src/ --cooldown 5s` | N/A |
+
+**Key difference:** CredVigil has built-in file watching with intelligent debouncing. TruffleHog does not have a watch mode — you'd need to combine it with `fswatch` or `inotifywait`.
+
+### 11.7 Additional TruffleHog Sources (Not in CredVigil)
+
+TruffleHog can scan many cloud/SaaS sources that CredVigil does not:
+```bash
+# GitHub org (requires token)
+trufflehog github --org=mycompany --token=$GITHUB_TOKEN
+
+# GitLab
+trufflehog gitlab --group=mygroup --token=$GITLAB_TOKEN
+
+# S3 buckets
+trufflehog s3 --bucket=my-bucket
+
+# Docker images
+trufflehog docker --image=myimage:latest
+
+# Postman workspaces
+trufflehog postman --token=$POSTMAN_TOKEN --workspace=ws-id
+```
+
+CredVigil focuses on local files, directories, git repos, and real-time watching.
+
+### 11.8 JSON Field Comparison
+
+| Field | CredVigil | TruffleHog |
+|-------|-----------|------------|
+| Secret type | `.rule_id` / `.secret_type` | `.DetectorName` |
+| Severity | `.severity` ("CRITICAL", "HIGH", etc.) | `.Verified` (boolean) |
+| File location | `.source.location` | `.SourceMetadata.Data.Filesystem.file` |
+| Line number | `.source.line` | `.SourceMetadata.Data.Filesystem.line` |
+| Raw secret | `.raw_match` (always empty — zero-trust) | `.Raw` (base64 encoded) |
+| Hash | `.secret_hash` | `.RawV2` (sometimes) |
+| Fingerprint | `.fingerprint` | N/A |
+| Confidence | `.confidence` (0.0-1.0) | N/A (uses verification) |
+| Redacted | `.redacted_match` ("AKIA****MPLE") | `.Redacted` |
+| Entropy | `.entropy` (float) | N/A (internal only) |
+
+**Key differences:**
+1. **Zero-trust**: CredVigil never outputs raw secrets (`.raw_match` is always empty). TruffleHog outputs raw secrets in `.Raw`.
+2. **Severity vs Verification**: CredVigil rates findings by severity & confidence. TruffleHog marks secrets as verified/unverified by actually testing them against APIs.
+3. **Field naming**: CredVigil uses `snake_case` JSON. TruffleHog uses `PascalCase` (Go struct names).
+
+### 11.9 Side-by-Side Quick Reference
+
+```bash
+# ━━━━━ SCAN A FILE ━━━━━
+# CredVigil                                    # TruffleHog
+./credvigil scan secrets.env                    trufflehog filesystem secrets.env
+
+# ━━━━━ SCAN A DIRECTORY ━━━━━
+./credvigil scan ./project/                     trufflehog filesystem ./project/
+
+# ━━━━━ SCAN GIT REPO ━━━━━
+./credvigil scan --git .                        trufflehog git file://./
+
+# ━━━━━ JSON OUTPUT ━━━━━
+./credvigil scan . --format json                trufflehog filesystem . --json
+
+# ━━━━━ LIST DETECTORS ━━━━━
+./credvigil rules                               trufflehog --list-detectors
+
+# ━━━━━ WATCH MODE ━━━━━
+./credvigil watch ./src/                        # TruffleHog: not available
+
+# ━━━━━ COUNT FINDINGS (jq) ━━━━━
+./credvigil scan . --format json | \            trufflehog filesystem . --json | \
+  jq '.total_findings'                            wc -l
+
+# ━━━━━ CRITICAL/VERIFIED ONLY ━━━━━
+./credvigil scan . --min-severity CRITICAL      trufflehog filesystem . --only-verified
+```
+
+### 11.10 Summary: When to Use Which
+
+| Scenario | Best Tool | Why |
+|----------|-----------|-----|
+| Pre-commit local scan | **CredVigil** | Fast, no API calls, zero-trust |
+| CI/CD pipeline | **Both** | CredVigil for speed, TruffleHog for verification |
+| Real-time editor monitoring | **CredVigil** | Built-in watch + debounce |
+| Scan GitHub org | **TruffleHog** | Direct GitHub API integration |
+| Scan S3/Docker/Postman | **TruffleHog** | Cloud source connectors |
+| Audit git history | **Both** | Both scan full commit history |
+| Never expose raw secrets | **CredVigil** | Zero-trust: raw_match always empty |
+| Verify if secrets are live | **TruffleHog** | Actually calls provider APIs |
 
 ---
 

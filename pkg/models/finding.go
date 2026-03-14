@@ -2,7 +2,9 @@
 package models
 
 import (
+	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -32,6 +34,41 @@ func (s Severity) String() string {
 	default:
 		return "UNKNOWN"
 	}
+}
+
+// MarshalJSON serializes Severity as a human-readable string (e.g. "CRITICAL")
+// instead of a raw integer.
+func (s Severity) MarshalJSON() ([]byte, error) {
+	return json.Marshal(s.String())
+}
+
+// UnmarshalJSON deserializes Severity from a string like "CRITICAL" or "HIGH".
+func (s *Severity) UnmarshalJSON(data []byte) error {
+	var str string
+	if err := json.Unmarshal(data, &str); err != nil {
+		// Fall back to integer for backward compatibility
+		var num int
+		if err2 := json.Unmarshal(data, &num); err2 != nil {
+			return fmt.Errorf("severity must be a string or integer, got: %s", string(data))
+		}
+		*s = Severity(num)
+		return nil
+	}
+	switch strings.ToUpper(str) {
+	case "INFO":
+		*s = SeverityInfo
+	case "LOW":
+		*s = SeverityLow
+	case "MEDIUM":
+		*s = SeverityMedium
+	case "HIGH":
+		*s = SeverityHigh
+	case "CRITICAL":
+		*s = SeverityCritical
+	default:
+		return fmt.Errorf("unknown severity: %q", str)
+	}
+	return nil
 }
 
 // SecretType categorizes the kind of detected credential.
