@@ -409,9 +409,9 @@ flowchart TD
     A["Finding arrives"] --> B{"RedactedMatch\nalready set?"}
     B -->|"✅ Yes"| C["Skip (idempotent)"]
     B -->|"❌ No"| D{"Length of RawMatch?"}
-    D -->|"> 12 chars"| E["first4 + **** + last4"]
-    D -->|"5–12 chars"| F["first2 + ****"]
-    D -->"|\u2264 4 chars"| G["****"]
+    D -->|"more than 12 chars"| E["first4 + **** + last4"]
+    D -->|"5 to 12 chars"| F["first2 + ****"]
+    D -->|"4 or fewer chars"| G["****"]
     E & F & G --> H["✅ RedactedMatch set"]
     style H fill:#27AE60,stroke:#1E8449,color:#fff
     style C fill:#BDC3C7,stroke:#95A5A6,color:#000
