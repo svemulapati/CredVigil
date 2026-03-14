@@ -69,6 +69,17 @@ Think of it like a **spell-checker, but for security**. Just like a spell-checke
 
 CredVigil is your watchful guard against leaked credentials.
 
+```mermaid
+flowchart LR
+    A["📁 Your Code"] --> B["🔍 CredVigil"]
+    B --> C["✅ Clean Report"]
+    B --> D["🚨 Secrets Found"]
+    D --> E["🔒 Redacted + Hashed"]
+    style B fill:#4A90D9,stroke:#2C5F8A,color:#fff
+    style D fill:#E74C3C,stroke:#C0392B,color:#fff
+    style E fill:#27AE60,stroke:#1E8449,color:#fff
+```
+
 ---
 
 ## 2. Why Do We Need Credential Detection?
@@ -102,6 +113,18 @@ Once that code is pushed to a repository (like GitHub), anyone with access to th
 - A leaked AWS key can result in thousands of dollars of charges within minutes
 - Data breaches from leaked credentials cost companies millions in fines and reputation damage
 
+```mermaid
+flowchart TD
+    A["Developer Commits Code"] --> B{"Contains Secrets?"}
+    B -->|Yes| C["🚨 Pushed to Repository"]
+    C --> D["🤖 Bots Scan GitHub 24/7"]
+    D --> E["💸 Stolen Keys Used\nCloud charges, data theft"]
+    B -->|No| F["✅ Safe"]
+    style C fill:#E74C3C,stroke:#C0392B,color:#fff
+    style E fill:#C0392B,stroke:#922B21,color:#fff
+    style F fill:#27AE60,stroke:#1E8449,color:#fff
+```
+
 ### Why Manual Review Isn't Enough
 
 - A single project might have hundreds or thousands of files
@@ -119,6 +142,19 @@ CredVigil automates this entire process. It:
 3. **Scores each finding** with a confidence percentage so you know what to prioritize
 4. **Redacts the secrets** so they're not exposed in reports
 5. **Shows you exactly where** the secret is located (file, line number, context)
+
+```mermaid
+flowchart LR
+    A["📂 Scan Code"] --> B["🔎 Identify Secrets"]
+    B --> C["📊 Score Confidence"]
+    C --> D["🔒 Redact & Hash"]
+    D --> E["📍 Report Location"]
+    style A fill:#3498DB,stroke:#2980B9,color:#fff
+    style B fill:#E67E22,stroke:#D35400,color:#fff
+    style C fill:#9B59B6,stroke:#8E44AD,color:#fff
+    style D fill:#27AE60,stroke:#1E8449,color:#fff
+    style E fill:#1ABC9C,stroke:#16A085,color:#fff
+```
 
 ---
 
@@ -237,6 +273,16 @@ Matches: AKIAIOSFODNN7EXAMPLE     ✅ (starts with AKIA, followed by 16 uppercas
 **Why regex alone isn't enough:**  
 Regex can only find secrets it already knows about. If a new service launches tomorrow with a new key format, regex won't catch it. That's why CredVigil also uses entropy analysis (explained next).
 
+```mermaid
+flowchart TD
+    A["Input Text"] --> B["Apply 276 Regex Rules"]
+    B --> C{"Pattern Match?"}
+    C -->|"✅ AKIA... matches AWS rule"| D["Finding Created"]
+    C -->|"❌ No match"| E["Try Entropy Analysis"]
+    style D fill:#27AE60,stroke:#1E8449,color:#fff
+    style E fill:#F39C12,stroke:#D68910,color:#fff
+```
+
 ---
 
 ### 4.3 What Is Shannon Entropy?
@@ -279,6 +325,23 @@ Entropy: 4.66 (high — this looks like a secret!)
 Charset: Base64
 Threshold for Base64: 4.0 (suspicious) / 4.5 (very likely)
 Result: ⚠️ This is very likely a secret (entropy 4.66 > 4.5 threshold)
+```
+
+```mermaid
+flowchart LR
+    subgraph Low["Low Entropy"]
+        A["aaaaaaaaaa\nH = 0.0"]
+    end
+    subgraph Med["Medium Entropy"]
+        B["helloWorld\nH = 3.2"]
+    end
+    subgraph High["High Entropy 🚨"]
+        C["kJ9mN2pR5tW8x\nH = 4.7"]
+    end
+    Low --> Med --> High
+    style Low fill:#27AE60,stroke:#1E8449,color:#fff
+    style Med fill:#F39C12,stroke:#D68910,color:#fff
+    style High fill:#E74C3C,stroke:#C0392B,color:#fff
 ```
 
 ---
@@ -327,17 +390,123 @@ Base confidence from Stripe rule:     0.85
 
 By default, CredVigil only shows findings with **30% or higher** confidence (configurable with `--min-confidence`).
 
+```mermaid
+flowchart TD
+    A["Base Confidence\n(from rule, e.g. 0.85)"] --> B{"Adjustments"}
+    B --> C["+0.10 High Entropy"]
+    B --> D["+0.10 Keyword Nearby"]
+    B --> E["-0.25 False Positive"]
+    B --> F["-0.40 Placeholder"]
+    C & D & E & F --> G["Final Score\n(clamped 0.0 – 1.0)"]
+    style A fill:#3498DB,stroke:#2980B9,color:#fff
+    style G fill:#9B59B6,stroke:#8E44AD,color:#fff
+```
+
 ---
 
 ### 4.5 What Is Zero-Trust Architecture?
 
 **Zero-trust** means: **"Trust nothing and no one by default."**
 
-In the context of CredVigil, this means:
+This is a fundamental shift from how security traditionally worked. In the old model (called **perimeter security** or **castle-and-moat**), you trusted everything inside your network and only defended the boundary. Once someone got past the wall, they had free access to everything.
+
+Zero-trust flips this: **every single interaction must be verified, regardless of where it comes from.**
+
+```mermaid
+flowchart TD
+    subgraph Old["❌ Traditional: Castle & Moat"]
+        A1["🏰 Inside the Wall"] --> A2["✅ Trusted by Default"]
+        A3["🌍 Outside"] --> A4["🛡️ Firewall"] --> A1
+        A5["🦹 Attacker Gets Past Wall"] --> A1
+        A5 --> A6["💀 Full Access to Everything"]
+    end
+    subgraph New["✅ Zero-Trust: Verify Everything"]
+        B1["Any Request"] --> B2{"Verified?"}
+        B2 -->|"Identity + Context + Policy"| B3["✅ Access Granted\n(minimum needed)"]
+        B2 -->|"Not verified"| B4["🚫 Denied"]
+    end
+    style Old fill:#FADBD8,stroke:#E74C3C
+    style New fill:#D5F5E3,stroke:#27AE60
+```
+
+#### The Three Pillars of Zero-Trust
+
+Zero-trust architecture rests on three core principles:
+
+| Pillar | Meaning | Example |
+|--------|---------|---------|
+| **1. Never Trust, Always Verify** | Every request must prove its identity — even if it comes from "inside" | A dashboard requesting findings must authenticate, even if it's on the same server |
+| **2. Least Privilege Access** | Grant only the minimum access needed for a task, nothing more | If a component only needs redacted findings, it should never see raw secrets |
+| **3. Assume Breach** | Design systems as if an attacker has already gotten in | Even if someone compromises CredVigil's output, they still can't see raw secrets |
+
+#### How Zero-Trust Works: The Handshake Model
+
+In traditional client-server communication, trust is established through a **handshake** — a back-and-forth exchange where both parties verify each other before sharing data. Here's how this applies in a zero-trust model:
+
+**Step 1: Client requests access**
+
+The client (e.g., a dashboard, CI/CD pipeline, or API consumer) sends a request. In zero-trust, this request carries **identity proof** — not just "I'm inside the network."
+
+**Step 2: Server verifies identity**
+
+The server checks the client's credentials, context (IP, device, time), and policy rules. No implicit trust.
+
+**Step 3: Server responds with minimum data**
+
+Even after verification, the server only sends the **least privileged data** the client needs — never the raw secret.
+
+```mermaid
+sequenceDiagram
+    participant C as 🖥️ Client<br>(Dashboard/CI/CD)
+    participant S as 🔒 CredVigil<br>Server
+    participant P as 🛡️ Policy<br>Engine
+
+    Note over C,S: Step 1: Authentication Handshake
+    C->>S: 1. Request findings<br>+ Auth token + Context
+    S->>P: 2. Verify identity<br>+ Check permissions
+    P-->>S: 3. ✅ Verified<br>Role: "viewer"
+
+    Note over C,S: Step 2: Least Privilege Response
+    S->>S: 4. Apply zero-trust filter:<br>Strip raw secrets,<br>keep only redacted data
+    S-->>C: 5. Return sanitized findings<br>(hash + redacted only)
+
+    Note over C,S: ❌ What NEVER happens
+    C--xS: ❌ "Give me raw secrets"
+    S--xC: ❌ Raw secret in response
+```
+
+#### Without Zero-Trust vs. With Zero-Trust
+
+Here's a concrete comparison showing how data flows differently:
+
+```mermaid
+sequenceDiagram
+    participant D as 📊 Dashboard
+    participant CV as 🔍 CredVigil
+
+    Note over D,CV: ❌ WITHOUT Zero-Trust (Dangerous)
+    D->>CV: Request scan results
+    CV-->>D: Finding: AKIAIOSFODNN7EXAMPLE<br>(⚠️ RAW secret exposed!)
+    Note right of D: Dashboard stores raw secret<br>in database, logs, cache...<br>Attacker steals it all.
+
+    Note over D,CV: ─────────────────────
+
+    Note over D,CV: ✅ WITH Zero-Trust (CredVigil's Approach)
+    D->>CV: Request scan results
+    CV->>CV: Pipeline: Hash → Redact → Sanitize
+    CV-->>D: Finding: AKIA****MPLE<br>Hash: 5e6bf1b9...e1f2a3b<br>RawMatch: "" (empty)
+    Note right of D: Dashboard can display<br>and track the finding,<br>but CANNOT recover<br>the original secret.
+```
+
+#### How CredVigil Applies Zero-Trust
+
+In the context of CredVigil specifically, zero-trust means:
 
 1. **We never trust that our own system won't be compromised.** So we never store or display the actual secret in plaintext.
 2. **We never trust the output destination.** Whether findings go to a file, a dashboard, or an API — the raw secret is never included.
 3. **We never trust the network.** No plaintext secrets are ever transmitted.
+4. **We never trust memory to be safe.** The raw secret is erased from the Finding struct after processing.
+5. **We never trust future code changes.** The SanitizeProcessor enforces clearing at the architecture level — it's not optional.
 
 **What CredVigil does instead:**
 
@@ -345,8 +514,51 @@ In the context of CredVigil, this means:
 - **Shows a redacted preview** — only the first 4 and last 4 characters, like `wJal****EKEY`
 - **Clears the raw value from memory** before any output operation
 
-**Why this matters:**  
-If someone gains access to CredVigil's output or logs, they can see that secrets were found and where — but they **cannot** see the actual secret values. This prevents CredVigil itself from becoming a security vulnerability.
+#### Zero-Trust Data Flow — End to End
+
+The following diagram shows the complete journey of a detected secret through CredVigil's zero-trust pipeline. Notice how the raw secret exists only briefly in memory during detection, then is permanently erased:
+
+```mermaid
+flowchart TD
+    A["📂 Source File Contains:<br>AWS_KEY=AKIAIOSFODNN7EXAMPLE"] --> B["🔍 Detection Engine<br>reads file, matches regex"]
+    B --> C["📦 Raw Finding Created<br>RawMatch = AKIAIOSFODNN7EXAMPLE"]
+
+    C --> D["🔢 Hash Processor<br>SHA-256 → 5e6bf1b9..."]
+    D --> E["🔒 Redact Processor<br>→ AKIA****MPLE"]
+    E --> F["📊 Enrich Processor<br>FileType, Environment, Category"]
+    F --> G["🗺️ Fingerprint Processor<br>Stable cross-scan ID"]
+    G --> H["🧹 Sanitize Processor<br>RawMatch = '' (ERASED)"]
+
+    H --> I{"Output Destination"}
+    I --> J["🖥️ Terminal"]
+    I --> K["📋 JSON File"]
+    I --> L["🌐 API (future)"]
+    I --> M["📊 Dashboard (future)"]
+
+    style C fill:#E74C3C,stroke:#C0392B,color:#fff
+    style H fill:#7F8C8D,stroke:#616A6B,color:#fff
+    style J fill:#27AE60,stroke:#1E8449,color:#fff
+    style K fill:#27AE60,stroke:#1E8449,color:#fff
+    style L fill:#27AE60,stroke:#1E8449,color:#fff
+    style M fill:#27AE60,stroke:#1E8449,color:#fff
+```
+
+> **Key insight**: The red box (raw finding with the actual secret) exists only momentarily inside the pipeline. By the time data reaches any output destination (green boxes), the raw secret is gone forever.
+
+#### Zero-Trust in the Real World
+
+Zero-trust is not unique to CredVigil — it's the security model used by Google (BeyondCorp), Microsoft (Azure AD), and most modern cloud infrastructure. The core idea is the same everywhere:
+
+| Traditional Security | Zero-Trust Security |
+|---------------------|-------------------|
+| "You're inside the firewall, so you're trusted" | "Prove who you are on every request" |
+| Protect the perimeter | Protect every resource individually |
+| Binary: inside = safe, outside = unsafe | Every access decision considers identity + context + policy |
+| One breach = full access | One breach = limited to that one resource |
+| Secrets flow freely inside the network | Secrets are never exposed, even internally |
+
+**Why this matters for CredVigil:**  
+CredVigil is a tool that *finds* secrets. If CredVigil itself leaked those secrets in its output, it would be a security vulnerability — the very thing it's supposed to prevent. Zero-trust ensures that even if someone gains access to CredVigil's logs, output files, or future API responses, they **cannot** recover the actual secret values.
 
 ---
 
@@ -374,6 +586,16 @@ SHA-256: 78314b11a8e0ac3fa4f0ab51e4e0ff0e6af63e68... (64 chars total)
 - **Audit trail**: You have a record that a specific secret was found, without the risk of re-exposing it
 - **Deduplication**: CredVigil uses the hash to avoid reporting the same secret twice in one scan
 
+```mermaid
+flowchart LR
+    A["Any Input\n(any length)"] -->|"SHA-256"| B["Fixed Output\n(always 64 hex chars)"]
+    C["Same Input"] -->|"SHA-256"| D["Same Output"]
+    E["Different Input"] -->|"SHA-256"| F["Different Output"]
+    style B fill:#9B59B6,stroke:#8E44AD,color:#fff
+    style D fill:#9B59B6,stroke:#8E44AD,color:#fff
+    style F fill:#E67E22,stroke:#D35400,color:#fff
+```
+
 ---
 
 ### 4.7 What Is Redaction?
@@ -390,6 +612,19 @@ SHA-256: 78314b11a8e0ac3fa4f0ab51e4e0ff0e6af63e68... (64 chars total)
 
 **Why show any characters at all?**  
 Showing the first and last few characters helps you quickly identify *which* secret was found. For example, if you have three AWS keys, seeing `AKIA****MPLE` helps you know which specific key to rotate, without revealing the full key.
+
+```mermaid
+flowchart TD
+    A["Secret Length?"] --> B{"> 12 chars"}
+    A --> C{"5–12 chars"}
+    A --> D{"≤ 4 chars"}
+    B --> E["first4 + **** + last4\nAKIA****MPLE"]
+    C --> F["first2 + ****\nsk****"]
+    D --> G["****"]
+    style E fill:#27AE60,stroke:#1E8449,color:#fff
+    style F fill:#F39C12,stroke:#D68910,color:#fff
+    style G fill:#E74C3C,stroke:#C0392B,color:#fff
+```
 
 ---
 
@@ -414,6 +649,21 @@ A **false positive** is when the tool incorrectly identifies something as a secr
 3. **Confidence penalty**: Instead of hiding false positives completely, CredVigil lowers their confidence score — so you can still see them if you want, but they won't clutter your high-priority results
 4. **Identifier detection**: Recognizes camelCase and snake_case variable names and skips them
 
+```mermaid
+flowchart TD
+    A["Regex Match Found"] --> B{"Placeholder?\nchangeme, EXAMPLE"}
+    B -->|Yes| C["📉 -40% Confidence"]
+    B -->|No| D{"Test Pattern?\nfake_, test_"}
+    D -->|Yes| E["📉 -25% Confidence"]
+    D -->|No| F{"Variable Name?\ncamelCase"}
+    F -->|Yes| G["❌ Skipped"]
+    F -->|No| H["✅ Real Finding"]
+    style C fill:#F39C12,stroke:#D68910,color:#fff
+    style E fill:#E67E22,stroke:#D35400,color:#fff
+    style G fill:#7F8C8D,stroke:#616A6B,color:#fff
+    style H fill:#27AE60,stroke:#1E8449,color:#fff
+```
+
 ---
 
 ### 4.9 What Is Severity?
@@ -430,6 +680,24 @@ A **false positive** is when the tool incorrectly identifies something as a secr
 
 **Why severity matters:**  
 In a large codebase, CredVigil might find dozens or even hundreds of potential secrets. Severity helps you **prioritize**: fix CRITICAL and HIGH first, then work your way down.
+
+```mermaid
+flowchart TD
+    A["🔴 CRITICAL"] --> B["🟠 HIGH"]
+    B --> C["🟡 MEDIUM"]
+    C --> D["🔵 LOW"]
+    D --> E["⚪ INFO"]
+    A -.- F["Private keys, root credentials"]
+    B -.- G["API keys, OAuth secrets"]
+    C -.- H["Internal tokens, webhooks"]
+    D -.- I["Test keys, read-only tokens"]
+    E -.- J["Generic patterns, entropy-only"]
+    style A fill:#E74C3C,stroke:#C0392B,color:#fff
+    style B fill:#E67E22,stroke:#D35400,color:#fff
+    style C fill:#F1C40F,stroke:#D4AC0D,color:#000
+    style D fill:#3498DB,stroke:#2980B9,color:#fff
+    style E fill:#BDC3C7,stroke:#95A5A6,color:#000
+```
 
 ---
 
@@ -645,6 +913,18 @@ When you use `--format json`, the output is machine-readable JSON:
 - Saving results to a file for later analysis
 - CI/CD pipeline integration
 - Building dashboards or reports
+
+```mermaid
+flowchart LR
+    A["CredVigil Scan"] --> B{"--format?"}
+    B -->|"text (default)"| C["🖥️ Terminal\nColored, human-readable"]
+    B -->|"json"| D["📋 JSON\nMachine-readable"]
+    D --> E["CI/CD Pipelines"]
+    D --> F["Dashboards"]
+    D --> G["Analysis Scripts"]
+    style C fill:#3498DB,stroke:#2980B9,color:#fff
+    style D fill:#27AE60,stroke:#1E8449,color:#fff
+```
 
 ---
 
@@ -997,6 +1277,20 @@ For each line of the file:
 **Why two phases?**  
 Regex catches known patterns with high confidence. Entropy catches unknown/novel patterns that no rule covers. Together, they provide comprehensive detection.
 
+```mermaid
+flowchart LR
+    subgraph Phase1["Phase 1: Regex"]
+        A["276 Rules"] --> B["Known Patterns"]
+    end
+    subgraph Phase2["Phase 2: Entropy"]
+        C["Shannon Analysis"] --> D["Unknown Patterns"]
+    end
+    B & D --> E["Combined Findings"]
+    style Phase1 fill:#3498DB,stroke:#2980B9,color:#fff
+    style Phase2 fill:#E67E22,stroke:#D35400,color:#fff
+    style E fill:#27AE60,stroke:#1E8449,color:#fff
+```
+
 ### 10.4 Confidence Scoring Phase
 
 Every finding gets a confidence score. The scoring algorithm considers:
@@ -1019,6 +1313,18 @@ Final: clamp to [0.0, 1.0]
 **The keyword proximity check** looks at 200 characters before and after the matched text for words from the rule's keyword list. For example, the AWS secret key rule has keywords like `aws`, `secret`, `access_key`, `credential`. If these words appear nearby, confidence goes up.
 
 **The false positive regex check** uses additional patterns defined per rule. For example, the GitHub token rule has false positive patterns that match documentation examples and test fixtures.
+
+```mermaid
+flowchart LR
+    A["Base Confidence"] --> B["+/- Entropy"]
+    B --> C["+/- Keywords"]
+    C --> D["-FP Pattern"]
+    D --> E["-Placeholder"]
+    E --> F["+/- Length"]
+    F --> G["Clamp 0.0–1.0"]
+    style A fill:#3498DB,stroke:#2980B9,color:#fff
+    style G fill:#9B59B6,stroke:#8E44AD,color:#fff
+```
 
 ### 10.5 False Positive Reduction
 
@@ -1279,6 +1585,26 @@ Covering: Slack, Jira, Confluence, Teams, Stack Overflow, private keys (RSA/EC/S
 ---
 
 ## 13. Real-World Scenarios
+
+```mermaid
+flowchart TD
+    subgraph Dev["Development"]
+        A["Pre-Commit Scan"]
+        B["PR Review Scan"]
+    end
+    subgraph CI["CI/CD"]
+        C["Pipeline Gate"]
+    end
+    subgraph Ops["Operations"]
+        D["Full Audit"]
+        E["Config Check"]
+        F["Clipboard Scan"]
+    end
+    A & B --> C --> D
+    style Dev fill:#3498DB,stroke:#2980B9,color:#fff
+    style CI fill:#E67E22,stroke:#D35400,color:#fff
+    style Ops fill:#27AE60,stroke:#1E8449,color:#fff
+```
 
 ### Scenario 1: Pre-Commit Scan
 

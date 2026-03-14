@@ -55,6 +55,17 @@ Once a secret is detected, we need to:
 
 The **Metadata Pipeline** is a modular, composable processing chain that performs all of these operations on every detected finding. It is the bridge between "we found a secret" and "here is a safe, enriched, actionable report."
 
+```mermaid
+flowchart LR
+    A["🔍 Detection\nEngine"] --> B["📦 Raw Finding"]
+    B --> C["⚙️ Metadata\nPipeline"]
+    C --> D["✅ Safe, Enriched\nActionable Report"]
+    style A fill:#3498DB,stroke:#2980B9,color:#fff
+    style B fill:#E74C3C,stroke:#C0392B,color:#fff
+    style C fill:#9B59B6,stroke:#8E44AD,color:#fff
+    style D fill:#27AE60,stroke:#1E8449,color:#fff
+```
+
 ---
 
 ## 2. Why Do We Need Post-Processing?
@@ -81,6 +92,19 @@ CredVigil follows a **zero-trust principle for finding data**: no component down
 
 This is not optional — it's enforced by the SanitizeProcessor, which is always the last step in the default pipeline.
 
+```mermaid
+flowchart TD
+    A["🚨 Raw Secret\nin Memory"] --> B{"Post-Processing"}
+    B --> C["🔐 SHA-256 Hash\nfor identification"]
+    B --> D["🔒 Redacted\nfor display"]
+    B --> E["🗑️ Raw Erased\npermanently"]
+    C & D --> F["✅ Safe to:\nLog, Store, Transmit, Display"]
+    E -.->|"never reaches\ndownstream"| G["❌ Logs, APIs,\nDashboards"]
+    style A fill:#E74C3C,stroke:#C0392B,color:#fff
+    style E fill:#7F8C8D,stroke:#616A6B,color:#fff
+    style F fill:#27AE60,stroke:#1E8449,color:#fff
+```
+
 ---
 
 ## 3. Key Concepts Explained
@@ -96,6 +120,23 @@ Raw Finding → [Hash] → [Redact] → [Enrich] → [Fingerprint] → [Sanitize
 ```
 
 Each processor does exactly one job. They are independent, testable, and replaceable. You can add, remove, or reorder processors to customize the pipeline.
+
+```mermaid
+flowchart LR
+    A["📥 Raw\nFinding"] --> B["🔢 Hash"]
+    B --> C["🔒 Redact"]
+    C --> D["📊 Enrich"]
+    D --> E["🧭 Fingerprint"]
+    E --> F["🧹 Sanitize"]
+    F --> G["✅ Safe\nFinding"]
+    style A fill:#E74C3C,stroke:#C0392B,color:#fff
+    style B fill:#3498DB,stroke:#2980B9,color:#fff
+    style C fill:#9B59B6,stroke:#8E44AD,color:#fff
+    style D fill:#E67E22,stroke:#D35400,color:#fff
+    style E fill:#1ABC9C,stroke:#16A085,color:#fff
+    style F fill:#7F8C8D,stroke:#616A6B,color:#fff
+    style G fill:#27AE60,stroke:#1E8449,color:#fff
+```
 
 ### 3.2 What Is SHA-256 Hashing?
 
@@ -114,6 +155,16 @@ Key properties:
 
 We use SHA-256 so that we can track and deduplicate secrets without ever storing them.
 
+```mermaid
+flowchart LR
+    A["AKIAIOSFODNN7EXAMPLE"] -->|"SHA-256"| B["5e6bf1b9...e1f2a3b\n(64 hex chars)"]
+    C["AKIAIOSFODNN7EXAMPLE"] -->|"SHA-256"| D["5e6bf1b9...e1f2a3b\n(identical!)"]
+    E["ghp_ABCDEFGHIJKLMN..."] -->|"SHA-256"| F["a3c7d9e1...f4b2c8d\n(different)"]
+    style B fill:#9B59B6,stroke:#8E44AD,color:#fff
+    style D fill:#9B59B6,stroke:#8E44AD,color:#fff
+    style F fill:#E67E22,stroke:#D35400,color:#fff
+```
+
 ### 3.3 What Is Redaction?
 
 Redaction replaces most of a secret with asterisks while keeping just enough characters to identify it.
@@ -126,6 +177,19 @@ Redaction replaces most of a secret with asterisks while keeping just enough cha
 
 This lets security teams identify *which* key was leaked (e.g., "the AWS key starting with AKIA") without exposing the full credential.
 
+```mermaid
+flowchart TD
+    A["AKIAIOSFODNN7EXAMPLE\n(20 chars)"] --> B["> 12 chars"]
+    B --> C["AKIA + **** + MPLE"]
+    D["Secret!\n(7 chars)"] --> E["5–12 chars"]
+    E --> F["Se + ****"]
+    G["pass\n(4 chars)"] --> H["≤ 4 chars"]
+    H --> I["****"]
+    style C fill:#27AE60,stroke:#1E8449,color:#fff
+    style F fill:#F39C12,stroke:#D68910,color:#fff
+    style I fill:#E74C3C,stroke:#C0392B,color:#fff
+```
+
 ### 3.4 What Is Enrichment?
 
 Enrichment adds **context** to a finding based on where it was found and what type of secret it is:
@@ -136,6 +200,19 @@ Enrichment adds **context** to a finding based on where it was found and what ty
 - **Scan Metadata**: What scanner version produced this finding? What was the scan ID?
 
 Enrichment transforms a bare match into an actionable intelligence report.
+
+```mermaid
+flowchart TD
+    A["📦 Bare Finding"] --> B{"Enrich Processor"}
+    B --> C["📁 File Type\ngo, python, yaml..."]
+    B --> D["🌍 Environment\nprod, staging, dev..."]
+    B --> E["🏷️ Category\ncloud, database, payment..."]
+    B --> F["📝 Scan Metadata\nversion, ID, config hash"]
+    C & D & E & F --> G["✅ Enriched Finding"]
+    style A fill:#7F8C8D,stroke:#616A6B,color:#fff
+    style G fill:#27AE60,stroke:#1E8449,color:#fff
+    style B fill:#E67E22,stroke:#D35400,color:#fff
+```
 
 ### 3.5 What Is a Fingerprint?
 
@@ -153,6 +230,19 @@ Why do we need this?
 
 A fingerprint is different from a hash — the hash identifies the *secret*, while the fingerprint identifies the *finding* (secret + location).
 
+```mermaid
+flowchart TD
+    subgraph Hash["Secret Hash"]
+        A["Same secret = same hash\nregardless of where found"]
+    end
+    subgraph FP["Fingerprint"]
+        B["Same secret + same location\n= same fingerprint"]
+        C["Same secret + different location\n= different fingerprint"]
+    end
+    style Hash fill:#9B59B6,stroke:#8E44AD,color:#fff
+    style FP fill:#1ABC9C,stroke:#16A085,color:#fff
+```
+
 ### 3.6 What Is Sanitization?
 
 Sanitization is the **final, irreversible step** that clears the raw secret from memory. After sanitization:
@@ -160,6 +250,19 @@ Sanitization is the **final, irreversible step** that clears the raw secret from
 - `RawMatch` is set to an empty string
 - The finding can safely be logged, stored, transmitted, or displayed
 - No component downstream can access the original secret
+
+```mermaid
+flowchart LR
+    A["🔑 RawMatch:\nAKIAIOSFODNN7EXAMPLE"] -->|"Sanitize"| B["🗑️ RawMatch:\n(empty string)"]
+    B --> C["✅ Safe to log"]
+    B --> D["✅ Safe to store"]
+    B --> E["✅ Safe to transmit"]
+    style A fill:#E74C3C,stroke:#C0392B,color:#fff
+    style B fill:#7F8C8D,stroke:#616A6B,color:#fff
+    style C fill:#27AE60,stroke:#1E8449,color:#fff
+    style D fill:#27AE60,stroke:#1E8449,color:#fff
+    style E fill:#27AE60,stroke:#1E8449,color:#fff
+```
 
 ### 3.7 What Is the Zero-Trust Guarantee?
 
@@ -169,6 +272,18 @@ The pipeline enforces this by:
 1. Always including `SanitizeProcessor` as the last processor in the default chain
 2. Clearing `RawMatch` unconditionally
 3. Being the only path findings take before output
+
+```mermaid
+flowchart LR
+    A["🔍 Detection"] --> B["⚙️ Pipeline"]
+    B --> C["🧹 Sanitize\n(always last)"]
+    C --> D{"RawMatch == ''?"}
+    D -->|"✅ Yes"| E["📄 Output"]
+    D -->|"❌ No"| F["🛑 BLOCKED\n(never happens)"]
+    style C fill:#7F8C8D,stroke:#616A6B,color:#fff
+    style E fill:#27AE60,stroke:#1E8449,color:#fff
+    style F fill:#E74C3C,stroke:#C0392B,color:#fff
+```
 
 ---
 
@@ -403,6 +518,41 @@ type Processor interface {
 | **Context-aware** | The `context.Context` parameter supports cancellation and timeouts |
 | **Metadata-aware** | The `ScanMetadata` parameter provides scan-level context |
 
+```mermaid
+classDiagram
+    class Processor {
+        <<interface>>
+        +Name() string
+        +Process(ctx, finding, meta) error
+    }
+    class HashProcessor {
+        +Name() string
+        +Process() error
+    }
+    class RedactProcessor {
+        +Name() string
+        +Process() error
+    }
+    class EnrichProcessor {
+        +Name() string
+        +Process() error
+    }
+    class FingerprintProcessor {
+        +Name() string
+        +Process() error
+    }
+    class SanitizeProcessor {
+        +ClearMetadataSHA bool
+        +Name() string
+        +Process() error
+    }
+    Processor <|.. HashProcessor
+    Processor <|.. RedactProcessor
+    Processor <|.. EnrichProcessor
+    Processor <|.. FingerprintProcessor
+    Processor <|.. SanitizeProcessor
+```
+
 ---
 
 ## 7. Pipeline Orchestration
@@ -456,6 +606,32 @@ The Pipeline uses a `sync.RWMutex` to protect concurrent access to the processor
 - Multiple goroutines can call `ProcessFindings` concurrently (read lock)
 - Adding/inserting processors acquires an exclusive write lock
 
+```mermaid
+sequenceDiagram
+    participant C as Caller
+    participant P as Pipeline
+    participant H as HashProcessor
+    participant R as RedactProcessor
+    participant E as EnrichProcessor
+    participant FP as FingerprintProcessor
+    participant S as SanitizeProcessor
+
+    C->>P: ProcessFindings(findings)
+    loop For each finding
+        P->>H: Process(finding)
+        H-->>P: ok (SecretHash set)
+        P->>R: Process(finding)
+        R-->>P: ok (RedactedMatch set)
+        P->>E: Process(finding)
+        E-->>P: ok (FileType, Env, Category set)
+        P->>FP: Process(finding)
+        FP-->>P: ok (Fingerprint set)
+        P->>S: Process(finding)
+        S-->>P: ok (RawMatch cleared)
+    end
+    P-->>C: kept findings + errors
+```
+
 ---
 
 ## 8. How It Integrates with the Detection Engine
@@ -498,6 +674,20 @@ pipe.ProcessResult(ctx, &results, meta)
 - No post-processing of any kind
 
 This **separation of concerns** makes both components simpler, more testable, and independently evolvable.
+
+```mermaid
+flowchart TD
+    subgraph Before["Before: Component 1 Only"]
+        A1["Engine"] --> A2["Detect + Hash + Redact + Metadata"]
+    end
+    subgraph After["After: Component 1 + 2"]
+        B1["Engine"] --> B2["Detect Only"]
+        B2 --> B3["Pipeline"]
+        B3 --> B4["Hash + Redact + Enrich + Fingerprint + Sanitize"]
+    end
+    style Before fill:#E74C3C,stroke:#C0392B,color:#fff
+    style After fill:#27AE60,stroke:#1E8449,color:#fff
+```
 
 ---
 
@@ -866,6 +1056,16 @@ verifier := myVerifier  // Implements VerificationHook
 pipe.InsertProcessor(4, verifier)  // Before sanitize
 ```
 
+```mermaid
+flowchart LR
+    A["Hash"] --> B["Redact"]
+    B --> C["Enrich"]
+    C --> D["Fingerprint"]
+    D --> E["🔍 Verify\n(future)"]
+    E --> F["Sanitize"]
+    style E fill:#F39C12,stroke:#D68910,color:#fff,stroke-dasharray: 5 5
+```
+
 ---
 
 ## 14. Error Handling & Resilience
@@ -891,6 +1091,17 @@ When running via the CLI, pipeline errors are logged to stderr:
 ```
 
 This does not affect the exit code — the scan is still considered successful if at least some findings were processed.
+
+```mermaid
+flowchart TD
+    A["100 Findings"] --> B["⚙️ Pipeline"]
+    B --> C{"Processor Error?"}
+    C -->|"✅ No Error"| D["97 Kept Findings"]
+    C -->|"❌ Error"| E["3 Dropped\n(logged to stderr)"]
+    D --> F["📄 Output"]
+    style D fill:#27AE60,stroke:#1E8449,color:#fff
+    style E fill:#E74C3C,stroke:#C0392B,color:#fff
+```
 
 ---
 
