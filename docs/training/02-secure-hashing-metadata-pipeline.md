@@ -365,6 +365,20 @@ Output: finding.SecretHash = "5e6bf1b9e9c6e0b..." (64 hex chars)
 
 **Note**: The detection engine also computes `SecretHash` during scanning (for deduplication). The HashProcessor respects this — if `SecretHash` is already set, it uses the existing value and only adds the `Metadata["sha256"]` entry.
 
+```mermaid
+flowchart TD
+    A["Finding arrives"] --> B{"RawMatch empty?"}
+    B -->|"❌ Yes"| C["Skip hashing"]
+    B -->|"✅ Has value"| D{"SecretHash\nalready set?"}
+    D -->|"✅ Yes"| E["Keep existing hash"]
+    D -->|"❌ No"| F["Compute SHA-256"]
+    F --> G["Set SecretHash"]
+    E & G --> H["Set Metadata sha256"]
+    style F fill:#3498DB,stroke:#2980B9,color:#fff
+    style H fill:#27AE60,stroke:#1E8449,color:#fff
+    style C fill:#BDC3C7,stroke:#95A5A6,color:#000
+```
+
 ### 5.2 RedactProcessor
 
 **File**: `pkg/pipeline/redact.go`  
@@ -389,6 +403,19 @@ Output: finding.SecretHash = "5e6bf1b9e9c6e0b..." (64 hex chars)
 | `sk_live_12345...XYz` | `sk_l****VWXz` |
 | `ghp_ABCDE` | `gh****` |
 | `pass` | `****` |
+
+```mermaid
+flowchart TD
+    A["Finding arrives"] --> B{"RedactedMatch\nalready set?"}
+    B -->|"✅ Yes"| C["Skip (idempotent)"]
+    B -->|"❌ No"| D{"Length of RawMatch?"}
+    D -->|"> 12 chars"| E["first4 + **** + last4"]
+    D -->|"5–12 chars"| F["first2 + ****"]
+    D -->"|\u2264 4 chars"| G["****"]
+    E & F & G --> H["✅ RedactedMatch set"]
+    style H fill:#27AE60,stroke:#1E8449,color:#fff
+    style C fill:#BDC3C7,stroke:#95A5A6,color:#000
+```
 
 ### 5.3 EnrichProcessor
 
@@ -469,6 +496,18 @@ fingerprint = SHA-256("aws-access-key:src/config/database.go:42:5e6bf1b9...")
             = "a1b2c3d4..."  (64 hex chars)
 ```
 
+```mermaid
+flowchart LR
+    A["ruleID"] --> E["Concatenate\nwith : separator"]
+    B["location"] --> E
+    C["line #"] --> E
+    D["secretHash"] --> E
+    E --> F["SHA-256"]
+    F --> G["Fingerprint\n64 hex chars"]
+    style E fill:#1ABC9C,stroke:#16A085,color:#fff
+    style G fill:#9B59B6,stroke:#8E44AD,color:#fff
+```
+
 ### 5.5 SanitizeProcessor
 
 **File**: `pkg/pipeline/sanitize.go`  
@@ -490,6 +529,22 @@ fingerprint = SHA-256("aws-access-key:src/config/database.go:42:5e6bf1b9...")
 - Storage in a database
 - Transmission over a network
 - Display on a dashboard
+
+```mermaid
+flowchart TD
+    A["Finding with RawMatch"] --> B["SanitizeProcessor"]
+    B --> C["RawMatch = ''"]
+    C --> D{"ClearMetadataSHA?"}
+    D -->|"✅ Yes"| E["Delete Metadata sha256"]
+    D -->|"❌ No"| F["Keep Metadata sha256"]
+    E & F --> G["✅ Safe Finding"]
+    G --> H["📝 Log"]
+    G --> I["💾 Store"]
+    G --> J["📡 Transmit"]
+    G --> K["💻 Display"]
+    style B fill:#7F8C8D,stroke:#616A6B,color:#fff
+    style G fill:#27AE60,stroke:#1E8449,color:#fff
+```
 
 ---
 
@@ -587,6 +642,21 @@ errs := pipe.ProcessResult(ctx, &result, meta)
 - Recomputes `result.TotalFindings`
 - Recomputes `result.CountBySeverity`
 
+```mermaid
+flowchart LR
+    subgraph PF["ProcessFindings"]
+        A["[]Finding"] --> B["⚙️ Pipeline"]
+        B --> C["kept []Finding"]
+        B --> D["[]error"]
+    end
+    subgraph PR["ProcessResult"]
+        E["ScanResult"] --> F["⚙️ Pipeline"]
+        F --> G["Updated ScanResult\nin-place"]
+    end
+    style PF fill:#3498DB,stroke:#2980B9,color:#fff
+    style PR fill:#9B59B6,stroke:#8E44AD,color:#fff
+```
+
 ### Dynamic Pipeline Modification
 
 ```go
@@ -598,6 +668,19 @@ pipe.InsertProcessor(4, myVerifier)  // Before sanitize (index 4)
 
 // Get the current processor list
 procs := pipe.Processors()
+```
+
+```mermaid
+flowchart LR
+    A["Hash"] --> B["Redact"]
+    B --> C["Enrich"]
+    C --> D["Fingerprint"]
+    D --> E["Sanitize"]
+    
+    F["🆕 Custom Proc"] -.->|"InsertProcessor(4,...)"| D2["Fingerprint"]
+    D2 -.-> F
+    F -.-> E
+    style F fill:#F39C12,stroke:#D68910,color:#fff,stroke-dasharray: 5 5
 ```
 
 ### Thread Safety
@@ -745,9 +828,34 @@ The JSON output now includes the new fields:
 
 Note that `rawMatch` is always empty — this is the zero-trust guarantee in action.
 
+```mermaid
+flowchart LR
+    subgraph Before["Before Pipeline"]
+        A["RawMatch: AKIA...\nNo FileType\nNo Environment\nNo Fingerprint"]
+    end
+    subgraph After["After Pipeline"]
+        B["RawMatch: ''\nSecretHash: 5e6b...\nRedacted: AKIA****MPLE\nFileType: go\nEnvironment: production\nCategory: cloud\nFingerprint: a1b2..."]
+    end
+    Before -->|"⚙️ Pipeline"| After
+    style Before fill:#E74C3C,stroke:#C0392B,color:#fff
+    style After fill:#27AE60,stroke:#1E8449,color:#fff
+```
+
 ---
 
 ## 10. Hands-On Exercises
+
+```mermaid
+flowchart LR
+    E1["Ex 1\nObserve Output"] --> E2["Ex 2\nText vs JSON"]
+    E2 --> E3["Ex 3\nZero-Trust"]
+    E3 --> E4["Ex 4\nFingerprints"]
+    E4 --> E5["Ex 5\nTest Suite"]
+    E5 --> E6["Ex 6\nProd Path"]
+    style E1 fill:#3498DB,stroke:#2980B9,color:#fff
+    style E3 fill:#E67E22,stroke:#D35400,color:#fff
+    style E6 fill:#27AE60,stroke:#1E8449,color:#fff
+```
 
 ### Exercise 1: Observe the Pipeline in Action
 
@@ -869,6 +977,21 @@ pkg/pipeline/
 └── pipeline_test.go  # 32 test functions
 ```
 
+```mermaid
+flowchart TD
+    PIPE["pipeline.go\n🎯 Orchestrator"] --> HASH["hash.go\n🔢 SHA-256"]
+    PIPE --> RED["redact.go\n🔒 Masking"]
+    PIPE --> ENR["enrich.go\n📊 Classify"]
+    PIPE --> FP["fingerprint.go\n🧬 Identifier"]
+    PIPE --> SAN["sanitize.go\n🧹 Erase"]
+    PIPE --> VER["verify.go\n🔍 Hooks"]
+    TEST["pipeline_test.go\n🧪 32 Tests"] --> PIPE
+    PIPE --> MOD["models/finding.go\n📦 Data"]
+    style PIPE fill:#9B59B6,stroke:#8E44AD,color:#fff
+    style TEST fill:#3498DB,stroke:#2980B9,color:#fff
+    style MOD fill:#27AE60,stroke:#1E8449,color:#fff
+```
+
 ### pipeline.go — The Orchestrator
 
 ```go
@@ -963,6 +1086,16 @@ The EnrichProcessor contains three classification functions:
 
 Each function uses prefix or suffix matching (not regex) for performance.
 
+```mermaid
+flowchart LR
+    A["classifyFileType\n60+ extensions"] --> D["FileType"]
+    B["detectEnvironment\npath patterns"] --> E["Environment"]
+    C["categorizeSecret\nprefix matching"] --> F["Category"]
+    style A fill:#3498DB,stroke:#2980B9,color:#fff
+    style B fill:#E67E22,stroke:#D35400,color:#fff
+    style C fill:#9B59B6,stroke:#8E44AD,color:#fff
+```
+
 ### sanitize.go — The Zero-Trust Enforcer
 
 ```go
@@ -1021,6 +1154,16 @@ tagger := &mypipeline.TagProcessor{
     },
 }
 pipe.InsertProcessor(4, tagger)  // Before sanitize (index 4)
+```
+
+```mermaid
+flowchart LR
+    A["Hash"] --> B["Redact"]
+    B --> C["Enrich"]
+    C --> D["Fingerprint"]
+    D --> T["🆕 TagProcessor\nAdds team & project"]
+    T --> E["Sanitize"]
+    style T fill:#F39C12,stroke:#D68910,color:#fff
 ```
 
 ### Guidelines for Custom Processors
@@ -1128,6 +1271,32 @@ A: The HashProcessor skips it (no hash), the RedactProcessor sets `"****"`, and 
 ---
 
 ## 16. Glossary
+
+```mermaid
+flowchart TD
+    subgraph Core["Core Concepts"]
+        A["Processor"]
+        B["Pipeline"]
+    end
+    subgraph Operations["What Processors Do"]
+        C["SHA-256 Hash"]
+        D["Redaction"]
+        E["Enrichment"]
+        F["Fingerprint"]
+        G["Sanitization"]
+    end
+    subgraph Principles["Guiding Principles"]
+        H["Zero-Trust"]
+        I["Idempotent"]
+    end
+    B --> A
+    A --> C & D & E & F & G
+    G --> H
+    D --> I
+    style Core fill:#3498DB,stroke:#2980B9,color:#fff
+    style Operations fill:#9B59B6,stroke:#8E44AD,color:#fff
+    style Principles fill:#27AE60,stroke:#1E8449,color:#fff
+```
 
 | Term | Definition |
 |------|-----------|

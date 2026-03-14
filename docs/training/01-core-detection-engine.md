@@ -242,6 +242,31 @@ A **secret** (also called a **credential**) is any piece of sensitive informatio
 **Why are they dangerous when leaked?**  
 Because anyone who has them can pretend to be you. If someone gets your AWS access key, they can spin up servers, delete your data, or access your S3 buckets — all charged to your account.
 
+```mermaid
+mindmap
+  root((Secrets))
+    API Keys
+      AWS Access Key
+      OpenAI sk-proj-...
+      Stripe sk_live_...
+    Tokens
+      GitHub PAT ghp_...
+      OAuth Bearer
+      JWT eyJ...
+    Passwords
+      Database passwords
+      Connection strings
+      SMTP credentials
+    Private Keys
+      RSA -----BEGIN RSA...
+      SSH id_ed25519
+      PGP/GPG
+    Webhooks
+      Slack hooks
+      Discord webhooks
+      Generic URLs with tokens
+```
+
 ---
 
 ### 4.2 What Is Regex Pattern Matching?
@@ -756,6 +781,25 @@ go test ./... -v
 
 This runs all unit tests. You should see all tests pass with `PASS` at the end.
 
+```mermaid
+flowchart TD
+    A["Step 1: go version"] --> B{"Go installed?"}
+    B -->|"✅ Yes"| C["Step 2: git clone"]
+    B -->|"❌ No"| B2["Install Go\nfrom go.dev/dl"]
+    B2 --> A
+    C --> D["Step 3: go build ./cmd/credvigil"]
+    D --> E["Step 4: ./credvigil version"]
+    E --> F{"Version shown?"}
+    F -->|"✅ Yes"| G["Step 5: go test ./... -v"]
+    F -->|"❌ No"| D
+    G --> H{"All PASS?"}
+    H -->|"✅ Yes"| I["🎉 Ready to scan!"]
+    H -->|"❌ No"| J["Check error messages"]
+    style I fill:#27AE60,stroke:#1E8449,color:#fff
+    style B2 fill:#F39C12,stroke:#D68910,color:#fff
+    style J fill:#E74C3C,stroke:#C0392B,color:#fff
+```
+
 ---
 
 ## 6. Your First Scan — Step by Step
@@ -825,6 +869,18 @@ Let's break down what each line means:
 | `SHA-256: 78314b11...080e0598` | A one-way hash fingerprint of the actual secret |
 | `Context:` | The surrounding lines of code for context |
 
+```mermaid
+flowchart LR
+    A["📁 Scan File"] --> B["🔍 Match Rules"]
+    B --> C["📊 Score Confidence"]
+    C --> D["🔒 Redact Secret"]
+    D --> E["#️⃣ Hash SHA-256"]
+    E --> F["📝 Generate Report"]
+    style A fill:#3498DB,stroke:#2980B9,color:#fff
+    style D fill:#9B59B6,stroke:#8E44AD,color:#fff
+    style F fill:#27AE60,stroke:#1E8449,color:#fff
+```
+
 ### Step 4: Review the Summary
 
 At the bottom of the report, you'll see:
@@ -856,6 +912,15 @@ echo $?    # Will print "1" because findings were found
 echo $?    # Will print "0" because no findings
 ```
 
+```mermaid
+flowchart LR
+    A["CredVigil Scan"] --> B{"Findings?"}
+    B -->|"0 findings"| C["Exit Code 0\n✅ CI passes"]
+    B -->|"1+ findings"| D["Exit Code 1\n🚨 CI fails"]
+    style C fill:#27AE60,stroke:#1E8449,color:#fff
+    style D fill:#E74C3C,stroke:#C0392B,color:#fff
+```
+
 ---
 
 ## 7. Understanding the Scan Output
@@ -869,6 +934,21 @@ The default output is human-readable, colored text designed for terminal use:
 - 🟡 **MEDIUM** findings are shown in yellow
 - 🔵 **LOW** findings are shown in blue
 - ⚪ **INFO** findings are shown in gray
+
+```mermaid
+block-beta
+    columns 5
+    A["🔴 CRITICAL"]:1
+    B["🟠 HIGH"]:1
+    C["🟡 MEDIUM"]:1
+    D["🔵 LOW"]:1
+    E["⚪ INFO"]:1
+    style A fill:#E74C3C,stroke:#C0392B,color:#fff
+    style B fill:#E67E22,stroke:#D35400,color:#fff
+    style C fill:#F1C40F,stroke:#D4AC0D,color:#000
+    style D fill:#3498DB,stroke:#2980B9,color:#fff
+    style E fill:#BDC3C7,stroke:#95A5A6,color:#000
+```
 
 ### JSON Output
 
@@ -963,6 +1043,24 @@ echo 'SECRET=abc123' | ./credvigil scan --stdin --source my-pipeline
 - Build directories (.git, node_modules, vendor, dist, build, etc.)
 - Files larger than 5 MB
 
+```mermaid
+flowchart TD
+    A["📁 File Found"] --> B{"Binary?"}
+    B -->|"❌ Yes"| S1["Skip"]
+    B -->|"✅ No"| C{"Lock file?"}
+    C -->|"❌ Yes"| S2["Skip"]
+    C -->|"✅ No"| D{"Excluded dir?\n.git, node_modules.."}
+    D -->|"❌ Yes"| S3["Skip"]
+    D -->|"✅ No"| E{"> 5 MB?"}
+    E -->|"❌ Yes"| S4["Skip"]
+    E -->|"✅ No"| F["🔍 Scan!"]
+    style F fill:#27AE60,stroke:#1E8449,color:#fff
+    style S1 fill:#BDC3C7,stroke:#95A5A6,color:#000
+    style S2 fill:#BDC3C7,stroke:#95A5A6,color:#000
+    style S3 fill:#BDC3C7,stroke:#95A5A6,color:#000
+    style S4 fill:#BDC3C7,stroke:#95A5A6,color:#000
+```
+
 ### 8.2 The `rules` Command
 
 Lists all detection rules and the services they cover.
@@ -1004,11 +1102,49 @@ Shows the current version and build information.
 | `--stdin` | _(flag)_ | disabled | Read input from standard input instead of a file/directory. |
 | `--source` | any string | auto-detected | Label for the source (shown in output). Useful for pipelines. |
 
+```mermaid
+flowchart LR
+    subgraph Filtering["Filter Flags"]
+        A["--min-severity"]
+        B["--min-confidence"]
+        C["--no-entropy"]
+    end
+    subgraph Display["Display Flags"]
+        D["--format"]
+        E["--context-lines"]
+        F["--no-context"]
+    end
+    subgraph Input["Input Flags"]
+        G["--stdin"]
+        H["--source"]
+    end
+    Filtering --> I["🔍 Narrower Results"]
+    Display --> J["💻 Output Format"]
+    Input --> K["📥 Data Source"]
+    style Filtering fill:#3498DB,stroke:#2980B9,color:#fff
+    style Display fill:#9B59B6,stroke:#8E44AD,color:#fff
+    style Input fill:#E67E22,stroke:#D35400,color:#fff
+```
+
 ---
 
 ## 9. Hands-On Exercises
 
 These exercises are designed to help you learn CredVigil by doing. Work through them in order — each one builds on the previous.
+
+```mermaid
+flowchart LR
+    E1["Ex 1\nFirst Scan"] --> E2["Ex 2\nFilter Severity"]
+    E2 --> E3["Ex 3\nJSON Output"]
+    E3 --> E4["Ex 4\nConfidence"]
+    E4 --> E5["Ex 5\nEntropy Toggle"]
+    E5 --> E6["Ex 6\nStdin Piping"]
+    E6 --> E7["Ex 7\nCustom File"]
+    E7 --> E8["Ex 8\nReal Project"]
+    style E1 fill:#3498DB,stroke:#2980B9,color:#fff
+    style E4 fill:#E67E22,stroke:#D35400,color:#fff
+    style E8 fill:#27AE60,stroke:#1E8449,color:#fff
+```
 
 ### Exercise 1: Scan the Test Data File
 
@@ -1210,6 +1346,27 @@ This section explains exactly what happens under the hood when you run `./credvi
 
 When you run a scan, here's the exact sequence of events:
 
+```mermaid
+flowchart TD
+    A["1. CLI Parses\nCommand & Flags"] --> B["2. FileScanner Walks\nDirectory Tree"]
+    B --> C["3. For Each File"]
+    C --> D{"Skip?\nbinary / large / excluded"}
+    D -->|"❌ Skip"| C
+    D -->|"✅ Read"| E["Read File Into Memory"]
+    E --> F["4. Engine.ScanContent()"]
+    F --> G["Split into lines"]
+    G --> H["Run 276 regex rules"]
+    H --> I["Extract matches + entropy"]
+    I --> J["Compute confidence"]
+    J --> K["5. Pipeline:\nHash→Redact→Enrich→FP→Sanitize"]
+    K --> L["Deduplicate & Filter"]
+    L --> M["6. Aggregate & Display"]
+    style A fill:#3498DB,stroke:#2980B9,color:#fff
+    style F fill:#9B59B6,stroke:#8E44AD,color:#fff
+    style K fill:#E67E22,stroke:#D35400,color:#fff
+    style M fill:#27AE60,stroke:#1E8449,color:#fff
+```
+
 ```
 1. CLI parses your command and flags
         │
@@ -1256,6 +1413,21 @@ Because some secrets span multiple lines. For example, RSA private keys:
 MIIEpAIBAAKCAQEA0Z3VS5JJcds3xfn/ygWyF8Pbn...
 aJznm0oFMJbHzlaHTYlMbFBIFWsW+nXPC5JdQ2WKA8...
 -----END RSA PRIVATE KEY-----
+```
+
+```mermaid
+flowchart TD
+    A["Full File Content"] --> B["Apply Rule #1"]
+    B --> C{"Pattern Match?"}
+    C -->|"✅ Match"| D["Extract Capture Group"]
+    D --> E{"Min Entropy?"}
+    E -->|"✅ Pass"| F["Calculate Line Number"]
+    F --> G["📝 Create Finding"]
+    E -->|"❌ Fail"| H["Discard Match"]
+    C -->|"❌ No Match"| I["Try Next Rule"]
+    I --> B
+    style G fill:#27AE60,stroke:#1E8449,color:#fff
+    style H fill:#BDC3C7,stroke:#95A5A6,color:#000
 ```
 
 ### 10.3 Entropy Analysis Phase
@@ -1338,6 +1510,27 @@ CredVigil uses multiple strategies to reduce false positives:
 4. **Minimum entropy requirements** — some rules require a minimum entropy, filtering out predictable values
 5. **Allow-list** — configurable patterns that suppress findings (useful for known safe values)
 
+```mermaid
+flowchart TD
+    A["Raw Match"] --> B{"Placeholder?\nxxxx, changeme..."}
+    B -->|"❌ Yes"| X1["🚫 Confidence -40%"]
+    B -->|"✅ No"| C{"Code Identifier?\ncamelCase, snake_case"}
+    C -->|"❌ Yes"| X2["🚫 Likely not a secret"]
+    C -->|"✅ No"| D{"FP Pattern Match?"}
+    D -->|"❌ Yes"| X3["🚫 Confidence -25%"]
+    D -->|"✅ No"| E{"Min Entropy?"}
+    E -->|"❌ Fail"| X4["🚫 Filtered out"]
+    E -->|"✅ Pass"| F{"Allow-listed?"}
+    F -->|"❌ Yes"| X5["🚫 Suppressed"]
+    F -->|"✅ No"| G["✅ Real Finding"]
+    style G fill:#27AE60,stroke:#1E8449,color:#fff
+    style X1 fill:#E74C3C,stroke:#C0392B,color:#fff
+    style X2 fill:#E74C3C,stroke:#C0392B,color:#fff
+    style X3 fill:#E74C3C,stroke:#C0392B,color:#fff
+    style X4 fill:#E74C3C,stroke:#C0392B,color:#fff
+    style X5 fill:#E74C3C,stroke:#C0392B,color:#fff
+```
+
 ### 10.6 Deduplication
 
 CredVigil uses SHA-256 hashes to detect duplicate findings within a single scan:
@@ -1345,6 +1538,19 @@ CredVigil uses SHA-256 hashes to detect duplicate findings within a single scan:
 - Each finding is keyed as: `SHA256(secret_value):rule_id:line_number`
 - If the same key appears twice, the second occurrence is skipped
 - This prevents double-reporting when a regex with different sub-patterns matches the same secret
+
+```mermaid
+flowchart LR
+    A["Finding A\nhash:rule:line42"] --> B{"Seen before?"}
+    B -->|"✅ New"| C["Add to results"]
+    A2["Finding B\nhash:rule:line42"] --> B2{"Seen before?"}
+    B2 -->|"❌ Duplicate"| D["Skip"]
+    A3["Finding C\nhash:rule:line99"] --> B3{"Seen before?"}
+    B3 -->|"✅ New"| C3["Add to results"]
+    style C fill:#27AE60,stroke:#1E8449,color:#fff
+    style C3 fill:#27AE60,stroke:#1E8449,color:#fff
+    style D fill:#BDC3C7,stroke:#95A5A6,color:#000
+```
 
 ### 10.7 Hashing & Redaction
 
@@ -1356,6 +1562,23 @@ After a finding is created:
    - Calls `Redact()` (if not already done)
    - Sets `RawMatch` to empty string
    - The raw secret value is no longer in memory
+
+```mermaid
+sequenceDiagram
+    participant E as Engine
+    participant F as Finding
+    participant H as SHA-256
+    participant R as Redactor
+
+    E->>F: Create Finding(RawMatch)
+    E->>H: hashSecret(RawMatch)
+    H-->>F: SecretHash = "5e6bf1..." 
+    E->>R: Redact(RawMatch)
+    R-->>F: RedactedMatch = "AKIA****MPLE"
+    E->>F: ClearRawMatch()
+    Note over F: RawMatch = "" (erased)
+    Note over F: Only SecretHash +\nRedactedMatch remain
+```
 
 ---
 
@@ -1391,6 +1614,23 @@ credvigil/
 ├── LICENSE                        ← Apache 2.0 License
 ├── SECURITY.md                    ← Security policy & disclaimers
 └── README.md                      ← Project overview
+```
+
+```mermaid
+flowchart TD
+    CLI["cmd/credvigil/main.go\n💻 CLI Entry Point"] --> ENG["pkg/detector/engine.go\n🧠 Detection Engine"]
+    CLI --> SCN["pkg/detector/scanner.go\n📁 File Scanner"]
+    SCN --> ENG
+    ENG --> RUL["pkg/rules/rules.go\n📖 276 Rules"]
+    ENG --> ENT["pkg/entropy/entropy.go\n📊 Shannon Math"]
+    ENG --> MOD["pkg/models/finding.go\n📦 Data Structures"]
+    CLI --> PIP["pkg/pipeline/...\n⚙️ Post-Processing"]
+    PIP --> MOD
+    CLI --> CFG["internal/config/config.go\n⚙️ Configuration"]
+    style CLI fill:#3498DB,stroke:#2980B9,color:#fff
+    style ENG fill:#9B59B6,stroke:#8E44AD,color:#fff
+    style PIP fill:#E67E22,stroke:#D35400,color:#fff
+    style MOD fill:#27AE60,stroke:#1E8449,color:#fff
 ```
 
 ### `pkg/models/finding.go` — Core Data Structures
@@ -1582,6 +1822,20 @@ CredVigil covers 25+ categories of secrets. Here's what each category covers and
 
 Covering: Slack, Jira, Confluence, Teams, Stack Overflow, private keys (RSA/EC/SSH/PGP), JWT, OAuth, SendGrid, Mailgun, Mailchimp, Postmark, Resend, Docker, NPM, PyPI, Heroku, Vault, Terraform, Datadog, New Relic, Sentry, Grafana, Splunk, PagerDuty, OpenTelemetry, CircleCI, Jenkins, Travis CI, Buildkite, Drone, Pulumi, Google Maps, Mapbox, Twitter/X, Facebook, LinkedIn, Cloudinary, Backblaze, Alchemy, Infura, Etherscan, Moralis, Meilisearch, Typesense, HubSpot, Mixpanel, Segment, Intercom, Zendesk, Auth0, Okta, Clerk, and more.
 
+```mermaid
+pie title 276 Detection Rules by Category
+    "Cloud Providers" : 15
+    "AI/ML Services" : 11
+    "Source Control" : 7
+    "Payment/Finance" : 9
+    "Databases" : 12
+    "Communication" : 10
+    "DevOps/CI" : 15
+    "Private Keys" : 8
+    "Monitoring" : 12
+    "Other Services" : 177
+```
+
 ---
 
 ## 13. Real-World Scenarios
@@ -1618,6 +1872,26 @@ git diff --name-only | xargs ./credvigil scan
 # You'll see the findings and can fix before committing
 ```
 
+```mermaid
+sequenceDiagram
+    participant Dev as Developer
+    participant Git as git diff
+    participant CV as CredVigil
+    participant Repo as Git Repo
+
+    Dev->>Git: git diff --name-only
+    Git-->>CV: changed files list
+    CV->>CV: Scan each file
+    alt No secrets found
+        CV-->>Dev: Exit 0 ✅
+        Dev->>Repo: git commit & push
+    else Secrets found!
+        CV-->>Dev: Exit 1 🚨
+        Dev->>Dev: Remove secrets
+        Dev->>Git: git diff --name-only
+    end
+```
+
 ### Scenario 2: CI/CD Pipeline Gate
 
 In a GitHub Actions workflow or similar CI/CD system:
@@ -1627,6 +1901,18 @@ In a GitHub Actions workflow or similar CI/CD system:
 ./credvigil scan . --min-severity medium --format json > results.json
 
 # The exit code (1 = findings found) can automatically fail the build
+```
+
+```mermaid
+flowchart LR
+    A["📦 Code Push"] --> B["⚙️ CI Pipeline"]
+    B --> C["🔍 CredVigil Scan"]
+    C --> D{"Exit Code?"}
+    D -->|"0"| E["✅ Build\nContinues"]
+    D -->|"1"| F["❌ Build\nFails"]
+    F --> G["📧 Alert Developer"]
+    style E fill:#27AE60,stroke:#1E8449,color:#fff
+    style F fill:#E74C3C,stroke:#C0392B,color:#fff
 ```
 
 ### Scenario 3: Reviewing a Pull Request
@@ -1718,12 +2004,52 @@ A:
 
 They're independent filters. A CRITICAL finding with low confidence (like a private key pattern that matches a test file) and a LOW finding with high confidence (like a definitively-matched test API key) are both possible.
 
+```mermaid
+quadrantChart
+    title Severity vs Confidence
+    x-axis Low Confidence --> High Confidence
+    y-axis Low Severity --> High Severity
+    quadrant-1 Review immediately
+    quadrant-2 Investigate further
+    quadrant-3 Low priority
+    quadrant-4 Likely safe
+    Real AWS key in prod: [0.9, 0.95]
+    Test API key: [0.8, 0.2]
+    Placeholder in docs: [0.15, 0.6]
+    Generic entropy match: [0.4, 0.3]
+```
+
 **Q: What does exit code 1 mean?**  
 A: CredVigil exits with code 1 if any findings are reported (after applying your filters). This is intentional — it allows CI/CD pipelines to fail builds automatically when secrets are detected. Exit code 0 means no findings.
 
 ---
 
 ## 15. Glossary
+
+```mermaid
+flowchart LR
+    subgraph Input["Input Concepts"]
+        A["Regex Rule"]
+        B["Shannon Entropy"]
+    end
+    subgraph Process["Processing"]
+        C["Finding"]
+        D["Confidence Score"]
+        E["Severity Level"]
+    end
+    subgraph Output["Output Safety"]
+        F["Redaction"]
+        G["SHA-256 Hash"]
+        H["Zero-Trust"]
+    end
+    A & B --> C
+    C --> D & E
+    C --> F & G
+    F & G --> H
+    style Input fill:#3498DB,stroke:#2980B9,color:#fff
+    style Process fill:#9B59B6,stroke:#8E44AD,color:#fff
+    style Output fill:#27AE60,stroke:#1E8449,color:#fff
+```
 
 | Term | Definition |
 |------|-----------|
