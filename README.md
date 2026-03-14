@@ -61,6 +61,18 @@ echo 'AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY' | ./credvi
 # Regex-only mode (disable entropy detection)
 ./credvigil scan --no-entropy ./src/
 
+# Scan a git repository's commit history for secrets
+./credvigil scan --git https://github.com/org/repo.git
+
+# Scan a local repo's git history
+./credvigil scan --git ./my-project/
+
+# Scan only a specific branch, limit commits
+./credvigil scan --git ./my-project/ --git-branch develop --git-max-commits 100
+
+# Incremental scan (only commits after a known point)
+./credvigil scan --git ./my-project/ --git-since abc1234
+
 # List all detection rules
 ./credvigil rules
 ```
@@ -187,7 +199,7 @@ CredVigil is designed as a modular, component-based system. Each component is de
 |---|-----------|:------:|-------------|
 | 1 | **Core Detection Engine** | ✅ | Regex + entropy scanning, confidence scoring, false-positive reduction |
 | 2 | **Secure Hashing & Metadata Pipeline** | ✅ | Zero-trust pipeline — hash, redact, enrich, fingerprint, and sanitize findings |
-| 3 | Git Integration Layer | — | Scan git history, blame, branches, and PR diffs |
+| 3 | **Git Integration Layer** | ✅ | Clone repos, walk commit history, diff branches, detect secrets in git history |
 | 4 | File System Watcher | — | Real-time monitoring via fsnotify |
 | 5 | Event Bus | — | Internal pub/sub for decoupled component communication |
 | 6 | API Server | — | REST/gRPC API for integrations |
@@ -222,15 +234,22 @@ credvigil/
 │   │   ├── engine.go
 │   │   ├── engine_test.go
 │   │   └── scanner.go
-│   └── pipeline/           # Post-processing pipeline (Component 2)
-│       ├── pipeline.go     # Orchestrator & Processor interface
-│       ├── hash.go         # SHA-256 hashing
-│       ├── redact.go       # Secret masking
-│       ├── enrich.go       # File type, environment, category classification
-│       ├── fingerprint.go  # Stable cross-scan identifier
-│       ├── sanitize.go     # Zero-trust RawMatch clearing
-│       ├── verify.go       # Verification hook interface (placeholder)
-│       └── pipeline_test.go
+│   ├── pipeline/           # Post-processing pipeline (Component 2)
+│   │   ├── pipeline.go     # Orchestrator & Processor interface
+│   │   ├── hash.go         # SHA-256 hashing
+│   │   ├── redact.go       # Secret masking
+│   │   ├── enrich.go       # File type, environment, category classification
+│   │   ├── fingerprint.go  # Stable cross-scan identifier
+│   │   ├── sanitize.go     # Zero-trust RawMatch clearing
+│   │   ├── verify.go       # Verification hook interface (placeholder)
+│   │   └── pipeline_test.go
+│   └── git/                # Git integration layer (Component 3)
+│       ├── git.go          # Core types: Repository, Commit, DiffEntry, ScanOptions
+│       ├── clone.go        # Open, clone, and manage git repositories
+│       ├── diff.go         # Unified diff parser — extract added lines
+│       ├── walker.go       # Walk commit history, yield diffs per commit
+│       ├── scanner.go      # Orchestrate detection engine over git history
+│       └── git_test.go     # 45+ tests + 2 benchmarks
 ├── internal/
 │   └── config/             # Application configuration
 │       └── config.go
@@ -263,6 +282,7 @@ go test ./pkg/rules -v        # Rule loading + pattern matching
 go test ./pkg/entropy -v      # Entropy calculation
 go test ./pkg/detector -v     # Engine + scanner integration
 go test ./pkg/pipeline -v     # Post-processing pipeline
+go test ./pkg/git -v          # Git integration layer
 ```
 
 An interactive test suite is also available:
@@ -281,6 +301,7 @@ This runs 14 end-to-end tests covering version checks, full scans, severity/conf
 |----------|-------------|
 | [Module 1: Core Detection Engine](docs/training/01-core-detection-engine.md) | Concepts, CLI usage, hands-on exercises, and full code walkthrough |
 | [Module 2: Secure Hashing & Metadata Pipeline](docs/training/02-secure-hashing-metadata-pipeline.md) | Pipeline architecture, processors, zero-trust guarantee, custom processors |
+| [Module 3: Git Integration Layer](docs/training/03-git-integration-layer.md) | Clone, walk history, parse diffs, scan commits for leaked secrets |
 | [SECURITY.md](SECURITY.md) | Security policy, responsible disclosure, zero-trust design, and liability |
 | [LICENSE](LICENSE) | Apache License 2.0 |
 

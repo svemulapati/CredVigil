@@ -439,6 +439,21 @@ func (e *Engine) entropyDetection(content string, lines []string, source models.
 					"entropy_score": fmt.Sprintf("%.2f", m.Score),
 				},
 			}
+
+			// Copy over source metadata (git fields, etc.)
+			if source.CommitHash != "" {
+				finding.Source.CommitHash = source.CommitHash
+			}
+			if source.Author != "" {
+				finding.Source.Author = source.Author
+			}
+			if source.Branch != "" {
+				finding.Source.Branch = source.Branch
+			}
+			if source.MachineID != "" {
+				finding.Source.MachineID = source.MachineID
+			}
+
 			// NOTE: Redact() now handled by the pipeline
 			findings = append(findings, finding)
 		}
