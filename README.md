@@ -220,7 +220,7 @@ CredVigil is designed as a modular, component-based system. Each component is de
 | 2 | **Secure Hashing & Metadata Pipeline** | ✅ | Zero-trust pipeline — hash, redact, enrich, fingerprint, and sanitize findings |
 | 3 | **Git Integration Layer** | ✅ | Clone repos, walk commit history, diff branches, detect secrets in git history |
 | 4 | **File System Watcher** | ✅ | Real-time monitoring via fsnotify — debounced events, recursive watching, configurable exclusions |
-| 5 | Event Bus | — | Internal pub/sub for decoupled component communication |
+| 5 | **Event Bus** | ✅ | Internal pub/sub for decoupled component communication — topic-based, async delivery, wildcard subscriptions, stats |
 | 6 | API Server | — | REST/gRPC API for integrations |
 | 7 | Storage Layer | — | Persistent storage for findings, trends, and audit trail |
 | 8 | Web Dashboard | — | Visual overview of credential risk across repositories |
@@ -269,9 +269,12 @@ credvigil/
 │   │   ├── walker.go       # Walk commit history, yield diffs per commit
 │   │   ├── scanner.go      # Orchestrate detection engine over git history
 │   │   └── git_test.go     # 45+ tests + 2 benchmarks
-│   └── watcher/            # File system watcher (Component 4)
-│       ├── watcher.go      # Real-time fsnotify watcher with debounce + filtering
-│       └── watcher_test.go # 22 tests: events, debounce, exclusions, recursive watching
+│   ├── watcher/            # File system watcher (Component 4)
+│   │   ├── watcher.go      # Real-time fsnotify watcher with debounce + filtering
+│   │   └── watcher_test.go # 22 tests: events, debounce, exclusions, recursive watching
+│   └── eventbus/           # Event bus (Component 5)
+│       ├── eventbus.go     # Topic-based pub/sub with async delivery + wildcard support
+│       └── eventbus_test.go # 42 tests + 5 benchmarks: pub/sub, concurrency, integration
 ├── internal/
 │   └── config/             # Application configuration
 │       └── config.go
@@ -306,6 +309,7 @@ go test ./pkg/detector -v     # Engine + scanner integration
 go test ./pkg/pipeline -v     # Post-processing pipeline
 go test ./pkg/git -v          # Git integration layer
 go test ./pkg/watcher -v      # File system watcher
+go test ./pkg/eventbus -v     # Event bus
 ```
 
 An interactive test suite is also available:
@@ -326,6 +330,7 @@ This runs 14 end-to-end tests covering version checks, full scans, severity/conf
 | [Module 2: Secure Hashing & Metadata Pipeline](docs/training/02-secure-hashing-metadata-pipeline.md) | Pipeline architecture, processors, zero-trust guarantee, custom processors |
 | [Module 3: Git Integration Layer](docs/training/03-git-integration-layer.md) | Clone, walk history, parse diffs, scan commits for leaked secrets |
 | [Module 4: File System Watcher](docs/training/04-file-system-watcher.md) | Real-time file monitoring, fsnotify, debounce, recursive watching, event filtering |
+| [Module 5: Event Bus](docs/training/05-event-bus.md) | Internal pub/sub, topic-based routing, wildcard subscriptions, async delivery, backpressure |
 | [SECURITY.md](SECURITY.md) | Security policy, responsible disclosure, zero-trust design, and liability |
 | [LICENSE](LICENSE) | Apache License 2.0 |
 
