@@ -23,6 +23,7 @@ type Engine struct {
 	mu           sync.RWMutex
 	config       Config
 	findingCount uint64
+	bpeAnalyzer  *entropy.BPEAnalyzer
 }
 
 // Config holds configuration for the detection engine.
@@ -33,6 +34,8 @@ type Config struct {
 	MinSeverity models.Severity
 	// Whether to run entropy-based detection (in addition to regex)
 	EnableEntropy bool
+	// Whether to run BPE token efficiency detection (third detection method)
+	EnableBPE bool
 	// Minimum length for entropy-based detection candidates
 	EntropyMinLength int
 	// Whether to include surrounding context in findings
@@ -55,6 +58,7 @@ func DefaultConfig() Config {
 		MinConfidence:    0.3,
 		MinSeverity:      models.SeverityInfo,
 		EnableEntropy:    true,
+		EnableBPE:        true,
 		EntropyMinLength: 12,
 		IncludeContext:   true,
 		ContextLines:     2,
@@ -65,8 +69,9 @@ func DefaultConfig() Config {
 // New creates a new detection Engine with the given config.
 func New(cfg Config) *Engine {
 	return &Engine{
-		ruleSet: rules.NewRuleSet(),
-		config:  cfg,
+		ruleSet:     rules.NewRuleSet(),
+		config:      cfg,
+		bpeAnalyzer: entropy.NewBPEAnalyzer(),
 	}
 }
 
@@ -177,6 +182,30 @@ func (e *Engine) ScanContent(req models.ScanRequest) models.ScanResult {
 				continue
 			}
 			// Apply minimum severity filter to entropy findings too
+			minSev := e.config.MinSeverity
+			if req.MinSeverity > minSev {
+				minSev = req.MinSeverity
+			}
+			if f.Severity < minSev {
+				continue
+			}
+			seen[key] = true
+			result.Findings = append(result.Findings, f)
+			result.CountBySeverity[f.Severity]++
+		}
+	}
+
+	// Run BPE token efficiency detection (third detection method)
+	if e.config.EnableBPE {
+		bpeFindings := e.bpeDetection(req.Content, lines, req.Source)
+		for _, f := range bpeFindings {
+			key := fmt.Sprintf("%s:bpe:%d", f.SecretHash, f.Source.Line)
+			if seen[key] {
+				continue
+			}
+			if f.Confidence < e.config.MinConfidence {
+				continue
+			}
 			minSev := e.config.MinSeverity
 			if req.MinSeverity > minSev {
 				minSev = req.MinSeverity
@@ -353,6 +382,16 @@ func (e *Engine) computeConfidence(rule rules.Rule, secret, fullContent string, 
 		confidence += 0.05
 	}
 
+	// BPE token efficiency boost/penalty
+	if e.config.EnableBPE && len(secret) >= 12 {
+		bpeScore := e.bpeAnalyzer.BPEScore(secret)
+		if bpeScore >= 0.7 {
+			confidence += 0.08 // BPE strongly suggests a secret
+		} else if bpeScore <= 0.2 {
+			confidence -= 0.10 // BPE suggests normal text
+		}
+	}
+
 	// Clamp to [0.0, 1.0]
 	if confidence > 1.0 {
 		confidence = 1.0
@@ -455,6 +494,110 @@ func (e *Engine) entropyDetection(content string, lines []string, source models.
 			}
 
 			// NOTE: Redact() now handled by the pipeline
+			findings = append(findings, finding)
+		}
+	}
+	return findings
+}
+
+// bpeDetection scans for strings with low BPE token efficiency not caught by regex or entropy.
+// BPE token efficiency measures how well a string compresses using Byte Pair Encoding.
+// Normal text compresses well (high efficiency); random secrets don't (low efficiency).
+func (e *Engine) bpeDetection(content string, lines []string, source models.Source) []models.Finding {
+	var findings []models.Finding
+
+	for i, line := range lines {
+		matches := e.bpeAnalyzer.ExtractLowEfficiencyWords(line, e.config.EntropyMinLength)
+		for _, m := range matches {
+			if m.Score < 0.5 {
+				continue // Only report high-confidence BPE matches
+			}
+
+			// Skip if it's likely an identifier
+			if isLikelyIdentifier(m.Value) {
+				continue
+			}
+
+			ctx := ""
+			if e.config.IncludeContext {
+				ctx = e.getContext(lines, i+1, e.config.ContextLines)
+			}
+
+			// Check surrounding context for secret-like keywords
+			surroundingText := strings.ToLower(line)
+			hasSecretContext := false
+			secretKeywords := []string{
+				"key", "secret", "token", "password", "passwd", "pwd",
+				"auth", "credential", "api_key", "access_key", "private",
+				"connection", "bearer", "apikey",
+			}
+			for _, kw := range secretKeywords {
+				if strings.Contains(surroundingText, kw) {
+					hasSecretContext = true
+					break
+				}
+			}
+
+			severity := models.SeverityLow
+			confidence := m.Score * 0.5 // BPE-only findings start at modest confidence
+			if hasSecretContext {
+				confidence = m.Score * 0.7
+				severity = models.SeverityMedium
+			}
+
+			// Cross-validate with entropy — if both agree, boost confidence
+			ent := entropy.Shannon(m.Value)
+			charset := entropy.DetectCharset(m.Value)
+			if ent >= charset.Threshold() {
+				confidence += 0.15 // Both BPE and entropy agree — high confidence
+				if severity < models.SeverityMedium {
+					severity = models.SeverityMedium
+				}
+			}
+
+			if confidence < e.config.MinConfidence {
+				continue
+			}
+
+			bpeHash := hashSecret(m.Value)
+
+			finding := models.Finding{
+				ID:          e.generateID(),
+				SecretType:  models.SecretHighEntropy, // Reuse the high-entropy type
+				Description: fmt.Sprintf("Low BPE token efficiency string (efficiency: %.2f, %d tokens / %d chars)", m.Efficiency, m.TokenCount, m.CharCount),
+				Severity:    severity,
+				RuleID:      "bpe-detection",
+				Source: models.Source{
+					Type:     source.Type,
+					Location: source.Location,
+					Line:     i + 1,
+					Context:  ctx,
+				},
+				RawMatch:   m.Value,
+				SecretHash: bpeHash,
+				Entropy:    ent,
+				Confidence: confidence,
+				DetectedAt: time.Now(),
+				Metadata: map[string]string{
+					"bpe_efficiency": fmt.Sprintf("%.2f", m.Efficiency),
+					"bpe_tokens":     fmt.Sprintf("%d", m.TokenCount),
+					"bpe_score":      fmt.Sprintf("%.2f", m.Score),
+				},
+			}
+
+			if source.CommitHash != "" {
+				finding.Source.CommitHash = source.CommitHash
+			}
+			if source.Author != "" {
+				finding.Source.Author = source.Author
+			}
+			if source.Branch != "" {
+				finding.Source.Branch = source.Branch
+			}
+			if source.MachineID != "" {
+				finding.Source.MachineID = source.MachineID
+			}
+
 			findings = append(findings, finding)
 		}
 	}

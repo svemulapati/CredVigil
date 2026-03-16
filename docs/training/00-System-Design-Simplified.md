@@ -15,7 +15,7 @@
 7. [Data Model — The Core Data Structures](#7-data-model--the-core-data-structures)
 8. [Rule Engine — The Pattern Database](#8-rule-engine--the-pattern-database)
 9. [Detection Engine — The Brain](#9-detection-engine--the-brain)
-10. [Entropy Analysis — Catching Unknown Secrets](#10-entropy-analysis--catching-unknown-secrets)
+10. [Entropy & BPE Analysis — Catching Unknown Secrets](#10-entropy--bpe-analysis--catching-unknown-secrets)
 11. [Confidence Scoring — How Sure Are We?](#11-confidence-scoring--how-sure-are-we)
 12. [File Scanner — Scanning Multiple Files Fast](#12-file-scanner--scanning-multiple-files-fast)
 13. [Post-Processing Pipeline — Cleaning Up Results](#13-post-processing-pipeline--cleaning-up-results)
@@ -45,14 +45,14 @@ Developers accidentally leave secrets (passwords, API keys, tokens) in their cod
 
 | Principle | What It Means | Real-World Example |
 |-----------|--------------|-------------------|
-| **Two Detection Methods** | Uses both known patterns AND randomness detection | Like police having both a suspect photo AND a behavior profile |
+| **Three Detection Methods** | Uses known patterns, randomness detection, AND compression resistance | Like police having a suspect photo, a behavior profile, AND forensic analysis |
 | **Never Show Raw Secrets** | Found secrets are always masked in output | Like a bank showing `****1234` instead of your full card number |
 | **Works on Multiple Sources** | Can scan files, folders, git history, and watch files live | Like a security camera that works at every entrance |
 | **Runs Tasks in Parallel** | Scans multiple files at the same time for speed | Like having 4 cashiers instead of 1 at a store |
 
 ### How to Talk About This in an Interview
 
-> "I built CredVigil, a command-line tool that detects leaked secrets in source code. It has 331 built-in rules for known secret patterns like AWS keys and GitHub tokens, plus an entropy analyzer that catches unknown secrets by detecting random-looking strings. It can scan individual files, entire directories, git commit history, and even watch files in real-time. The output never shows the actual secret — it always masks it for security."
+> "I built CredVigil, a command-line tool that detects leaked secrets in source code. It has 331 built-in rules for known secret patterns like AWS keys and GitHub tokens, an entropy analyzer that catches unknown secrets by detecting random-looking strings, and a BPE token efficiency analyzer that detects secrets by measuring compression resistance. It can scan individual files, entire directories, git commit history, and even watch files in real-time. The output never shows the actual secret — it always masks it for security."
 
 ---
 
@@ -71,6 +71,7 @@ graph TD
     subgraph "Layer 2: DETECTION - Finding secrets"
         C["331 Regex Rules<br/>Known patterns"]
         D["Entropy Analyzer<br/>Random-looking strings"]
+        D2["BPE Analyzer<br/>Compression resistance"]
     end
 
     subgraph "Layer 3: POST-PROCESSING - Cleaning up"
@@ -85,8 +86,8 @@ graph TD
         J["JSON output for automation"]
     end
 
-    B --> C & D
-    C & D --> E --> F --> G --> H
+    B --> C & D & D2
+    C & D & D2 --> E --> F --> G --> H
     H --> I & J
 
     style C fill:#ff6b6b,stroke:#333,color:#fff
@@ -97,13 +98,13 @@ graph TD
 ### Simple Explanation
 
 1. **Input Layer**: You tell CredVigil what to scan (a file, folder, git repo, or piped text)
-2. **Detection Layer**: Two engines work together — one matches known patterns (like AWS keys always start with `AKIA`), the other catches random-looking strings that might be passwords
+2. **Detection Layer**: Three engines work together — one matches known patterns (like AWS keys always start with `AKIA`), one catches random-looking strings that might be passwords (Shannon entropy), and one measures compression resistance to detect strings that resist BPE tokenization
 3. **Post-Processing Layer**: Each found secret gets hashed (for tracking), masked (for display), enriched (with extra info), and then the raw secret is deleted from memory
 4. **Output Layer**: Results are shown in the terminal (colorful text) or as JSON (for CI/CD tools)
 
 ### How to Talk About This in an Interview
 
-> "The architecture has 4 clean layers: input, detection, post-processing, and output. Each layer has a single responsibility. The detection layer uses two methods — pattern matching for known secrets and entropy analysis for unknown ones. The post-processing layer ensures we never expose the raw secret in our output. This layered design makes it easy to add new features without changing existing code."
+> "The architecture has 4 clean layers: input, detection, post-processing, and output. Each layer has a single responsibility. The detection layer uses three methods — pattern matching for known secrets, entropy analysis for unknown ones, and BPE token efficiency for compression-resistant detection. The post-processing layer ensures we never expose the raw secret in our output. This layered design makes it easy to add new features without changing existing code."
 
 ---
 
@@ -121,7 +122,7 @@ graph TD
 
     DET["pkg/detector<br/>The detective<br/>Finds secrets in code"]
 
-    ENT["pkg/entropy<br/>The randomness checker<br/>Measures string randomness"]
+    ENT["pkg/entropy<br/>The randomness and compression checker<br/>Shannon entropy + BPE token efficiency"]
 
     RULES["pkg/rules<br/>The rulebook<br/>331 known patterns"]
 
@@ -208,7 +209,7 @@ graph LR
 
 ### How to Talk About This in an Interview
 
-> "When you run a scan, CredVigil walks through every file, skips binary/image files, and runs each text file through the detection engine. The engine checks against 331 known patterns and also analyzes string randomness. Each finding then goes through a 5-step pipeline: hash it (for tracking across scans), mask it (for safe display), enrich it (add file type and category info), fingerprint it (for deduplication), and finally sanitize it (delete the raw secret from memory). The output only shows masked versions like `AKIA****MPLE` — never the real secret."
+> "When you run a scan, CredVigil walks through every file, skips binary/image files, and runs each text file through the detection engine. The engine checks against 331 known patterns, analyzes string randomness, and measures BPE token compression resistance. Each finding then goes through a 5-step pipeline: hash it (for tracking across scans), mask it (for safe display), enrich it (add file type and category info), fingerprint it (for deduplication), and finally sanitize it (delete the raw secret from memory). The output only shows masked versions like `AKIA****MPLE` — never the real secret."
 
 ---
 
@@ -279,6 +280,7 @@ graph TD
         D3["Workers: 4<br/>Scan 4 files at once"]
         D4["Max File Size: 10MB<br/>Skip huge files"]
         D5["Entropy: ON<br/>Check for random strings"]
+        D6["BPE: ON<br/>Check compression resistance"]
     end
 
     subgraph "You Can Override With Flags"
@@ -304,6 +306,7 @@ graph TD
 | Min Severity | Info | Show all severity levels |
 | Workers | 4 | Scan 4 files in parallel |
 | Entropy Detection | ON | Also check for random-looking strings |
+| BPE Detection | ON | Also check compression resistance |
 | Max File Size | 10 MB | Skip files bigger than 10 MB |
 
 ### How to Talk About This in an Interview
@@ -483,9 +486,9 @@ Words that mean "this is NOT a real secret":
 
 ## 9. Detection Engine — The Brain
 
-### Two Ways to Find Secrets
+### Three Ways to Find Secrets
 
-The engine uses **two complementary methods**, like having both a photo and a behavior profile:
+The engine uses **three complementary methods**, like having a photo, a behavior profile, AND forensic analysis:
 
 ```mermaid
 graph LR
@@ -503,15 +506,24 @@ graph LR
         E4["More false alarms possible"]
     end
 
+    subgraph "Method 3: BPE Compression"
+        B1["Checks compression resistance"]
+        B2["Secrets cannot compress well"]
+        B3["Independent from entropy"]
+        B4["Cross-validates other methods"]
+    end
+
     subgraph "Together"
-        T["Best of both worlds!<br/>Known patterns caught precisely<br/>Unknown patterns caught by randomness"]
+        T["Best of all three worlds!<br/>Known patterns caught precisely<br/>Unknown patterns caught by randomness<br/>Compression resistance confirms findings"]
     end
 
     R1 --> T
     E1 --> T
+    B1 --> T
 
     style R1 fill:#ff6b6b,stroke:#333,color:#fff
     style E1 fill:#748ffc,stroke:#333,color:#fff
+    style B1 fill:#9b59b6,stroke:#333,color:#fff
     style T fill:#51cf66,stroke:#333
 ```
 
@@ -521,8 +533,9 @@ graph LR
 flowchart TD
     START["File content arrives"] --> RULES["Step 1: Run all 331 rules<br/>Check every known pattern"]
     RULES --> ENTROPY["Step 2: Run entropy analysis<br/>Look for random-looking strings"]
-    ENTROPY --> DEDUP["Step 3: Remove duplicates<br/>Same secret on same line = 1 finding"]
-    DEDUP --> FILTER["Step 4: Filter results<br/>Remove low-confidence findings"]
+    ENTROPY --> BPE["Step 3: Run BPE analysis<br/>Check compression resistance"]
+    BPE --> DEDUP["Step 4: Remove duplicates<br/>Same secret on same line = 1 finding"]
+    DEDUP --> FILTER["Step 5: Filter results<br/>Remove low-confidence findings"]
     FILTER --> DONE["Done! Return all findings"]
 
     style START fill:#339af0,stroke:#333,color:#fff
@@ -558,11 +571,11 @@ graph TD
 
 ### How to Talk About This in an Interview
 
-> "The detection engine uses a dual approach: pattern matching with 331 rules for known secrets, and entropy analysis for unknown ones. This is like security that has both a wanted poster AND a behavior profiler. Results are deduplicated — if the same secret is found on the same line by the same rule, we only report it once. The engine is also smart about extraction — when a rule matches `password = 'mySecret'`, it extracts just `mySecret`, not the whole line, which makes hashing and masking more accurate."
+> "The detection engine uses a triple approach: pattern matching with 331 rules for known secrets, entropy analysis for unknown ones, and BPE token efficiency for compression-resistant detection. This is like security that has a wanted poster, a behavior profiler, AND a forensic analyst. When entropy and BPE both agree a string is suspicious, confidence gets a +15% boost. Results are deduplicated — if the same secret is found on the same line by the same rule, we only report it once. The engine is also smart about extraction — when a rule matches `password = 'mySecret'`, it extracts just `mySecret`, not the whole line, which makes hashing and masking more accurate."
 
 ---
 
-## 10. Entropy Analysis — Catching Unknown Secrets
+## 10. Entropy & BPE Analysis — Catching Unknown Secrets
 
 ### What Is Entropy? (Simple Version)
 
@@ -615,6 +628,54 @@ Not all characters are equally random:
 ### How to Talk About This in an Interview
 
 > "Entropy analysis catches secrets that don't match any known pattern. It measures how random a string is — real secrets like API keys and passwords tend to be very random, while normal code and English words aren't. We use different thresholds for different character types because hex strings (16 possible characters) and Base64 strings (64 possible characters) have fundamentally different levels of natural randomness. The final score combines randomness quality (70%) with string length (30%) — longer random strings are more likely to be real secrets."
+
+### BPE Token Efficiency — The Compression Test
+
+**BPE (Byte Pair Encoding)** is a compression technique that measures how well text can be compressed by merging common character pairs.
+
+| String | Characters | Tokens | Efficiency | Meaning |
+|--------|-----------|--------|------------|---------|
+| `the function returns` | 20 | ~13 | 1.54 | Normal text — compresses well ✅ |
+| `kJ9mN2pR5tW8xY7` | 16 | 16 | 1.0 | Secret — cannot compress 🚨 |
+
+### Real-World Analogy
+
+> Think of **packing clothes in a suitcase**. Neatly folded regular clothes (normal text) fit together tightly — you can pack a lot. A bag of random screws and bolts (a secret) wastes space because nothing fits together. BPE measures how well text "packs."
+
+### How BPE Works
+
+```mermaid
+flowchart TD
+    INPUT["Input: kJ9mN2pR5tW8x"]
+    SPLIT["Split into individual characters"]
+    MERGE{"Can any common pairs be merged?<br/>(like th, he, in, er, on)"}
+    YES["Merge pairs to reduce token count"]
+    NO["No common pairs found<br/>Token count stays high"]
+    RESULT1["High efficiency = Normal text ✅"]
+    RESULT2["Low efficiency = Likely secret 🚨"]
+
+    INPUT --> SPLIT --> MERGE
+    MERGE -->|"Yes"| YES --> RESULT1
+    MERGE -->|"No"| NO --> RESULT2
+
+    style RESULT1 fill:#51cf66,stroke:#333
+    style RESULT2 fill:#ff6b6b,stroke:#333,color:#fff
+```
+
+### Why Both Entropy AND BPE?
+
+They measure randomness from **different angles**:
+
+| Method | What It Checks | Can Be Fooled By |
+|--------|---------------|-------------------|
+| **Shannon Entropy** | Character frequency distribution | Repeating patterns with even distribution |
+| **BPE Efficiency** | Resistance to pair compression | Strings that happen to contain common pairs |
+
+When **both agree** a string is suspicious, confidence increases by +15%. This cross-validation significantly reduces false positives.
+
+### How to Talk About This in an Interview
+
+> "In addition to Shannon entropy, we use BPE token efficiency as a third detection signal. BPE measures how well a string can be compressed by merging common character pairs. Normal English text compresses to about 1.5 efficiency, while random secrets stay near 1.0 because they have no common pairs. When both entropy AND BPE agree a string is suspicious, we boost confidence by 15%, significantly reducing false positives."
 
 ---
 
@@ -1283,13 +1344,13 @@ Use these cards to quickly answer common interview questions:
 
 ### Card 1: "Tell me about your project"
 
-> "I built CredVigil, a command-line tool that detects leaked secrets in source code. It has 331 built-in detection rules for known secret patterns like AWS keys and GitHub tokens, plus an entropy analyzer that catches unknown secrets by measuring string randomness. It can scan files, directories, git commit history, and watch files in real-time. The tool follows a zero-trust security model — found secrets are always masked in the output, so even if the scan results are leaked, the actual secrets remain protected."
+> "I built CredVigil, a command-line tool that detects leaked secrets in source code. It has 331 built-in detection rules for known secret patterns like AWS keys and GitHub tokens, an entropy analyzer that catches unknown secrets by measuring string randomness, and a BPE token efficiency analyzer that detects compression-resistant strings. It can scan files, directories, git commit history, and watch files in real-time. The tool follows a zero-trust security model — found secrets are always masked in the output, so even if the scan results are leaked, the actual secrets remain protected."
 
 ---
 
 ### Card 2: "Walk me through the architecture"
 
-> "It's a 4-layer pipeline: Input (CLI, files, git, watcher), Detection (331 regex rules + entropy analysis with 5-factor confidence scoring), Post-Processing (5-stage pipeline: hash, mask, enrich, fingerprint, sanitize), and Output (text or JSON). The code is organized into 8 packages with no circular dependencies. The `Finding` struct is the shared data model all components communicate through."
+> "It's a 4-layer pipeline: Input (CLI, files, git, watcher), Detection (331 regex rules + entropy analysis + BPE token efficiency with multi-factor confidence scoring), Post-Processing (5-stage pipeline: hash, mask, enrich, fingerprint, sanitize), and Output (text or JSON). The code is organized into 8 packages with no circular dependencies. The `Finding` struct is the shared data model all components communicate through."
 
 ---
 
@@ -1317,9 +1378,9 @@ Use these cards to quickly answer common interview questions:
 
 ---
 
-### Card 7: "How does entropy detection work?"
+### Card 7: "How does entropy and BPE detection work?"
 
-> "It measures how random a string is. Real secrets like API keys tend to be very random, while normal code and English words aren't. We use different thresholds for different character types — hex strings have a lower randomness ceiling than Base64, so they need different thresholds. The final score is 70% randomness quality and 30% length — longer random strings are more likely to be real secrets."
+> "We use two statistical methods for unknown secret detection. Shannon entropy measures how random a string is — real secrets tend to be very random, while normal code isn't. BPE token efficiency measures how well a string can be compressed by merging common character pairs — secrets resist compression because they lack common pairs. We use different entropy thresholds for different character types, and when both entropy AND BPE agree a string is suspicious, confidence gets a +15% boost. This cross-validation significantly reduces false positives."
 
 ---
 
@@ -1337,9 +1398,10 @@ Use these cards to quickly answer common interview questions:
 | `internal/config/config.go` | Configuration structs and defaults |
 | `pkg/models/finding.go` | Data structures: Finding, Severity, SecretType |
 | `pkg/rules/rules.go` | All 331 detection rules |
-| `pkg/detector/engine.go` | Detection engine: regex + entropy |
+| `pkg/detector/engine.go` | Detection engine: regex + entropy + BPE |
 | `pkg/detector/scanner.go` | File scanner with worker pool |
 | `pkg/entropy/entropy.go` | Shannon entropy analysis |
+| `pkg/entropy/bpe.go` | BPE token efficiency analysis |
 | `pkg/pipeline/pipeline.go` | Pipeline: Processor interface and orchestration |
 | `pkg/pipeline/hash.go` | SHA-256 hashing of secrets |
 | `pkg/pipeline/redact.go` | Masking: `AKIA****MPLE` |

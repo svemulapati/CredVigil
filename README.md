@@ -12,7 +12,7 @@
 
 ## Overview
 
-CredVigil scans codebases, configuration files, and data streams for exposed credentials — API keys, tokens, passwords, private keys, and connection strings. It combines **331 regex detection rules** with **Shannon entropy analysis**, producing findings with confidence scores, severity ratings, and SHA-256 fingerprints. It can scan git history, and monitor files in real-time for instant secret detection.
+CredVigil scans codebases, configuration files, and data streams for exposed credentials — API keys, tokens, passwords, private keys, and connection strings. It combines **331 regex detection rules** with **Shannon entropy analysis** and **BPE token efficiency scoring**, producing findings with confidence scores, severity ratings, and SHA-256 fingerprints. It can scan git history, and monitor files in real-time for instant secret detection.
 
 ### Key Principles
 
@@ -20,7 +20,7 @@ CredVigil scans codebases, configuration files, and data streams for exposed cre
 |-----------|-------------|
 | **Zero-Trust** | Raw secrets are never stored or transmitted. Findings include only SHA-256 hashes and redacted previews. |
 | **Confidence Scoring** | Every finding gets a 0–100% confidence score — not a binary yes/no — so teams can set thresholds and eliminate noise. |
-| **Dual Detection** | Regex catches known credential formats. Shannon entropy catches novel secrets no rule covers. |
+| **Triple Detection** | Regex catches known credential formats. Shannon entropy catches novel secrets no rule covers. BPE token efficiency provides a second statistical lens independent of character-frequency analysis. |
 | **False-Positive Reduction** | Placeholders, test fixtures, and documentation patterns are detected and penalized automatically. |
 
 ---
@@ -197,9 +197,14 @@ Input (file / directory / stdin)
     ├── Shannon Entropy Analysis ────── Catches novel/unknown secrets
     │     Flags high-randomness strings that look like credentials
     │
+    ├── BPE Token Efficiency ────────── Independent statistical check
+    │     Measures how well a string compresses under Byte Pair Encoding
+    │     Normal text compresses well; random secrets don't
+    │
     ├── Confidence Scoring ──────────── 0–100% per finding
     │     ├── Base confidence from matched rule
     │     ├── + Entropy boost (high entropy → likely real)
+    │     ├── + BPE boost (low token efficiency → likely real)
     │     ├── + Keyword proximity ("password", "secret", "key")
     │     ├── − Placeholder penalty (EXAMPLE, TODO, changeme)
     │     └── − Length/pattern penalties
@@ -216,7 +221,7 @@ CredVigil is designed as a modular, component-based system. Each component is de
 
 | # | Component | Status | Description |
 |---|-----------|:------:|-------------|
-| 1 | **Core Detection Engine** | ✅ | Regex + entropy scanning, confidence scoring, false-positive reduction |
+| 1 | **Core Detection Engine** | ✅ | Regex + entropy + BPE token efficiency scanning, confidence scoring, false-positive reduction |
 | 2 | **Secure Hashing & Metadata Pipeline** | ✅ | Zero-trust pipeline — hash, redact, enrich, fingerprint, and sanitize findings |
 | 3 | **Git Integration Layer** | ✅ | Clone repos, walk commit history, diff branches, detect secrets in git history |
 | 4 | **File System Watcher** | ✅ | Real-time monitoring via fsnotify — debounced events, recursive watching, configurable exclusions |
@@ -243,9 +248,11 @@ credvigil/
 ├── pkg/
 │   ├── models/             # Core types: Finding, Source, ScanRequest, Severity
 │   │   └── finding.go
-│   ├── entropy/            # Shannon entropy calculation
+│   ├── entropy/            # Shannon entropy + BPE token efficiency analysis
 │   │   ├── entropy.go
-│   │   └── entropy_test.go
+│   │   ├── bpe.go          # BPE tokenizer, efficiency scoring, dual analysis
+│   │   ├── entropy_test.go
+│   │   └── bpe_test.go     # 30 tests + 5 benchmarks
 │   ├── rules/              # 331 compiled regex detection rules
 │   │   ├── rules.go
 │   │   └── rules_test.go
@@ -304,7 +311,7 @@ go test ./... -race
 
 # Individual packages
 go test ./pkg/rules -v        # Rule loading + pattern matching
-go test ./pkg/entropy -v      # Entropy calculation
+go test ./pkg/entropy -v      # Entropy + BPE token efficiency
 go test ./pkg/detector -v     # Engine + scanner integration
 go test ./pkg/pipeline -v     # Post-processing pipeline
 go test ./pkg/git -v          # Git integration layer

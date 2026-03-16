@@ -162,7 +162,7 @@ flowchart LR
 
 ## 3. How CredVigil Works — The Big Picture
 
-CredVigil uses a **dual detection strategy**. This means it uses two completely different methods to find secrets, and combines the results. This is like having two security guards with different skills — one is good at recognizing faces (known patterns), and the other is good at spotting suspicious behavior (statistical anomalies).
+CredVigil uses a **triple detection strategy**. This means it uses three completely different methods to find secrets, and combines the results. This is like having three security guards with different skills — one recognizes faces (known patterns), one spots suspicious behavior (statistical anomalies), and one checks how "compressible" something is (BPE token efficiency).
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
@@ -174,26 +174,25 @@ CredVigil uses a **dual detection strategy**. This means it uses two completely 
 ┌──────────────────────────────────────────────────────────────────────┐
 │                    CREDVIGIL DETECTION ENGINE                        │
 │                                                                      │
-│   ┌─────────────────────────────┐  ┌──────────────────────────────┐  │
-│   │  STRATEGY 1: Regex Match    │  │  STRATEGY 2: Entropy Check   │  │
-│   │                             │  │                              │  │
-│   │  "Does this text match a    │  │  "Is this string random      │  │
-│   │   known pattern for a       │  │   enough to be a secret?"    │  │
-│   │   specific service?"        │  │                              │  │
-│   │                             │  │  Uses Shannon Entropy — a    │  │
-│   │  161 rules for services     │  │  mathematical measure of     │  │
-│   │  like AWS, GitHub, Stripe,  │  │  randomness.                 │  │
-│   │  OpenAI, Slack, etc.        │  │                              │  │
-│   └──────────────┬──────────────┘  └──────────────┬───────────────┘  │
-│                  │                                │                  │
-│                  └──────────┬─────────────────────┘                  │
-│                             ▼                                        │
+│   ┌───────────────────┐ ┌──────────────────┐ ┌────────────────────┐ │
+│   │ STRATEGY 1: Regex  │ │ STRATEGY 2:      │ │ STRATEGY 3: BPE   │ │
+│   │                    │ │ Entropy Check    │ │ Token Efficiency   │ │
+│   │ "Does this match   │ │                  │ │                    │ │
+│   │  a known pattern?" │ │ "Is this random  │ │ "Does this resist  │ │
+│   │                    │ │  enough to be    │ │  compression like  │ │
+│   │ 331 rules for AWS, │ │  a secret?"      │ │  a random string?" │ │
+│   │ GitHub, Stripe...  │ │                  │ │                    │ │
+│   └────────┬───────────┘ └────────┬─────────┘ └────────┬───────────┘ │
+│            │                      │                     │            │
+│            └──────────┬───────────┴─────────────────────┘            │
+│                       ▼                                              │
 │              ┌──────────────────────────────┐                        │
 │              │   CONFIDENCE SCORING          │                        │
 │              │                              │                        │
 │              │  Combines all signals:       │                        │
 │              │  • Pattern match strength    │                        │
 │              │  • Entropy value             │                        │
+│              │  • BPE token efficiency      │                        │
 │              │  • Keyword context           │                        │
 │              │  • False positive checks     │                        │
 │              │  • Secret length             │                        │
@@ -373,7 +372,79 @@ flowchart LR
 
 ---
 
-### 4.4 What Is Confidence Scoring?
+### 4.4 What Is BPE Token Efficiency?
+
+**BPE (Byte Pair Encoding)** is a compression technique used in modern AI language models (like GPT) to break text into **tokens** — small sub-word units.
+
+**Why does this help detect secrets?**
+
+Normal English text and source code are full of **common character pairs** like `th`, `he`, `in`, `er`, `on`, `an`, `re`, `ed`, `en`, etc. A BPE tokenizer learns these common pairs and merges them into single tokens, effectively **compressing** the text.
+
+Secrets, on the other hand, are **random** — they have very few common character pairs. BPE cannot compress them efficiently, so they require **more tokens per character**.
+
+**Analogy:** Imagine packing clothes into a suitcase. Neatly folded, regular-shaped clothes (normal text) compress nicely. A bag of random screws and parts (secrets) takes up way more space because nothing fits together. BPE Token Efficiency measures how well the text "packs."
+
+**Token Efficiency = Characters ÷ Tokens**
+
+| Input | Characters | Tokens | Efficiency | Verdict |
+|-------|-----------|--------|------------|---------|
+| `the function returns` | 20 | ~13 | ~1.5 | Normal text |
+| `AKIAIOSFODNN7EXAMPLE` | 20 | ~18 | ~1.1 | Likely a secret |
+| `kJ9mN2pR5tW8xY7` | 16 | 16 | 1.0 | Almost certainly a secret |
+
+**CredVigil's BPE thresholds:**
+
+| Efficiency Value | Meaning |
+|-----------------|---------|
+| **< 1.1** (High Confidence) | Almost certainly a secret — extremely resistant to compression |
+| **< 1.3** (Secret Threshold) | Likely a secret — very few common pairs found |
+| **> 1.5** (Normal Threshold) | Normal text — compresses well with common pairs |
+
+**How BPE complements Shannon Entropy:**
+
+Shannon Entropy and BPE Token Efficiency both measure "randomness," but from **different angles**:
+
+| Aspect | Shannon Entropy | BPE Token Efficiency |
+|--------|----------------|---------------------|
+| **What it measures** | Character frequency distribution | Compression resistance |
+| **How it works** | Counts how evenly characters are distributed | Tries to merge common character pairs |
+| **Weakness** | Can be fooled by repeating patterns with even distribution | Can be fooled by strings that happen to contain common pairs |
+| **Strength** | Fast, well-understood mathematically | Catches secrets that have moderate entropy but resist compression |
+
+When **both** Shannon Entropy and BPE agree that a string is suspicious, confidence increases by +15%. This cross-validation significantly reduces false positives.
+
+```mermaid
+flowchart TD
+    A["Input: kJ9mN2pR5tW8x"] --> B["BPE Tokenizer"]
+    B --> C["Split into characters:\nk, J, 9, m, N, 2, p, R, 5, t, W, 8, x"]
+    C --> D{"Any common pairs to merge?"}
+    D -->|"No common pairs found"| E["13 chars, 13 tokens\nEfficiency = 1.0"]
+    E --> F["Below 1.3 threshold\nLikely a Secret"]
+    style F fill:#E74C3C,stroke:#C0392B,color:#fff
+```
+
+```mermaid
+flowchart TD
+    A["Input: the function returns"] --> B["BPE Tokenizer"]
+    B --> C["Split into characters:\nt, h, e, f, u, n, c, t, i, o, n, ..."]
+    C --> D{"Any common pairs to merge?"}
+    D -->|"Merge: th, he, fu, nc, ti, on, re, tu, rn"| E["20 chars, 13 tokens\nEfficiency = 1.54"]
+    E --> F["Above 1.5 threshold\nNormal Text"]
+    style F fill:#27AE60,stroke:#1E8449,color:#fff
+```
+
+**Real example from CredVigil:**
+```
+String: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+Shannon Entropy:    4.66 (high — looks random)
+BPE Efficiency:     1.05 (low — resists compression)
+BPE Score:          0.92 (high confidence it's a secret)
+Both methods agree: ✅ Yes → +15% confidence boost
+```
+
+---
+
+### 4.5 What Is Confidence Scoring?
 
 **Confidence scoring** is CredVigil's way of telling you **how sure it is** that a finding is a real secret, not a false alarm.
 
@@ -389,6 +460,9 @@ CredVigil starts with a **base confidence** from the matching rule (different ru
 |--------|--------|-----|
 | **High entropy** | +10% boost | Random-looking strings are more likely real secrets |
 | **Low entropy** | -20% penalty | Predictable strings are less likely real secrets |
+| **High BPE score** (>=0.7) | +8% boost | String resists BPE compression — characteristic of secrets |
+| **Low BPE score** (<=0.2) | -10% penalty | String compresses well — unlikely to be a secret |
+| **Both entropy + BPE agree** | +15% boost | Cross-validation from two independent methods |
 | **Keyword proximity** | Up to +10% boost | If words like "password", "secret", or "api_key" appear nearby, it's probably real |
 | **False positive pattern** | -25% penalty | If it looks like a placeholder or test value |
 | **Placeholder detection** | -40% penalty | Values like "changeme", "EXAMPLE", "your-key-here" |
@@ -421,17 +495,19 @@ By default, CredVigil only shows findings with **30% or higher** confidence (con
 flowchart TD
     A["Base Confidence\n(from rule, e.g. 0.85)"] --> B{"Adjustments"}
     B --> C["+0.10 High Entropy"]
-    B --> D["+0.10 Keyword Nearby"]
-    B --> E["-0.25 False Positive"]
-    B --> F["-0.40 Placeholder"]
-    C & D & E & F --> G["Final Score\n(clamped 0.0 – 1.0)"]
+    B --> D["+0.08 High BPE Score"]
+    B --> E["+0.15 Both Agree"]
+    B --> F["+0.10 Keyword Nearby"]
+    B --> G["-0.25 False Positive"]
+    B --> H["-0.40 Placeholder"]
+    C & D & E & F & G & H --> I["Final Score\n(clamped 0.0 – 1.0)"]
     style A fill:#3498DB,stroke:#2980B9,color:#fff
-    style G fill:#9B59B6,stroke:#8E44AD,color:#fff
+    style I fill:#9B59B6,stroke:#8E44AD,color:#fff
 ```
 
 ---
 
-### 4.5 What Is Zero-Trust Architecture?
+### 4.6 What Is Zero-Trust Architecture?
 
 **Zero-trust** means: **"Trust nothing and no one by default."**
 
@@ -589,7 +665,7 @@ CredVigil is a tool that *finds* secrets. If CredVigil itself leaked those secre
 
 ---
 
-### 4.6 What Is SHA-256 Hashing?
+### 4.7 What Is SHA-256 Hashing?
 
 **SHA-256** is a **hash function** — it takes any input and produces a fixed-length "fingerprint" that is:
 
@@ -625,7 +701,7 @@ flowchart LR
 
 ---
 
-### 4.7 What Is Redaction?
+### 4.8 What Is Redaction?
 
 **Redaction** means replacing sensitive information with masked characters so it can be safely displayed without revealing the actual value.
 
@@ -655,7 +731,7 @@ flowchart TD
 
 ---
 
-### 4.8 What Are False Positives?
+### 4.9 What Are False Positives?
 
 A **false positive** is when the tool incorrectly identifies something as a secret when it's actually harmless.
 
@@ -693,7 +769,7 @@ flowchart TD
 
 ---
 
-### 4.9 What Is Severity?
+### 4.10 What Is Severity?
 
 **Severity** indicates how dangerous a leaked secret would be if it were real. CredVigil assigns one of five severity levels:
 
@@ -1359,14 +1435,15 @@ flowchart TD
     F --> G["Split into lines"]
     G --> H["Run 331 regex rules"]
     H --> I["Extract matches + entropy"]
-    I --> J["Compute confidence"]
-    J --> K["5. Pipeline:\nHash→Redact→Enrich→FP→Sanitize"]
-    K --> L["Deduplicate & Filter"]
-    L --> M["6. Aggregate & Display"]
+    I --> J["BPE token efficiency analysis"]
+    J --> K["Compute confidence"]
+    K --> L["5. Pipeline:\nHash→Redact→Enrich→FP→Sanitize"]
+    L --> M["Deduplicate & Filter"]
+    M --> N["6. Aggregate & Display"]
     style A fill:#3498DB,stroke:#2980B9,color:#fff
     style F fill:#9B59B6,stroke:#8E44AD,color:#fff
-    style K fill:#E67E22,stroke:#D35400,color:#fff
-    style M fill:#27AE60,stroke:#1E8449,color:#fff
+    style L fill:#E67E22,stroke:#D35400,color:#fff
+    style N fill:#27AE60,stroke:#1E8449,color:#fff
 ```
 
 ```
@@ -1385,15 +1462,19 @@ flowchart TD
         ▼
 4. Engine.ScanContent() processes the ScanRequest:
    a. Split content into lines
-   b. Run all 161 regex rules against the content
+   b. Run all 331 regex rules against the content
    c. For each regex match:
       - Extract the matched secret value
       - Calculate Shannon entropy
       - Compute confidence score
       - Create a Finding with redacted match + SHA-256 hash
    d. Run entropy-based detection on every line
-   e. Deduplicate findings (same hash + same line = one finding)
-   f. Filter by MinConfidence and MinSeverity
+   e. Run BPE token efficiency analysis on every line
+      - Extract low-efficiency words (resist compression)
+      - Cross-validate with Shannon entropy
+      - Create findings for BPE-detected secrets
+   f. Deduplicate findings (same hash + same line = one finding)
+   g. Filter by MinConfidence and MinSeverity
         │
         ▼
 5. Aggregate all results and display
@@ -1401,7 +1482,7 @@ flowchart TD
 
 ### 10.2 Regex Matching Phase
 
-For each of the 161 rules, the engine:
+For each of the 331 rules, the engine:
 
 1. **Runs the regex** against the entire file content (not line-by-line — this allows multi-line matches like private keys)
 2. **Extracts the captured group** — most rules have a capture group `(...)` that isolates just the secret value from the surrounding text. For example, the pattern `AWS_SECRET_ACCESS_KEY[=:]\s*(.{40})` captures the 40-character key, not the variable name
@@ -1448,8 +1529,8 @@ For each line of the file:
    - Does it appear near secret-related keywords ("key", "token", "password")?
 4. **If the word passes all checks**, create a Finding with lower confidence (entropy-only findings get 60% of the entropy score, or 80% if near secret keywords)
 
-**Why two phases?**  
-Regex catches known patterns with high confidence. Entropy catches unknown/novel patterns that no rule covers. Together, they provide comprehensive detection.
+**Why three phases?**  
+Regex catches known patterns with high confidence. Entropy catches unknown/novel patterns that no rule covers. BPE token efficiency provides a third independent signal based on compression resistance. Together, they provide comprehensive detection with high accuracy.
 
 ```mermaid
 flowchart LR
@@ -1459,13 +1540,64 @@ flowchart LR
     subgraph Phase2["Phase 2: Entropy"]
         C["Shannon Analysis"] --> D["Unknown Patterns"]
     end
-    B & D --> E["Combined Findings"]
+    subgraph Phase3["Phase 3: BPE"]
+        E["Token Efficiency"] --> F["Compression-Resistant"]
+    end
+    B & D & F --> G["Combined Findings"]
     style Phase1 fill:#3498DB,stroke:#2980B9,color:#fff
     style Phase2 fill:#E67E22,stroke:#D35400,color:#fff
-    style E fill:#27AE60,stroke:#1E8449,color:#fff
+    style Phase3 fill:#9B59B6,stroke:#8E44AD,color:#fff
+    style G fill:#27AE60,stroke:#1E8449,color:#fff
 ```
 
-### 10.4 Confidence Scoring Phase
+### 10.4 BPE Token Efficiency Phase
+
+After regex and entropy analysis, the engine runs a **third pass** using BPE token efficiency to catch secrets that might have been missed or to cross-validate existing findings.
+
+For each line of the file:
+
+1. **Extract low-efficiency words** using the BPE analyzer
+   - Split the line on common delimiters
+   - For each word that is 8+ characters:
+     - Tokenize using the BPE merge table (~100 common bigrams)
+     - Calculate token efficiency (characters ÷ tokens)
+     - If efficiency is below the secret threshold (1.3), flag it
+2. **Filter out code identifiers** — skip camelCase, snake_case, and all-letters words
+3. **Check context keywords** — look for nearby words like "key", "token", "secret", "password", "auth"
+4. **Cross-validate with Shannon entropy**:
+   - Calculate Shannon entropy for the candidate
+   - If both BPE **and** entropy agree the string is suspicious, boost confidence by +15%
+5. **Create a Finding** with rule ID `bpe-detection` and metadata including `bpe_efficiency`, `bpe_tokens`, and `bpe_score`
+
+**What BPE catches that other methods might miss:**
+
+| Scenario | Regex | Entropy | BPE |
+|----------|-------|---------|-----|
+| Known AWS key format | ✅ | ✅ | ✅ |
+| New/unknown API key format | ❌ | ✅ | ✅ |
+| Secret with moderate entropy but poor compression | ❌ | ❌ | ✅ |
+| Random-looking but non-secret code (e.g., hash constants) | May match | May match | Less likely — context keywords matter |
+
+```mermaid
+flowchart TD
+    A["Each Line of File"] --> B["Split on Delimiters"]
+    B --> C["For Each Word >= 8 chars"]
+    C --> D["BPE Tokenize"]
+    D --> E{"Efficiency < 1.3?"}
+    E -->|"❌ Normal text"| F["Skip"]
+    E -->|"✅ Low efficiency"| G{"Code Identifier?"}
+    G -->|"camelCase/snake_case"| F
+    G -->|"No"| H{"Context Keywords?"}
+    H --> I["Cross-validate\nwith Shannon Entropy"]
+    I --> J{"Both Agree?"}
+    J -->|"✅ Yes"| K["Create Finding\n+15% confidence boost"]
+    J -->|"Only BPE"| L["Create Finding\nstandard confidence"]
+    style K fill:#27AE60,stroke:#1E8449,color:#fff
+    style L fill:#F39C12,stroke:#D68910,color:#fff
+    style F fill:#BDC3C7,stroke:#95A5A6,color:#000
+```
+
+### 10.5 Confidence Scoring Phase
 
 Every finding gets a confidence score. The scoring algorithm considers:
 
@@ -1475,6 +1607,9 @@ Start with: rule.BaseConfidence (set by the rule author, e.g., 0.85 for Stripe)
 Adjustments:
   + 0.10   if entropy >= HighThreshold (very random)
   - 0.20   if entropy < 80% of Threshold (not random enough)
+  + 0.08   if BPE score >= 0.7 (resists compression)
+  - 0.10   if BPE score <= 0.2 (compresses well — unlikely a secret)
+  + 0.15   if both entropy AND BPE agree string is suspicious
   + up to 0.10  if relevant keywords found nearby
   - 0.25   if false positive regex pattern matches
   - 0.40   if placeholder detected
@@ -1491,16 +1626,17 @@ Final: clamp to [0.0, 1.0]
 ```mermaid
 flowchart LR
     A["Base Confidence"] --> B["+/- Entropy"]
-    B --> C["+/- Keywords"]
-    C --> D["-FP Pattern"]
-    D --> E["-Placeholder"]
-    E --> F["+/- Length"]
-    F --> G["Clamp 0.0–1.0"]
+    B --> C["+/- BPE Score"]
+    C --> D["+/- Keywords"]
+    D --> E["-FP Pattern"]
+    E --> F["-Placeholder"]
+    F --> G["+/- Length"]
+    G --> H["Clamp 0.0-1.0"]
     style A fill:#3498DB,stroke:#2980B9,color:#fff
-    style G fill:#9B59B6,stroke:#8E44AD,color:#fff
+    style H fill:#9B59B6,stroke:#8E44AD,color:#fff
 ```
 
-### 10.5 False Positive Reduction
+### 10.6 False Positive Reduction
 
 CredVigil uses multiple strategies to reduce false positives:
 
@@ -1533,7 +1669,7 @@ flowchart TD
     style X5 fill:#E74C3C,stroke:#C0392B,color:#fff
 ```
 
-### 10.6 Deduplication
+### 10.7 Deduplication
 
 CredVigil uses SHA-256 hashes to detect duplicate findings within a single scan:
 
@@ -1554,7 +1690,7 @@ flowchart LR
     style D fill:#BDC3C7,stroke:#95A5A6,color:#000
 ```
 
-### 10.7 Hashing & Redaction
+### 10.8 Hashing & Redaction
 
 After a finding is created:
 

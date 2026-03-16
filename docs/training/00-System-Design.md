@@ -42,7 +42,7 @@ CredVigil is a **static analysis security tool** that detects hardcoded secrets 
 | Principle | Description | How It's Implemented |
 |-----------|-------------|---------------------|
 | **Zero-Trust** | Raw secrets never leave the system boundary | Pipeline sanitizes every finding before output |
-| **Defense in Depth** | Multiple detection layers catch what others miss | Regex rules + Shannon entropy = dual detection |
+| **Defense in Depth** | Multiple detection layers catch what others miss | Regex rules + Shannon entropy + BPE token efficiency = triple detection |
 | **Fail-Safe Defaults** | Secure out of the box | `MinConfidence=0.3`, `EnableEntropy=true`, auto-pipeline |
 | **Separation of Concerns** | Each package has one responsibility | 8 packages, each with a single purpose |
 | **Dependency Minimization** | Only one external dependency (fsnotify) | Git integration uses `os/exec`, no libgit2 |
@@ -50,7 +50,7 @@ CredVigil is a **static analysis security tool** that detects hardcoded secrets 
 
 ### Interview Talking Points
 
-- **"Why build another secret scanner?"** — CredVigil combines regex-based pattern matching with information-theoretic entropy analysis. Most tools do one or the other. The dual-engine approach catches both known patterns (AWS keys) and unknown high-entropy strings (custom tokens).
+- **"Why build another secret scanner?"** — CredVigil combines regex-based pattern matching with information-theoretic entropy analysis and BPE token efficiency scoring. Most tools do one or two of these. The triple-engine approach catches known patterns (AWS keys), unknown high-entropy strings (custom tokens), and compression-resistant strings that other methods might miss.
 - **"How is it different from tools like truffleHog or gitleaks?"** — Zero-trust post-processing pipeline (secrets are hashed and redacted before output), 5-factor confidence scoring reduces false positives, and the pipeline architecture is extensible without modifying core code.
 
 ---
@@ -71,8 +71,8 @@ graph TB
     subgraph "Core Engine Layer"
         CONFIG["Configuration<br/>internal/config"]
         RULES["Rule Engine<br/>pkg/rules<br/>331 compiled regex patterns"]
-        DETECTOR["Detection Engine<br/>pkg/detector<br/>Regex + Entropy dual-mode"]
-        ENTROPY["Entropy Analyzer<br/>pkg/entropy<br/>Shannon entropy per charset"]
+        DETECTOR["Detection Engine<br/>pkg/detector<br/>Regex + Entropy + BPE triple-mode"]
+        ENTROPY["Entropy Analyzer<br/>pkg/entropy<br/>Shannon entropy + BPE token efficiency"]
     end
 
     subgraph "I/O Layer"
@@ -124,13 +124,13 @@ graph TB
 ### Architecture Style: **Layered Pipeline Architecture**
 
 - **Layer 1 — Input**: Multiple input adapters (CLI, stdin, git, filesystem watcher)
-- **Layer 2 — Detection**: Core engine with dual detection modes
+- **Layer 2 — Detection**: Core engine with triple detection modes
 - **Layer 3 — Post-Processing**: Sequential pipeline transforms findings
 - **Layer 4 — Output**: Format adapters for human and machine consumption
 
 ### Interview Explanation
 
-> "CredVigil uses a **layered pipeline architecture**. Input flows through multiple adapters, gets processed by a dual-engine detector (regex + entropy), then passes through a 5-stage post-processing pipeline that hashes, redacts, enriches, fingerprints, and sanitizes each finding. This architecture separates concerns cleanly — the detection engine doesn't know about output formatting, and the pipeline processors don't know about input sources. Each layer communicates through shared data models (`Finding`, `ScanResult`), making the system composable and testable."
+> "CredVigil uses a **layered pipeline architecture**. Input flows through multiple adapters, gets processed by a triple-engine detector (regex + entropy + BPE), then passes through a 5-stage post-processing pipeline that hashes, redacts, enriches, fingerprints, and sanitizes each finding. This architecture separates concerns cleanly — the detection engine doesn't know about output formatting, and the pipeline processors don't know about input sources. Each layer communicates through shared data models (`Finding`, `ScanResult`), making the system composable and testable."
 
 ---
 
@@ -151,7 +151,7 @@ graph LR
     subgraph "Public Packages (pkg/)"
         MODELS["pkg/models<br/>Finding, Source, ScanResult<br/>697 lines"]
         RULES["pkg/rules<br/>331 detection rules<br/>3747 lines"]
-        ENTROPY["pkg/entropy<br/>Shannon entropy<br/>275 lines"]
+        ENTROPY["pkg/entropy<br/>Shannon entropy + BPE<br/>275+ lines"]
         DETECTOR["pkg/detector<br/>Engine + FileScanner<br/>879 lines"]
         PIPELINE["pkg/pipeline<br/>5 processors<br/>~900 lines"]
         GITPKG["pkg/git<br/>5 files, commit walking<br/>~1100 lines"]
@@ -402,6 +402,7 @@ graph TD
         D1["MinConfidence = 0.3<br/>Minimum score to report"]
         D2["MinSeverity = 'info'<br/>Minimum severity level"]
         D3["EnableEntropy = true<br/>Shannon entropy enabled"]
+        D3b["EnableBPE = true<br/>BPE token efficiency enabled"]
         D4["EntropyMinLength = 12<br/>Min string length for entropy"]
         D5["ContextLines = 2<br/>Lines of context around match"]
     end
@@ -764,12 +765,13 @@ graph TD
         VALIDATE["Validate: content not empty,<br/>build exclusion sets"]
         REGEX["Phase 1: Regex Scanning<br/>Loop through all 331 rules"]
         ENTROP["Phase 2: Entropy Detection<br/>Find high-entropy words"]
+        BPE["Phase 3: BPE Detection<br/>Find compression-resistant words"]
         DEDUP["Deduplication<br/>seen map: hash:ruleID:line → bool"]
         FILTER["Filter<br/>min confidence, min severity"]
         OUTPUT["Output: ScanResult<br/>{Findings, TotalFindings, CountBySeverity}"]
     end
 
-    INPUT --> VALIDATE --> REGEX --> ENTROP --> DEDUP --> FILTER --> OUTPUT
+    INPUT --> VALIDATE --> REGEX --> ENTROP --> BPE --> DEDUP --> FILTER --> OUTPUT
 
     RS --> REGEX
     CFG --> FILTER
@@ -779,32 +781,40 @@ graph TD
     style OUTPUT fill:#51cf66,stroke:#333
     style REGEX fill:#ff6b6b,stroke:#333,color:#fff
     style ENTROP fill:#748ffc,stroke:#333,color:#fff
+    style BPE fill:#9b59b6,stroke:#333,color:#fff
 ```
 
-### Dual Detection Mode — Why Two Engines?
+### Triple Detection Mode — Why Three Engines?
 
 ```mermaid
 graph LR
     subgraph "Regex Engine"
-        R1["Known patterns<br/>AKIA... → AWS Key"]
+        R1["Known patterns<br/>AKIA... -> AWS Key"]
         R2["Precise matches<br/>Low false positives"]
-        R3["Can't catch unknown formats<br/>Blind to custom tokens"]
+        R3["Cannot catch unknown formats<br/>Blind to custom tokens"]
     end
 
     subgraph "Entropy Engine"
-        E1["Unknown patterns<br/>a7f2b9c1e4d3... → suspicious"]
+        E1["Unknown patterns<br/>a7f2b9c1e4d3... -> suspicious"]
         E2["Catches novel secrets<br/>Custom API tokens"]
         E3["Higher false positive rate<br/>Needs keyword context"]
     end
 
-    subgraph "Combined Result"
-        C1["Best of both worlds:<br/>Known patterns caught precisely,<br/>Unknown patterns caught probabilistically"]
+    subgraph "BPE Engine"
+        B1["Compression resistance<br/>kJ9mN2pR5t -> cannot compress"]
+        B2["Independent signal<br/>Cross-validates entropy"]
+        B3["Catches edge cases<br/>Moderate entropy secrets"]
     end
 
-    R1 & E1 --> C1
+    subgraph "Combined Result"
+        C1["Best of all three worlds:<br/>Known patterns caught precisely,<br/>Unknown patterns caught probabilistically,<br/>Compression resistance confirms findings"]
+    end
+
+    R1 & E1 & B1 --> C1
 
     style R1 fill:#ff6b6b,stroke:#333,color:#fff
     style E1 fill:#748ffc,stroke:#333,color:#fff
+    style B1 fill:#9b59b6,stroke:#333,color:#fff
     style C1 fill:#51cf66,stroke:#333
 ```
 
@@ -890,7 +900,7 @@ func (e *Engine) generateID() string {
 
 ### Interview Explanation
 
-> "The detection engine uses a **dual-mode approach**: regex rules for known patterns, Shannon entropy for unknown ones. The `ScanContent()` method runs ALL 331 regex rules against the input, then runs entropy detection on the same input. Results are deduplicated using a composite key (`hash:ruleID:line`) in a hash map. The engine uses `FindAllStringSubmatchIndex` instead of `FindAllString` because we need byte positions for capture group extraction — rules prefer capturing just the secret value, not the surrounding keyword. Each finding gets a unique ID via a mutex-protected monotonic counter. The ID format `CVF-{timestamp}-{counter}` is both human-readable and sortable."
+> "The detection engine uses a **triple-mode approach**: regex rules for known patterns, Shannon entropy for unknown ones, and BPE token efficiency for compression-resistant detection. The `ScanContent()` method runs ALL 331 regex rules against the input, then runs entropy detection, then runs BPE analysis on the same input. When entropy and BPE both agree a string is suspicious, confidence gets a +15% boost. Results are deduplicated using a composite key (`hash:ruleID:line`) in a hash map. The engine uses `FindAllStringSubmatchIndex` instead of `FindAllString` because we need byte positions for capture group extraction — rules prefer capturing just the secret value, not the surrounding keyword. Each finding gets a unique ID via a mutex-protected monotonic counter. The ID format `CVF-{timestamp}-{counter}` is both human-readable and sortable."
 
 ---
 
@@ -1533,7 +1543,7 @@ graph TD
 
     subgraph "Detection Integration"
         BUILD["buildScanContent(entry)<br/>Join added lines"]
-        SCAN["engine.ScanContent(request)<br/>Regex + entropy"]
+        SCAN["engine.ScanContent(request)<br/>Regex + entropy + BPE"]
         ADJUST["adjustLineNumbers()<br/>Map scan lines → file lines"]
         PIPELINE["pipeline.ProcessResult()<br/>Hash, redact, enrich..."]
     end
@@ -1811,7 +1821,7 @@ graph TD
     end
 
     subgraph "Mitigations"
-        M1["Detection Engine<br/>331 rules + entropy"]
+        M1["Detection Engine<br/>331 rules + entropy + BPE"]
         M2["SanitizeProcessor<br/>ClearRawMatch()"]
         M3["Garbage Collection<br/>Go's GC reclaims memory"]
         M4["No logging of raw secrets<br/>Only hashes and redacted forms"]
@@ -2060,7 +2070,7 @@ mindmap
             Observer
                 File watcher handler callback
             Template Method
-                ScanContent dual mode flow
+                ScanContent triple mode flow
         Concurrency
             Worker Pool
                 FileScanner goroutine pool
@@ -2193,7 +2203,7 @@ graph TD
         WALKER["Commit walking<br/>(list, iterate, count)"]
         DIFF["Diff parsing<br/>(unified diff → structured)"]
         FILTER["File filtering<br/>(include/exclude patterns)"]
-        ENGINE["Detection engine<br/>(regex + entropy)"]
+        ENGINE["Detection engine<br/>(regex + entropy + BPE)"]
         PIPELINE["Post-processing<br/>(hash, redact, enrich...)"]
         PROGRESS["Progress tracking<br/>(commits scanned, findings)"]
     end
@@ -2457,7 +2467,7 @@ graph LR
 
 > "CredVigil is a **layered pipeline architecture** with 4 layers:
 > 1. **Input layer** — CLI parsing, stdin reading, git integration, file watching
-> 2. **Detection layer** — Dual-engine: 331 compiled regex rules + Shannon entropy analysis, with 5-factor confidence scoring
+> 2. **Detection layer** — Triple-engine: 331 compiled regex rules + Shannon entropy analysis + BPE token efficiency, with multi-factor confidence scoring
 > 3. **Post-processing layer** — 5-stage pipeline: Hash → Redact → Enrich → Fingerprint → Sanitize (zero-trust)
 > 4. **Output layer** — Text (color-coded for terminals) or JSON (for CI/CD integration)
 >
@@ -2497,9 +2507,9 @@ graph LR
 >
 > Each pattern solves a specific problem: extensibility, composability, performance, reactivity, usability, and correctness."
 
-### Card 6: "How does entropy detection work?"
+### Card 6: "How does entropy and BPE detection work?"
 
-> "Shannon entropy from information theory: $H = -\sum p(x) \log_2 p(x)$. It measures string randomness — real secrets have high entropy, variable names have low entropy. We use **charset-specific thresholds** because hex (16 chars, max 4.0 bits) and base64 (64 chars, max 6.0 bits) have different entropy ceilings. The `EntropyScore` is a weighted composite: 70% entropy quality + 30% length factor. Strings scoring above 0.5 are flagged as high-entropy secrets if they appear near secret-like keywords (password, key, token)."
+> "Shannon entropy from information theory: $H = -\sum p(x) \log_2 p(x)$. It measures string randomness — real secrets have high entropy, variable names have low entropy. We use **charset-specific thresholds** because hex (16 chars, max 4.0 bits) and base64 (64 chars, max 6.0 bits) have different entropy ceilings. Additionally, BPE token efficiency measures compression resistance — normal text compresses to ~1.5 efficiency while secrets stay near 1.0. When both entropy AND BPE agree, confidence gets a +15% boost. The `EntropyScore` is a weighted composite: 70% entropy quality + 30% length factor. Strings scoring above 0.5 are flagged as high-entropy secrets if they appear near secret-like keywords (password, key, token)."
 
 ### Card 7: "How is the git scanner designed?"
 
@@ -2524,9 +2534,10 @@ graph LR
 | `internal/config/config.go` | 63 | AppConfig, DetectionConfig, FileScanningConfig structs |
 | `pkg/models/finding.go` | 697 | Finding, Source, ScanResult, ScanRequest, Severity enum, SecretType constants |
 | `pkg/rules/rules.go` | 3747 | 331 detection rules as compiled regex patterns |
-| `pkg/detector/engine.go` | 579 | Detection engine: regex + entropy, confidence scoring, deduplication |
+| `pkg/detector/engine.go` | 579 | Detection engine: regex + entropy + BPE, confidence scoring, deduplication |
 | `pkg/detector/scanner.go` | ~300 | File scanner with worker pool, binary detection, file filtering |
 | `pkg/entropy/entropy.go` | 275 | Shannon entropy, charset detection, threshold system |
+| `pkg/entropy/bpe.go` | ~340 | BPE token efficiency, tokenizer, compression scoring |
 | `pkg/pipeline/pipeline.go` | ~200 | Pipeline struct, Processor interface, ProcessFindings, ProcessResult |
 | `pkg/pipeline/hash.go` | ~30 | SHA-256 hash of raw secret |
 | `pkg/pipeline/redact.go` | ~30 | Masked preview creation |

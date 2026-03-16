@@ -113,7 +113,7 @@ Let's look at each block in detail.
 
 ### What Does the Detective Do?
 
-The Detective reads through code and looks for anything that looks like a password, API key, or secret token. It uses **two methods** — like a real detective uses both fingerprints and behavior profiling.
+The Detective reads through code and looks for anything that looks like a password, API key, or secret token. It uses **three methods** — like a real detective uses fingerprints, behavior profiling, and forensic analysis together.
 
 ### Method 1: Known Pattern Matching (331 "Wanted Posters")
 
@@ -148,7 +148,7 @@ Some secrets don't follow known patterns. The Detective also checks if a string 
 flowchart LR
     subgraph EXAMPLES["Examples"]
         NORMAL["'hello world'\nRandomness: LOW ✅\nThis is normal text"]
-        SUSPICIOUS["'aB3$kL9#mN2@xP7'\nRandomness: HIGH 🚨\nThis looks like a password!"]
+        SUSPICIOUS["aB3xkL9zmN2wpP7\nRandomness: HIGH 🚨\nThis looks like a password!"]
     end
 
     style NORMAL fill:#e8f5e9
@@ -159,6 +159,37 @@ flowchart LR
 
 Think about license plates. The plate `AAA-0000` has low randomness — it's a simple pattern. The plate `xK3$mQ9z` has high randomness — it looks like someone mashed the keyboard. Passwords and API keys look like keyboard mashing. Normal code doesn't.
 
+### Method 3: Compression Resistance (The "Packing Test")
+
+This method asks: **"Can we compress this string efficiently?"**
+
+Normal text is full of common letter pairs like `th`, `he`, `in`, `er`, `on`. A smart compressor (called BPE — Byte Pair Encoding) can merge these pairs and shrink the text. Secrets are random — they have no common pairs, so they can't be compressed.
+
+```mermaid
+flowchart LR
+    subgraph NORMAL["Normal Text"]
+        N1["'the function returns'\n20 characters -> 13 tokens\nEfficiency: 1.54\nCompresses well! ✅"]
+    end
+    subgraph SECRET["Secret"]
+        S1["'kJ9mN2pR5tW8xY7'\n16 characters -> 16 tokens\nEfficiency: 1.0\nCannot compress! 🚨"]
+    end
+
+    style NORMAL fill:#e8f5e9
+    style SECRET fill:#fff3e0
+```
+
+**Analogy:** Imagine packing a suitcase. Neatly folded regular clothes (normal text) pack tightly. A bag of random screws and bolts (a secret) takes up way more space because nothing fits together. BPE measures how well text "packs."
+
+**Why three methods instead of two?**
+
+| Method | What It Checks | Strength | Weakness |
+|--------|---------------|----------|----------|
+| **Pattern Matching** | Known formats (AKIA..., ghp_...) | Very accurate for known secrets | Cant find unknown formats |
+| **Randomness** | Character frequency distribution | Catches unknown secrets | Can be fooled by even distributions |
+| **Compression** | Resistance to BPE compression | Independent signal, catches edge cases | Needs cross-validation |
+
+When all three methods agree, CredVigil is **very confident**. When they disagree, it lowers the confidence score.
+
 ### Confidence Scoring: "How Sure Are We?"
 
 The Detective doesn't just say "yes or no." It says **how confident** it is, from 0% to 100%:
@@ -168,22 +199,24 @@ flowchart LR
     subgraph FACTORS["What Affects Confidence"]
         F1["✅ Matches a known pattern\n+50% confidence"]
         F2["✅ High randomness\n+15% confidence"]
-        F3["✅ Near words like 'password'\n+10% confidence"]
-        F4["❌ Contains 'EXAMPLE' or 'test'\n-30% confidence"]
-        F5["❌ Looks like a placeholder\n-20% confidence"]
+        F3["✅ Resists compression\n+8% confidence"]
+        F4["✅ Near words like 'password'\n+10% confidence"]
+        F5["✅ Both randomness AND compression agree\n+15% confidence"]
+        F6["❌ Contains 'EXAMPLE' or 'test'\n-30% confidence"]
     end
 
-    RESULT["Final Score:\n50 + 15 + 10 - 0 = 75%\nPretty confident!"]
+    RESULT["Final Score:\n50 + 15 + 8 + 10 + 15 - 0 = 98%\nVery confident!"]
 
     style F1 fill:#e8f5e9
     style F2 fill:#e8f5e9
     style F3 fill:#e8f5e9
-    style F4 fill:#fff3e0
-    style F5 fill:#fff3e0
+    style F4 fill:#e8f5e9
+    style F5 fill:#e8f5e9
+    style F6 fill:#fff3e0
     style RESULT fill:#51cf66,color:white
 ```
 
-**Why this matters:** If a string matches the AWS key pattern AND has high randomness AND is near the word "secret," we're very confident. If a string matches but contains the word "EXAMPLE," we're less confident — it's probably just documentation, not a real leak.
+**Why this matters:** If a string matches the AWS key pattern AND has high randomness AND resists compression AND is near the word "secret," we're very confident. If a string matches but contains the word "EXAMPLE," we're less confident — it's probably just documentation, not a real leak.
 
 ### Activity: How the Detective Processes One File
 
@@ -192,11 +225,15 @@ flowchart TB
     START["📄 Receive a file\n(config.env)"] --> READ["Read line by line"]
     READ --> LINE["Line 3:\nAWS_SECRET_KEY=wJal...KEY"]
     LINE --> REGEX{"Does it match\nany of the 331\npatterns?"}
-    REGEX -->|"Yes!\nRule: aws-secret-key"| SCORE["Calculate confidence\nBase: 50%\n+ Randomness: +15%\n+ Near 'KEY': +10%\n= 75%"]
+    REGEX -->|"Yes!\nRule: aws-secret-key"| SCORE["Calculate confidence\nBase: 50%\n+ Randomness: +15%\n+ Compression: +8%\n+ Near 'KEY': +10%\n= 83%"]
     REGEX -->|"No match"| ENTROPY{"Is the randomness\nhigher than 4.0?"}
-    ENTROPY -->|"Yes"| SCORE2["Report as\nhigh-entropy finding"]
-    ENTROPY -->|"No"| CLEAN["Nothing suspicious\non this line ✅"]
-    SCORE --> REPORT["🚨 Report Finding:\nAWS Secret Key\nLine 3, 75% confidence\nSeverity: CRITICAL"]
+    ENTROPY -->|"Yes"| BPE{"Does it resist\nBPE compression?"}
+    ENTROPY -->|"No"| BPE2{"Does it resist\nBPE compression?"}
+    BPE -->|"Yes"| SCORE2["Report as\nhigh-confidence finding\n(both methods agree +15%)"]
+    BPE -->|"No"| SCORE3["Report as\nentropy-only finding"]
+    BPE2 -->|"Yes"| SCORE4["Report as\nBPE-only finding"]
+    BPE2 -->|"No"| CLEAN["Nothing suspicious\non this line ✅"]
+    SCORE --> REPORT["🚨 Report Finding:\nAWS Secret Key\nLine 3, 83% confidence\nSeverity: CRITICAL"]
 
     style START fill:#e3f2fd
     style REPORT fill:#ff6b6b,color:white
@@ -467,7 +504,7 @@ flowchart TB
 
     W["📹 Camera\nbroadcasts on\nfile.changed"] --> CH1
     CH1 --> D["🔍 Detective\ntunes into\nfile.changed"]
-    D --> |"broadcasts on"| CH2
+    D -->|"broadcasts on"| CH2
     CH2 --> C["🧹 Clean-Up\ntunes into\nfinding.detected"]
     CH2 --> L["📝 Logger\ntunes into\nfinding.detected"]
     CH2 --> S["🔔 Slack Alert\ntunes into\nfinding.detected"]
@@ -590,14 +627,15 @@ flowchart TB
     end
 
     WATCH --> FC
-    FILE --> DETECTION
+    FILE --> REGEX
     GIT --> GS
-    GS --> DETECTION
-    FC --> DETECTION
-    DETECTION --> FD
-    FD --> PIPELINE
-    PIPELINE --> FP
-    FP --> OUTPUT
+    GS --> REGEX
+    FC --> REGEX
+    REGEX --> FD
+    ENTROPY --> FD
+    FD --> HASH
+    SANITIZE --> FP
+    FP --> ALERT
 
     style BUS fill:#f3e5f5
     style DETECTION fill:#ffe0e0
@@ -674,20 +712,21 @@ flowchart TB
 
 ## 11. Key Design Decisions (And Why We Made Them)
 
-### Decision 1: Two Detection Methods Instead of One
+### Decision 1: Three Detection Methods Instead of One
 
 ```mermaid
 flowchart LR
-    subgraph WHY["Why Two Methods?"]
+    subgraph WHY["Why Three Methods?"]
         O["Only patterns?\nMisses new/custom secrets"]
         T["Only randomness?\nToo many false alarms"]
-        B["Both together?\nBest of both worlds ✅"]
+        C["Only compression?\nNeeds cross-validation"]
+        B["All three together?\nBest of all worlds \u2705"]
     end
 
     style B fill:#e8f5e9
 ```
 
-**Analogy:** Airport security uses both metal detectors (known threats) AND behavioral analysis (suspicious behavior). Neither alone is enough.
+**Analogy:** Airport security uses metal detectors (known threats), behavioral analysis (suspicious behavior), AND luggage X-rays (hidden items). No single method catches everything — the combination provides the best security.
 
 ### Decision 2: Erase Secrets from Memory
 
@@ -713,7 +752,7 @@ flowchart LR
 
 | # | Block | Analogy | One-Line Description |
 |---|-------|---------|---------------------|
-| 1 | Detection Engine | Detective | Finds secrets using 331 patterns + randomness analysis |
+| 1 | Detection Engine | Detective | Finds secrets using 331 patterns + randomness + BPE compression analysis |
 | 2 | Pipeline | Clean-Up Crew | Hashes, masks, and erases raw secrets for safe output |
 | 3 | Git Integration | Historian | Scans every version of code in git history |
 | 4 | File Watcher | Security Camera | Watches files in real-time, triggers scans instantly |

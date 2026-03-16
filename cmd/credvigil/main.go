@@ -70,6 +70,7 @@ Options:
   --min-confidence <0.0-1.0>    Minimum confidence threshold (default: 0.3)
   --min-severity <info|low|medium|high|critical>  Minimum severity
   --no-entropy                  Disable entropy-based detection
+  --no-bpe                      Disable BPE token efficiency detection
   --no-context                  Don't show surrounding context
   --context-lines <n>           Number of context lines (default: 2)
 
@@ -156,6 +157,8 @@ func cmdScan(args []string) {
 			}
 		case "--no-entropy":
 			cfg.EnableEntropy = false
+		case "--no-bpe":
+			cfg.EnableBPE = false
 		case "--no-context":
 			cfg.IncludeContext = false
 		case "--context-lines":
@@ -343,6 +346,15 @@ func outputGitText(result *gitpkg.GitScanResult, duration time.Duration, ruleCou
 			fmt.Printf("    File:       %s:%d\n", f.Source.Location, f.Source.Line)
 			fmt.Printf("    Match:      %s\n", f.RedactedMatch)
 			fmt.Printf("    Confidence: %.0f%%\n", f.Confidence*100)
+			if f.Metadata != nil {
+				if bpeEff, ok := f.Metadata["bpe_efficiency"]; ok {
+					fmt.Printf("    BPE Eff:    %s", bpeEff)
+					if bpeTok, ok2 := f.Metadata["bpe_tokens"]; ok2 {
+						fmt.Printf(" (%s tokens)", bpeTok)
+					}
+					fmt.Println()
+				}
+			}
 			if f.SecretHash != "" {
 				fmt.Printf("    SHA-256:    %s...%s\n", f.SecretHash[:8], f.SecretHash[len(f.SecretHash)-8:])
 			}
@@ -491,6 +503,8 @@ func parseSeverity(s string) models.Severity {
 	case "critical", "crit":
 		return models.SeverityCritical
 	default:
+		fmt.Fprintf(os.Stderr, "Warning: unknown severity %q, valid values are: info, low, medium, high, critical\n", s)
+		fmt.Fprintf(os.Stderr, "         Defaulting to 'info' (show all findings)\n")
 		return models.SeverityInfo
 	}
 }
@@ -523,6 +537,15 @@ func outputText(results []models.ScanResult, duration time.Duration, ruleCount i
 			fmt.Printf("  File:       %s:%d\n", f.Source.Location, f.Source.Line)
 			fmt.Printf("  Match:      %s\n", f.RedactedMatch)
 			fmt.Printf("  Entropy:    %.2f\n", f.Entropy)
+			if f.Metadata != nil {
+				if bpeEff, ok := f.Metadata["bpe_efficiency"]; ok {
+					fmt.Printf("  BPE Eff:    %s", bpeEff)
+					if bpeTok, ok2 := f.Metadata["bpe_tokens"]; ok2 {
+						fmt.Printf(" (%s tokens)", bpeTok)
+					}
+					fmt.Println()
+				}
+			}
 			fmt.Printf("  Confidence: %.0f%%\n", f.Confidence*100)
 			if f.SecretHash != "" {
 				fmt.Printf("  SHA-256:    %s...%s\n", f.SecretHash[:8], f.SecretHash[len(f.SecretHash)-8:])
