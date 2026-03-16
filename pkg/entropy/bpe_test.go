@@ -423,6 +423,79 @@ func TestItoa(t *testing.T) {
 
 // --- Benchmark ---
 
+func TestBPEAccuracyBenchmark(t *testing.T) {
+	b := NewBPEAnalyzer()
+
+	type tc struct {
+		label  string
+		input  string
+		expect string // "secret" or "safe"
+	}
+
+	cases := []tc{
+		// Real secrets
+		{"AWS access key", "AKIAIOSFODNN7EXAMPLE", "secret"},
+		{"AWS secret key", "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", "secret"},
+		{"GitHub PAT classic", "ghp_ABcDeFgHiJkLmNoPqRsTuVwXyZ012345", "secret"},
+		{"Stripe secret key", "sk_live_51HG4k2L3pBcQdR7J8sT9uV0wX1yZ2aB3cD4eF5gH6iJ7kL8m", "secret"},
+		{"Generic API key", "kJ9mN2pR5tW8xY1zA3bC6dE7fG8hI9j", "secret"},
+		{"Base64 JWT", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9", "secret"},
+		{"Hex token 32", "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6", "secret"},
+		{"RSA private frag", "MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSk", "secret"},
+		{"Vault token", "hvs.CAESIJ2Nz3mY8kL9pQ1rS4tU7vX0yA2bD5eG8hI", "secret"},
+		{"NPM token", "npm_1234567890abcdefABCDEF1234567890abcdef", "secret"},
+		{"Mixed case random", "aB3cD4eF5gH6iJ7kL8mN9oP0qR1sT2u", "secret"},
+
+		// Normal text
+		{"English sentence", "the function returns the value correctly", "safe"},
+		{"Code variable", "getUserNameFromDatabase", "safe"},
+		{"URL path", "https://api.example.com/v1/users", "safe"},
+		{"Config line", "database_connection_string", "safe"},
+		{"Error message", "connection refused by server", "safe"},
+		{"Import statement", "import React from react", "safe"},
+		{"Package name", "com.example.application", "safe"},
+		{"Log message", "starting application server on port", "safe"},
+		{"Comment text", "This handles authentication and authorization", "safe"},
+		{"Class name", "AbstractFactoryProvider", "safe"},
+		{"Method chain", "collection.stream.filter.map", "safe"},
+		{"Version string", "release-2024.03.15-beta", "safe"},
+	}
+
+	correct := 0
+	total := len(cases)
+
+	for _, c := range cases {
+		r := b.Analyze(c.input)
+		score := b.BPEScore(c.input)
+
+		predicted := "safe"
+		if score >= 0.5 {
+			predicted = "secret"
+		}
+
+		pass := predicted == c.expect
+		if pass {
+			correct++
+		}
+
+		status := "PASS"
+		if !pass {
+			status = "FAIL"
+		}
+		t.Logf("%-22s eff=%.2f score=%.2f pred=%-6s expect=%-6s %s", c.label, r.Efficiency, score, predicted, c.expect, status)
+		if !pass {
+			t.Errorf("  MISMATCH: %s — predicted %s, expected %s", c.label, predicted, c.expect)
+		}
+	}
+
+	accuracy := float64(correct) / float64(total) * 100
+	t.Logf("\nAccuracy: %d/%d (%.1f%%)\n", correct, total, accuracy)
+
+	if accuracy < 90.0 {
+		t.Errorf("BPE accuracy too low: %.1f%% (want >= 90%%)", accuracy)
+	}
+}
+
 func BenchmarkBPETokenize(b *testing.B) {
 	analyzer := NewBPEAnalyzer()
 	secret := "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"

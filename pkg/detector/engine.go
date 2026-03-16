@@ -305,6 +305,17 @@ func (e *Engine) matchRule(rule rules.Rule, content string, lines []string, sour
 			DetectedAt: time.Now(),
 		}
 
+		// Attach BPE token efficiency metrics when BPE is enabled
+		if e.config.EnableBPE && len(secretValue) >= 12 {
+			bpeResult := e.bpeAnalyzer.Analyze(secretValue)
+			bpeScore := e.bpeAnalyzer.BPEScore(secretValue)
+			finding.Metadata = map[string]string{
+				"bpe_efficiency": fmt.Sprintf("%.2f", bpeResult.Efficiency),
+				"bpe_tokens":     fmt.Sprintf("%d", bpeResult.TokenCount),
+				"bpe_score":      fmt.Sprintf("%.2f", bpeScore),
+			}
+		}
+
 		// Copy over source metadata
 		if source.CommitHash != "" {
 			finding.Source.CommitHash = source.CommitHash
@@ -456,6 +467,20 @@ func (e *Engine) entropyDetection(content string, lines []string, source models.
 
 			entropyHash := hashSecret(m.Value)
 
+			metadata := map[string]string{
+				"charset":       m.Charset.String(),
+				"entropy_score": fmt.Sprintf("%.2f", m.Score),
+			}
+
+			// Attach BPE token efficiency metrics when BPE is enabled
+			if e.config.EnableBPE && len(m.Value) >= 12 {
+				bpeResult := e.bpeAnalyzer.Analyze(m.Value)
+				bpeScore := e.bpeAnalyzer.BPEScore(m.Value)
+				metadata["bpe_efficiency"] = fmt.Sprintf("%.2f", bpeResult.Efficiency)
+				metadata["bpe_tokens"] = fmt.Sprintf("%d", bpeResult.TokenCount)
+				metadata["bpe_score"] = fmt.Sprintf("%.2f", bpeScore)
+			}
+
 			finding := models.Finding{
 				ID:          e.generateID(),
 				SecretType:  models.SecretHighEntropy,
@@ -473,10 +498,7 @@ func (e *Engine) entropyDetection(content string, lines []string, source models.
 				Entropy:    m.Entropy,
 				Confidence: confidence,
 				DetectedAt: time.Now(),
-				Metadata: map[string]string{
-					"charset":       m.Charset.String(),
-					"entropy_score": fmt.Sprintf("%.2f", m.Score),
-				},
+				Metadata:   metadata,
 			}
 
 			// Copy over source metadata (git fields, etc.)

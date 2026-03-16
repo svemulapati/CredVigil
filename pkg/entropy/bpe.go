@@ -87,36 +87,136 @@ func NewBPEAnalyzer() *BPEAnalyzer {
 // found in source code, configuration files, and natural language.
 // These represent the most frequent bigrams — the pairs that a real
 // BPE tokenizer would merge first.
+//
+// The vocabulary is designed for maximum separation between normal text
+// (high efficiency) and random/secret strings (low efficiency). Normal
+// text — English prose, source code, URLs, config — should compress well.
+// Random secrets with mixed case, digits, and special chars should not.
+//
+// Intentionally EXCLUDED: mixed-case + digit transitions like "a1", "B7"
+// that appear in secrets but rarely in normal text.
 func (b *BPEAnalyzer) trainDefaults() {
-	// Common bigrams in English text and source code, ordered by frequency.
-	// Each pair gets a rank (lower = more common = merged first).
 	commonPairs := []string{
-		// English language top bigrams
+		// ── English language top 50 bigrams (by corpus frequency) ──
 		"th", "he", "in", "er", "an", "re", "on", "at", "en", "nd",
 		"ti", "es", "or", "te", "of", "ed", "is", "it", "al", "ar",
 		"st", "to", "nt", "ng", "se", "ha", "as", "ou", "io", "le",
 		"ve", "co", "me", "de", "hi", "ri", "ro", "ic", "ne", "ea",
 		"ra", "ce", "li", "ch", "ll", "be", "ma", "si", "om", "ur",
-		// Source code / config common pairs
+
+		// ── Common English trigrams (merged as 3-char tokens) ──
+		"the", "ing", "and", "ion", "tio", "ent", "ati", "for",
+		"her", "ter", "hat", "tha", "ere", "ate", "his", "con",
+		"res", "ver", "all", "ect", "lin", "str", "com", "not",
+
+		// ── Source code keyword fragments ──
 		"ss", "ee", "tt", "ff", "oo", "nn", "pp", "rr",
-		"ke", "ey", "va", "lu", "pa", "th", "na", "me",
-		"fu", "nc", "ti", "on", "re", "tu", "rn",
-		"cl", "as", "if", "el", "se", "fo", "wh", "il",
+		"ke", "ey", "va", "lu", "pa", "na",
+		"fu", "nc", "tu", "rn",
+		"cl", "if", "el", "fo", "wh", "il",
 		"tr", "ue", "fa", "ls", "nu", "ul",
-		"pr", "iv", "at", "pu", "bl",
-		// Config patterns
-		"UR", "ur", "rl", "ht", "tp", "://", "lo", "ca",
-		"ho", "st", "po", "rt", "da", "ta", "ba",
-		// Common programming tokens
+		"pr", "iv", "pu", "bl",
+
+		// ── Common programming keywords and subwords ──
+		"func", "return", "class", "const", "import", "export",
+		"false", "true", "null", "void", "string", "int",
+		"var", "let", "new", "this", "self", "type",
+		"get", "set", "from", "with", "name", "value",
+		"data", "file", "path", "node", "port", "host",
+		"test", "user", "list", "base", "code", "info",
+		"error", "config", "server", "client", "request",
+
+		// ── Uppercase bigrams (PascalCase / camelCase / constants) ──
+		"Ab", "Ac", "Ad", "Af", "Al", "An", "Ap", "Ar", "As", "At",
+		"Ba", "Be", "Bo", "Bu", "By",
+		"Ca", "Ce", "Ch", "Cl", "Co", "Cr", "Cu",
+		"Da", "De", "Di", "Do", "Du",
+		"El", "En", "Er", "Ev", "Ex",
+		"Fa", "Fi", "Fl", "Fo", "Fr", "Fu",
+		"Ge", "Gr", "Gu",
+		"Ha", "He", "Ho",
+		"Im", "In", "Is", "It",
+		"Ke",
+		"La", "Le", "Li", "Lo",
+		"Ma", "Me", "Mi", "Mo", "Mu",
+		"Na", "Ne", "No", "Nu",
+		"Ob", "Op", "Or", "Ou", "Ov",
+		"Pa", "Pe", "Po", "Pr", "Pu",
+		"Re", "Ro", "Ru",
+		"Sa", "Se", "Si", "So", "St", "Su", "Sy",
+		"Ta", "Te", "Th", "Ti", "To", "Tr", "Ty",
+		"Un", "Up", "Us",
+		"Va", "Ve", "Vi",
+		"Wa", "Wi", "Wo",
+
+		// ── CamelCase transition pairs (lower→upper) ──
+		"eA", "eB", "eC", "eD", "eE", "eF", "eG", "eH", "eI",
+		"eK", "eL", "eM", "eN", "eO", "eP", "eR", "eS", "eT", "eU", "eV", "eW",
+		"tA", "tB", "tC", "tD", "tE", "tF", "tG", "tH", "tI",
+		"tK", "tL", "tM", "tN", "tO", "tP", "tR", "tS", "tU", "tV", "tW",
+		"rA", "rB", "rC", "rD", "rE", "rF", "rG", "rH", "rI",
+		"rK", "rL", "rM", "rN", "rO", "rP", "rS", "rT", "rU", "rV", "rW",
+		"nA", "nB", "nC", "nD", "nE", "nF", "nG", "nH", "nI",
+		"nK", "nL", "nM", "nN", "nO", "nP", "nR", "nS", "nT", "nU", "nV", "nW",
+		"lA", "lB", "lC", "lD", "lE", "lF", "lG", "lH", "lI",
+		"lK", "lL", "lM", "lN", "lO", "lP", "lR", "lS", "lT", "lU", "lV", "lW",
+		"sA", "sB", "sC", "sD", "sE", "sF", "sG", "sH", "sI",
+		"sK", "sL", "sM", "sN", "sO", "sP", "sR", "sS", "sT", "sU", "sV", "sW",
+		"dA", "dB", "dC", "dD", "dE", "dF", "dG", "dH", "dI",
+		"yA", "yB", "yC", "yD", "yE", "yF", "yG", "yH", "yI",
+		"oA", "oB", "oC", "oD", "oE", "oF", "oG", "oH", "oI",
+		"aA", "aB", "aC", "aD", "aE", "aF", "aG", "aH", "aI",
+
+		// ── URL / path / config patterns ──
+		"://", "http", "https", "www.",
+		"rl", "ht", "tp", "lo", "ca",
+		"ho", "po", "rt", "da", "ta", "ba",
+		".com", ".org", ".net", ".io", ".js", ".ts", ".go", ".py",
+		".json", ".yaml", ".xml", ".html", ".css",
+		"/v1", "/v2", "/api",
+
+		// ── Delimiters and operators common in code ──
 		"__", "->", "=>", "::", "==", "!=", "<=", ">=",
 		"++", "--", "&&", "||", "<<", ">>",
-		// Lowercase + digit pairs are rare in normal text but common in secrets
-		// (intentionally NOT included — keeps efficiency low for secrets)
+		"()", "{}", "[]", "\"\"", "''",
+
+		// ── Dot / slash / hyphen / underscore bigrams ──
+		// These appear heavily in package names, file paths, URLs, version strings
+		"a.", "b.", "c.", "d.", "e.", "f.", "g.", "h.", "i.", "j.",
+		"k.", "l.", "m.", "n.", "o.", "p.", "q.", "r.", "s.", "t.",
+		"u.", "v.", "w.", "x.", "y.", "z.",
+		".a", ".b", ".c", ".d", ".e", ".f", ".g", ".h", ".i", ".j",
+		".k", ".l", ".m", ".n", ".o", ".p", ".q", ".r", ".s", ".t",
+		".u", ".v", ".w", ".x", ".y", ".z",
+		"a/", "b/", "c/", "d/", "e/", "i/", "n/", "o/", "r/", "s/", "t/",
+		"/a", "/b", "/c", "/d", "/e", "/f", "/i", "/n", "/o", "/p", "/r", "/s", "/t", "/u", "/v",
+		"a-", "b-", "c-", "d-", "e-", "i-", "n-", "o-", "r-", "s-", "t-",
+		"-a", "-b", "-c", "-d", "-e", "-f", "-i", "-n", "-o", "-p", "-r", "-s", "-t",
+		"a_", "b_", "c_", "d_", "e_", "i_", "n_", "o_", "r_", "s_", "t_",
+		"_a", "_b", "_c", "_d", "_e", "_f", "_i", "_n", "_o", "_p", "_r", "_s", "_t",
+
+		// ── Digit patterns in normal context (versions, dates, ports) ──
+		// Digit-digit pairs compress version numbers and dates
+		"00", "01", "02", "03", "04", "05", "10", "11", "12", "13",
+		"15", "16", "19", "20", "24", "25", "30", "80", "99",
+		// Digit-dot and dot-digit for version strings (1.0, 2.3, etc.)
+		"0.", "1.", "2.", "3.", "4.", "5.", "6.", "7.", "8.", "9.",
+		".0", ".1", ".2", ".3", ".4", ".5", ".6", ".7", ".8", ".9",
+
+		// ── Uppercase-uppercase pairs (for constants like HTTP, URL, API) ──
+		"HT", "TP", "UR", "AP", "ID", "PI", "SS", "SH",
+		"AB", "CD", "EF", "GH", "IJ", "KL", "MN", "OP", "QR", "ST", "UV", "WX", "YZ",
+
+		// ── Space and common whitespace pairs ──
+		" t", " a", " s", " i", " o", " c", " f", " w", " m", " b", " p", " d", " r", " n", " h",
+		"e ", "s ", "t ", "d ", "n ", "r ", "y ", "l ", "a ", "o ", "f ",
 	}
 
 	for i, pair := range commonPairs {
-		b.merges[pair] = i
-		b.vocab[pair] = true
+		if _, exists := b.merges[pair]; !exists {
+			b.merges[pair] = i
+			b.vocab[pair] = true
+		}
 	}
 }
 
