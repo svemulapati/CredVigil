@@ -70,7 +70,7 @@ graph TB
 
     subgraph "Core Engine Layer"
         CONFIG["Configuration<br/>internal/config"]
-        RULES["Rule Engine<br/>pkg/rules<br/>331 compiled regex patterns"]
+        RULES["Rule Engine<br/>pkg/rules<br/>369 compiled regex patterns"]
         DETECTOR["Detection Engine<br/>pkg/detector<br/>Regex + Entropy + BPE triple-mode"]
         ENTROPY["Entropy Analyzer<br/>pkg/entropy<br/>Shannon entropy + BPE token efficiency"]
     end
@@ -150,8 +150,8 @@ graph LR
 
     subgraph "Public Packages (pkg/)"
         MODELS["pkg/models<br/>Finding, Source, ScanResult<br/>697 lines"]
-        RULES["pkg/rules<br/>331 detection rules<br/>3747 lines"]
-        ENTROPY["pkg/entropy<br/>Shannon entropy + BPE<br/>275+ lines"]
+        RULES["pkg/rules<br/>369 detection rules<br/>4222 lines"]
+        ENTROPY["pkg/entropy<br/>Shannon entropy + BPE<br/>828 lines"]
         DETECTOR["pkg/detector<br/>Engine + FileScanner<br/>879 lines"]
         PIPELINE["pkg/pipeline<br/>5 processors<br/>~900 lines"]
         GITPKG["pkg/git<br/>5 files, commit walking<br/>~1100 lines"]
@@ -211,7 +211,7 @@ sequenceDiagram
     participant CLI as main.go (CLI)
     participant Config as AppConfig
     participant Engine as Detection Engine
-    participant Rules as RuleSet (331 rules)
+    participant Rules as RuleSet (369 rules)
     participant Entropy as Entropy Analyzer
     participant Scanner as FileScanner
     participant Pipeline as Pipeline (5 stages)
@@ -219,7 +219,7 @@ sequenceDiagram
 
     User->>CLI: credvigil scan ./src --severity medium
     CLI->>Config: Parse flags → DefaultConfig()
-    CLI->>Rules: DefaultRuleSet() → 331 rules loaded
+    CLI->>Rules: DefaultRuleSet() → 369 rules loaded
     CLI->>Engine: NewEngine(ruleSet, config)
     CLI->>Scanner: NewFileScanner(engine, fileScanConfig)
 
@@ -236,7 +236,7 @@ sequenceDiagram
 
         Scanner->>Engine: ScanContent(content, source)
 
-        loop For each of 331 rules
+        loop For each of 369 rules
             Engine->>Rules: matchRule(content, rule)
             Rules-->>Engine: regex matches + capture groups
             Engine->>Engine: computeConfidence(5-factor)
@@ -322,7 +322,7 @@ graph TD
     ENTRY["os.Args parsing<br/>main"] --> ROUTE{"Command Router"}
 
     ROUTE -->|"scan"| SCAN["cmdScan<br/>File/directory/git scanning"]
-    ROUTE -->|"rules"| RULES["cmdRules<br/>List all 331 rules"]
+    ROUTE -->|"rules"| RULES["cmdRules<br/>List all 369 rules"]
     ROUTE -->|"version"| VER["cmdVersion<br/>Print version info"]
     ROUTE -->|"help / -h"| HELP["cmdHelp<br/>Usage text"]
     ROUTE -->|"--help"| HELP
@@ -552,7 +552,7 @@ graph LR
     end
 ```
 
-### SecretType — 180+ Constants Organized by Category
+### SecretType — 230+ Constants Organized by Category
 
 ```mermaid
 mindmap
@@ -660,7 +660,7 @@ classDiagram
 
     class RuleSet {
         -sync.RWMutex mu
-        -[]Rule rules "All 331 rules"
+        -[]Rule rules "All 369 rules"
         -map byID "Hash map for O(1) lookup by ID"
         +Add(Rule)
         +Rules() []Rule
@@ -668,14 +668,14 @@ classDiagram
         +Count() int
     }
 
-    RuleSet --> Rule : contains 331
+    RuleSet --> Rule : contains 369
 ```
 
 ### How Rules Are Organized
 
 ```mermaid
 graph TD
-    subgraph "Rule Categories (331 total)"
+    subgraph "Rule Categories (369 total)"
         AWS["AWS (8 rules)<br/>Access Key, Secret, Session,<br/>MWS, ARN, etc."]
         GCP["GCP (5 rules)<br/>Service Account, API Key,<br/>OAuth Client, etc."]
         AZURE["Azure (6 rules)<br/>Client Secret, Storage Key,<br/>SAS Token, etc."]
@@ -689,7 +689,7 @@ graph TD
         MORE["... 200+ more rules"]
     end
 
-    ALL["DefaultRuleSet()<br/>Loads all 331 rules<br/>at startup"] --> AWS & GCP & AZURE & GITHUB & GITLAB & SLACK & DB & KEYS & PAYMENT & GENERIC & MORE
+    ALL["DefaultRuleSet()<br/>Loads all 369 rules<br/>at startup"] --> AWS & GCP & AZURE & GITHUB & GITLAB & SLACK & DB & KEYS & PAYMENT & GENERIC & MORE
 
     style ALL fill:#ffd43b,stroke:#333,stroke-width:2px
 ```
@@ -743,7 +743,7 @@ sequenceDiagram
 
 ### Interview Explanation
 
-> "The rule engine is a **compiled regex database**. At startup, `DefaultRuleSet()` loads all 331 rules — each regex is pre-compiled with `regexp.MustCompile()`, so there's zero compilation overhead at scan time. Rules are stored in a slice (for iteration during scanning) AND a hash map `byID` (for O(1) lookup). The `RuleSet` uses a `sync.RWMutex` — multiple scanner goroutines can read rules concurrently (`RLock()`), but adding rules requires an exclusive write lock (`Lock()`). Each rule has a `BaseConfidence` score that reflects how specific its pattern is: AWS keys (`AKIA[0-9A-Z]{16}`) get 0.95 because that format is nearly impossible to produce accidentally, while generic password patterns might get 0.60."
+> "The rule engine is a **compiled regex database**. At startup, `DefaultRuleSet()` loads all 369 rules — each regex is pre-compiled with `regexp.MustCompile()`, so there's zero compilation overhead at scan time. Rules are stored in a slice (for iteration during scanning) AND a hash map `byID` (for O(1) lookup). The `RuleSet` uses a `sync.RWMutex` — multiple scanner goroutines can read rules concurrently (`RLock()`), but adding rules requires an exclusive write lock (`Lock()`). Each rule has a `BaseConfidence` score that reflects how specific its pattern is: AWS keys (`AKIA[0-9A-Z]{16}`) get 0.95 because that format is nearly impossible to produce accidentally, while generic password patterns might get 0.60."
 
 ---
 
@@ -754,7 +754,7 @@ sequenceDiagram
 ```mermaid
 graph TD
     subgraph "Engine Struct"
-        RS["RuleSet<br/>331 compiled regex rules"]
+        RS["RuleSet<br/>369 compiled regex rules"]
         MU["sync.RWMutex<br/>Thread-safe finding counter"]
         CFG["DetectionConfig<br/>Confidence, entropy, severity settings"]
         FC["findingCount uint64<br/>Monotonic counter for unique IDs"]
@@ -763,7 +763,7 @@ graph TD
     subgraph "ScanContent() Flow"
         INPUT["Input: ScanRequest<br/>{Content, Source}"]
         VALIDATE["Validate: content not empty,<br/>build exclusion sets"]
-        REGEX["Phase 1: Regex Scanning<br/>Loop through all 331 rules"]
+        REGEX["Phase 1: Regex Scanning<br/>Loop through all 369 rules"]
         ENTROP["Phase 2: Entropy Detection<br/>Find high-entropy words"]
         BPE["Phase 3: BPE Detection<br/>Find compression-resistant words"]
         DEDUP["Deduplication<br/>seen map: hash:ruleID:line → bool"]
@@ -900,7 +900,7 @@ func (e *Engine) generateID() string {
 
 ### Interview Explanation
 
-> "The detection engine uses a **triple-mode approach**: regex rules for known patterns, Shannon entropy for unknown ones, and BPE token efficiency for compression-resistant detection. The `ScanContent()` method runs ALL 331 regex rules against the input, then runs entropy detection, then runs BPE analysis on the same input. When entropy and BPE both agree a string is suspicious, confidence gets a +15% boost. Results are deduplicated using a composite key (`hash:ruleID:line`) in a hash map. The engine uses `FindAllStringSubmatchIndex` instead of `FindAllString` because we need byte positions for capture group extraction — rules prefer capturing just the secret value, not the surrounding keyword. Each finding gets a unique ID via a mutex-protected monotonic counter. The ID format `CVF-{timestamp}-{counter}` is both human-readable and sortable."
+> "The detection engine uses a **triple-mode approach**: regex rules for known patterns, Shannon entropy for unknown ones, and BPE token efficiency for compression-resistant detection. The `ScanContent()` method runs ALL 369 regex rules against the input, then runs entropy detection, then runs BPE analysis on the same input. When entropy and BPE both agree a string is suspicious, confidence gets a +15% boost. Results are deduplicated using a composite key (`hash:ruleID:line`) in a hash map. The engine uses `FindAllStringSubmatchIndex` instead of `FindAllString` because we need byte positions for capture group extraction — rules prefer capturing just the secret value, not the surrounding keyword. Each finding gets a unique ID via a mutex-protected monotonic counter. The ID format `CVF-{timestamp}-{counter}` is both human-readable and sortable."
 
 ---
 
@@ -1821,7 +1821,7 @@ graph TD
     end
 
     subgraph "Mitigations"
-        M1["Detection Engine<br/>331 rules + entropy + BPE"]
+        M1["Detection Engine<br/>369 rules + entropy + BPE"]
         M2["SanitizeProcessor<br/>ClearRawMatch()"]
         M3["Garbage Collection<br/>Go's GC reclaims memory"]
         M4["No logging of raw secrets<br/>Only hashes and redacted forms"]
@@ -2033,7 +2033,7 @@ graph TD
 
 ### Interview Explanation
 
-> "CredVigil uses Go's concurrency primitives strategically. The file scanner uses a **channel-based semaphore** (`make(chan struct{}, N)`) instead of a traditional semaphore — it's idiomatic Go and leverages the runtime's channel scheduler. The `sync.RWMutex` is used for read-heavy data structures like `RuleSet` and `Pipeline` — 331 rules are loaded once but read millions of times during scanning, so concurrent `RLock()` gives near-linear throughput scaling. The `sync.Mutex` is reserved for write-heavy operations like the monotonic ID counter. `sync.WaitGroup` coordinates goroutine lifecycle — `Add(1)` before spawning, `Done()` in defer, `Wait()` after the loop. This is the **fan-out/fan-in** pattern: we fan out work to N goroutines and fan in results through a mutex-protected slice."
+> "CredVigil uses Go's concurrency primitives strategically. The file scanner uses a **channel-based semaphore** (`make(chan struct{}, N)`) instead of a traditional semaphore — it's idiomatic Go and leverages the runtime's channel scheduler. The `sync.RWMutex` is used for read-heavy data structures like `RuleSet` and `Pipeline` — 369 rules are loaded once but read millions of times during scanning, so concurrent `RLock()` gives near-linear throughput scaling. The `sync.Mutex` is reserved for write-heavy operations like the monotonic ID counter. `sync.WaitGroup` coordinates goroutine lifecycle — `Add(1)` before spawning, `Done()` in defer, `Wait()` after the loop. This is the **fan-out/fan-in** pattern: we fan out work to N goroutines and fan in results through a mutex-protected slice."
 
 ---
 
@@ -2394,14 +2394,14 @@ ruleSet.Add(myRule)
 ```mermaid
 graph TD
     subgraph "Startup (< 10ms)"
-        S1["Load 331 rules<br/>Compile 331 regex patterns"]
+        S1["Load 369 rules<br/>Compile 369 regex patterns"]
         S2["Initialize engine + scanner"]
         S3["Create pipeline (5 processors)"]
     end
 
     subgraph "Per-File (< 1ms typical)"
         F1["Read file (I/O bound)"]
-        F2["Run 331 regex patterns<br/>(CPU bound)"]
+        F2["Run 369 regex patterns<br/>(CPU bound)"]
         F3["Entropy analysis<br/>(CPU bound)"]
         F4["Pipeline processing<br/>(CPU bound, fast)"]
     end
@@ -2434,7 +2434,7 @@ graph TD
 ```mermaid
 graph LR
     subgraph "Constant Memory"
-        M1["331 compiled regexes<br/>~2-3 MB"]
+        M1["369 compiled regexes<br/>~2-3 MB"]
         M2["Pipeline (5 processors)<br/>~1 KB"]
         M3["Config structs<br/>~1 KB"]
     end
@@ -2457,7 +2457,7 @@ graph LR
 
 ### Interview Explanation
 
-> "Performance is I/O-bound for file scanning (reading from disk) and CPU-bound for detection (running 331 regex patterns). The worker pool parallelizes file I/O so while one goroutine is waiting for disk, others are running regex. Pre-compiled regexes avoid the compilation cost at scan time. Entropy analysis is O(n) per word but only runs on words longer than 12 characters, which filters out most content. The pipeline is O(1) per finding — each stage does constant-time work (hashing, string manipulation). Memory is bounded: we never load more than `MaxFileSize` bytes per file, and the dedup map grows linearly with unique findings. For git scanning, `--depth` enables shallow clones for remote repos, and `--unified=0` reduces diff size by not including context lines."
+> "Performance is I/O-bound for file scanning (reading from disk) and CPU-bound for detection (running 369 regex patterns). The worker pool parallelizes file I/O so while one goroutine is waiting for disk, others are running regex. Pre-compiled regexes avoid the compilation cost at scan time. Entropy analysis is O(n) per word but only runs on words longer than 12 characters, which filters out most content. The pipeline is O(1) per finding — each stage does constant-time work (hashing, string manipulation). Memory is bounded: we never load more than `MaxFileSize` bytes per file, and the dedup map grows linearly with unique findings. For git scanning, `--depth` enables shallow clones for remote repos, and `--unified=0` reduces diff size by not including context lines."
 
 ---
 
@@ -2467,7 +2467,7 @@ graph LR
 
 > "CredVigil is a **layered pipeline architecture** with 4 layers:
 > 1. **Input layer** — CLI parsing, stdin reading, git integration, file watching
-> 2. **Detection layer** — Triple-engine: 331 compiled regex rules + Shannon entropy analysis + BPE token efficiency, with multi-factor confidence scoring
+> 2. **Detection layer** — Triple-engine: 369 compiled regex rules + Shannon entropy analysis + BPE token efficiency, with multi-factor confidence scoring
 > 3. **Post-processing layer** — 5-stage pipeline: Hash → Redact → Enrich → Fingerprint → Sanitize (zero-trust)
 > 4. **Output layer** — Text (color-coded for terminals) or JSON (for CI/CD integration)
 >
@@ -2533,11 +2533,11 @@ graph LR
 | `cmd/credvigil/main.go` | 625 | CLI entry point, command routing, scan orchestration, output formatting |
 | `internal/config/config.go` | 63 | AppConfig, DetectionConfig, FileScanningConfig structs |
 | `pkg/models/finding.go` | 697 | Finding, Source, ScanResult, ScanRequest, Severity enum, SecretType constants |
-| `pkg/rules/rules.go` | 3747 | 331 detection rules as compiled regex patterns |
+| `pkg/rules/rules.go` | 4222 | 369 detection rules as compiled regex patterns |
 | `pkg/detector/engine.go` | 579 | Detection engine: regex + entropy + BPE, confidence scoring, deduplication |
 | `pkg/detector/scanner.go` | ~300 | File scanner with worker pool, binary detection, file filtering |
-| `pkg/entropy/entropy.go` | 275 | Shannon entropy, charset detection, threshold system |
-| `pkg/entropy/bpe.go` | ~340 | BPE token efficiency, tokenizer, compression scoring |
+| `pkg/entropy/entropy.go` | 274 | Shannon entropy, charset detection, threshold system |
+| `pkg/entropy/bpe.go` | 554 | BPE token efficiency, tokenizer, compression scoring |
 | `pkg/pipeline/pipeline.go` | ~200 | Pipeline struct, Processor interface, ProcessFindings, ProcessResult |
 | `pkg/pipeline/hash.go` | ~30 | SHA-256 hash of raw secret |
 | `pkg/pipeline/redact.go` | ~30 | Masked preview creation |

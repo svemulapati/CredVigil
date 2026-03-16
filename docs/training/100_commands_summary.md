@@ -105,7 +105,7 @@ flowchart LR
     end
 
     subgraph ENGINE["Component 1: Detection Engine"]
-        R["331 Regex Rules"]
+        R["369 Regex Rules"]
         E["Shannon Entropy"]
     end
 
@@ -246,7 +246,7 @@ require (
 
 ## 2. Component 1: Core Detection Engine (CLI)
 
-This is the main user-facing component. It scans files, directories, and stdin for hardcoded secrets using 331 regex rules and Shannon entropy analysis.
+This is the main user-facing component. It scans files, directories, and stdin for hardcoded secrets using 369 regex rules and Shannon entropy analysis.
 
 ### How a Scan Works (Step-by-Step)
 
@@ -256,7 +256,7 @@ sequenceDiagram
     participant CLI as credvigil CLI
     participant Scanner as FileScanner
     participant Engine as DetectionEngine
-    participant Rules as 331 Rules
+    participant Rules as 369 Rules
     participant Entropy as Shannon Entropy
     participant Pipeline as Zero-Trust Pipeline
     participant Output as Formatter
@@ -266,7 +266,7 @@ sequenceDiagram
     Scanner->>Scanner: Read file, split into lines
     loop For each line
         Scanner->>Engine: ScanContent(line)
-        Engine->>Rules: Match against 331 compiled regexes
+        Engine->>Rules: Match against 369 compiled regexes
         Rules-->>Engine: Matches found
         Engine->>Entropy: Calculate Shannon entropy
         Entropy-->>Engine: Entropy score (0.0 - 8.0)
@@ -294,7 +294,7 @@ go build -o credvigil ./cmd/credvigil
 **Step-by-step breakdown:**
 1. `go build` invokes the Go compiler on `./cmd/credvigil` (the `main` package)
 2. The compiler resolves all `import` statements, pulling in `pkg/detector`, `pkg/rules`, `pkg/pipeline`, `pkg/git`, `pkg/watcher`, etc.
-3. All 331 regex patterns are compiled at init time and baked into the binary
+3. All 369 regex patterns are compiled at init time and baked into the binary
 4. The `-o credvigil` flag names the output binary (otherwise it defaults to the directory name)
 5. Result: a single, statically-linked binary with zero runtime dependencies
 
@@ -413,14 +413,14 @@ flowchart TD
 ./credvigil rules
 ```
 
-**What it does:** Lists all 331 detection rules grouped by provider/service.
+**What it does:** Lists all 369 detection rules grouped by provider/service.
 
 **Expected output (partial):**
 ```
-CredVigil Detection Rules (331 total)
+CredVigil Detection Rules (369 total)
 ═══════════════════════════════════════════════════════════════
 
-Loaded 331 detection rules covering:
+Loaded 369 detection rules covering:
   • Cloud: AWS, GCP, Azure, DigitalOcean, Cloudflare, Vercel, Netlify
   • SCM: GitHub, GitLab, Bitbucket, Gitea
   • Databases: PostgreSQL, MySQL, MongoDB, Redis, InfluxDB...
@@ -468,7 +468,7 @@ Each rule has:
 ./credvigil scan testdata/fake_secrets.env
 ```
 
-**What it does:** Reads `testdata/fake_secrets.env`, runs all 331 regex rules + Shannon entropy analysis, then processes every finding through the zero-trust pipeline (Hash → Redact → Enrich → Fingerprint → Sanitize).
+**What it does:** Reads `testdata/fake_secrets.env`, runs all 369 regex rules + Shannon entropy analysis, then processes every finding through the zero-trust pipeline (Hash → Redact → Enrich → Fingerprint → Sanitize).
 
 **Step-by-step — what happens when you run this command:**
 
@@ -479,7 +479,7 @@ flowchart TD
     C --> D["Read file into memory"]
     D --> E["Split into lines"]
     E --> F{"For each line"}
-    F --> G["Run 331 regex rules"]
+    F --> G["Run 369 regex rules"]
     G --> H{"Any matches?"}
     H -->|Yes| I["Calculate entropy"]
     H -->|No| F
@@ -497,7 +497,7 @@ flowchart TD
 1. CLI parses `scan testdata/fake_secrets.env` — identifies target as a file
 2. `FileScanner.ScanFile()` reads the file, checks it's under the size limit
 3. Splits content into lines and sends to `Engine.ScanContent()`
-4. Engine runs all 331 compiled regexes against each line
+4. Engine runs all 369 compiled regexes against each line
 5. For each match, calculates Shannon entropy of the matched text
 6. Assigns severity (from the rule) and confidence (base + entropy bonus)
 7. Deduplicates overlapping matches on the same line
@@ -552,7 +552,7 @@ flowchart TD
 ... (53 more findings) ...
 
 ─────────────────────────────────────────────────────────────────
-  Scan completed in 15ms using 331 rules
+  Scan completed in 15ms using 369 rules
   Total findings: 56
   By severity: CRITICAL=18, HIGH=14, MEDIUM=20, LOW=4
 ─────────────────────────────────────────────────────────────────
@@ -760,7 +760,7 @@ echo 'AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY' | ./credvi
   Category:   entropy
 
 ─────────────────────────────────────────────────────────────────
-  Scan completed in 1ms using 331 rules
+  Scan completed in 1ms using 369 rules
   Total findings: 2
   By severity: CRITICAL=1, MEDIUM=1
 ─────────────────────────────────────────────────────────────────
@@ -1563,7 +1563,7 @@ sequenceDiagram
 3. Runs `git log --format=...` to get all commits on the current branch
 4. For each commit, runs `git diff <parent> <commit>` to get the unified diff
 5. Parses the diff to extract only **added lines** (lines starting with `+`)
-6. Runs each added line through the 331-rule detection engine
+6. Runs each added line through the 369-rule detection engine
 7. Adjusts line numbers to match the original file positions
 8. Processes all findings through the zero-trust pipeline
 9. Outputs results with commit hash, author, date, and file path
@@ -2084,7 +2084,7 @@ ok      github.com/credvigil/credvigil/pkg/watcher      1.513s
 - `?` = no test files (pure types or config, nothing to test)
 - `ok` + time = all tests passed in that duration
 - `pkg/git` takes longest (5.8s) because it creates actual git repos in temp dirs
-- `pkg/detector` takes ~0.7s because it runs 331 regex rules against test content
+- `pkg/detector` takes ~0.7s because it runs 369 regex rules against test content
 
 ---
 
@@ -2430,7 +2430,7 @@ A comprehensive bash script that runs all CLI-level tests end-to-end, validating
 ```mermaid
 flowchart TD
     START["bash run_all_tests.sh"] --> T1["1. Version check"]
-    T1 --> T2["2. List rules (331 rules)"]
+    T1 --> T2["2. List rules (369 rules)"]
     T2 --> T3["3. Full scan fake_secrets.env"]
     T3 --> T4["4. Severity filter (CRITICAL)"]
     T4 --> T5["5. Confidence filter (70%+)"]
@@ -2453,7 +2453,7 @@ bash run_all_tests.sh
 
 **What it does:** Runs 14 tests covering:
 1. Version check
-2. List rules (331 rules)
+2. List rules (369 rules)
 3. Full scan of `fake_secrets.env`
 4. Severity filter (CRITICAL only)
 5. Confidence filter (70%+)
@@ -3011,7 +3011,7 @@ echo "✅ PASSED: No critical secrets found"
 |---------|-------------|---------|
 | `./credvigil version` | Show version info | Version, Go version, OS |
 | `./credvigil help` | Show usage and options | All flags documented |
-| `./credvigil rules` | List all 331 detection rules | Rule ID, severity, description |
+| `./credvigil rules` | List all 369 detection rules | Rule ID, severity, description |
 | `./credvigil scan <path>` | Scan file or directory | `./credvigil scan ./src/` |
 | `./credvigil scan --stdin` | Scan from piped input | `cat file \| ./credvigil scan --stdin` |
 | `./credvigil scan --git <path\|url>` | Scan git repository history | `./credvigil scan --git .` |

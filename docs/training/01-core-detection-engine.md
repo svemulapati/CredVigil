@@ -48,7 +48,7 @@
     - 10.6 [Deduplication](#106-deduplication)
     - 10.7 [Hashing & Redaction](#107-hashing--redaction)
 11. [Understanding the Codebase — File by File](#11-understanding-the-codebase--file-by-file)
-12. [The 161 Detection Rules — Categories & Examples](#12-the-161-detection-rules--categories--examples)
+12. [The 369 Detection Rules — Categories & Examples](#12-the-369-detection-rules--categories--examples)
 13. [Real-World Scenarios](#13-real-world-scenarios)
 14. [Frequently Asked Questions](#14-frequently-asked-questions)
 15. [Glossary](#15-glossary)
@@ -180,7 +180,7 @@ CredVigil uses a **triple detection strategy**. This means it uses three complet
 │   │ "Does this match   │ │                  │ │                    │ │
 │   │  a known pattern?" │ │ "Is this random  │ │ "Does this resist  │ │
 │   │                    │ │  enough to be    │ │  compression like  │ │
-│   │ 331 rules for AWS, │ │  a secret?"      │ │  a random string?" │ │
+│   │ 369 rules for AWS, │ │  a secret?"      │ │  a random string?" │ │
 │   │ GitHub, Stripe...  │ │                  │ │                    │ │
 │   └────────┬───────────┘ └────────┬─────────┘ └────────┬───────────┘ │
 │            │                      │                     │            │
@@ -284,7 +284,7 @@ Each service's API keys have a specific format. For example:
 - **Stripe secret keys** always start with `sk_live_` or `sk_test_`
 - **OpenAI API keys** start with `sk-` followed by alphanumeric characters
 
-CredVigil has **161 regex rules**, each designed to match the format of a specific service's credentials. When it scans your code, it checks every line against all 161 patterns.
+CredVigil has **369 regex rules**, each designed to match the format of a specific service's credentials. When it scans your code, it checks every line against all 369 patterns.
 
 **Example:**
 ```
@@ -301,7 +301,7 @@ Regex can only find secrets it already knows about. If a new service launches to
 
 ```mermaid
 flowchart TD
-    A["Input Text"] --> B["Apply 331 Regex Rules"]
+    A["Input Text"] --> B["Apply 369 Regex Rules"]
     B --> C{"Pattern Match?"}
     C -->|"✅ AKIA... matches AWS rule"| D["Finding Created"]
     C -->|"❌ No match"| E["Try Entropy Analysis"]
@@ -965,7 +965,7 @@ At the bottom of the report, you'll see:
 
 ```
 ─────────────────────────────────────────────────────────────────
-  Scan completed in 3ms using 161 rules
+  Scan completed in 3ms using 369 rules
   Total findings: 37
   By severity: CRITICAL=10, HIGH=10, MEDIUM=13, LOW=4
 ─────────────────────────────────────────────────────────────────
@@ -974,7 +974,7 @@ At the bottom of the report, you'll see:
 
 This tells you:
 - **3ms**: The scan was extremely fast
-- **161 rules**: All 161 detection patterns were checked
+- **369 rules**: All 369 detection patterns were checked
 - **37 findings**: Total number of potential secrets found
 - **By severity**: Breakdown showing 10 CRITICAL, 10 HIGH, 13 MEDIUM, and 4 LOW
 
@@ -1149,10 +1149,10 @@ Lists all detection rules and the services they cover.
 
 Output:
 ```
-CredVigil Detection Rules (161 total)
+CredVigil Detection Rules (369 total)
 ═══════════════════════════════════════════════════════════════
 
-Loaded 161 detection rules covering:
+Loaded 369 detection rules covering:
   • Cloud: AWS, GCP, Azure, DigitalOcean, Cloudflare, Vercel, Netlify
   • Cloud (Modern): Supabase, Railway, Render, Fly.io, Linode
   • AI/ML: OpenAI, Anthropic, Gemini, Hugging Face, Cohere, Mistral
@@ -1433,7 +1433,7 @@ flowchart TD
     D -->|"✅ Read"| E["Read File Into Memory"]
     E --> F["4. Engine.ScanContent()"]
     F --> G["Split into lines"]
-    G --> H["Run 331 regex rules"]
+    G --> H["Run 369 regex rules"]
     H --> I["Extract matches + entropy"]
     I --> J["BPE token efficiency analysis"]
     J --> K["Compute confidence"]
@@ -1462,7 +1462,7 @@ flowchart TD
         ▼
 4. Engine.ScanContent() processes the ScanRequest:
    a. Split content into lines
-   b. Run all 331 regex rules against the content
+   b. Run all 369 regex rules against the content
    c. For each regex match:
       - Extract the matched secret value
       - Calculate Shannon entropy
@@ -1482,7 +1482,7 @@ flowchart TD
 
 ### 10.2 Regex Matching Phase
 
-For each of the 331 rules, the engine:
+For each of the 369 rules, the engine:
 
 1. **Runs the regex** against the entire file content (not line-by-line — this allows multi-line matches like private keys)
 2. **Extracts the captured group** — most rules have a capture group `(...)` that isolates just the secret value from the surrounding text. For example, the pattern `AWS_SECRET_ACCESS_KEY[=:]\s*(.{40})` captures the 40-character key, not the variable name
@@ -1535,7 +1535,7 @@ Regex catches known patterns with high confidence. Entropy catches unknown/novel
 ```mermaid
 flowchart LR
     subgraph Phase1["Phase 1: Regex"]
-        A["331 Rules"] --> B["Known Patterns"]
+        A["369 Rules"] --> B["Known Patterns"]
     end
     subgraph Phase2["Phase 2: Entropy"]
         C["Shannon Analysis"] --> D["Unknown Patterns"]
@@ -1735,7 +1735,7 @@ credvigil/
 │   │   ├── entropy.go             ← Shannon entropy math
 │   │   └── entropy_test.go        ← Tests for entropy
 │   ├── rules/
-│   │   ├── rules.go               ← 161 detection rules
+│   │   ├── rules.go               ← 369 detection rules
 │   │   └── rules_test.go          ← Tests for rules
 │   └── detector/
 │       ├── engine.go              ← Detection engine (the brain)
@@ -1759,7 +1759,7 @@ flowchart TD
     CLI["cmd/credvigil/main.go\n💻 CLI Entry Point"] --> ENG["pkg/detector/engine.go\n🧠 Detection Engine"]
     CLI --> SCN["pkg/detector/scanner.go\n📁 File Scanner"]
     SCN --> ENG
-    ENG --> RUL["pkg/rules/rules.go\n📖 331 Rules"]
+    ENG --> RUL["pkg/rules/rules.go\n📖 369 Rules"]
     ENG --> ENT["pkg/entropy/entropy.go\n📊 Shannon Math"]
     ENG --> MOD["pkg/models/finding.go\n📦 Data Structures"]
     CLI --> PIP["pkg/pipeline/...\n⚙️ Post-Processing"]
@@ -1809,7 +1809,7 @@ flowchart TD
 **The charset system:**  
 Different character sets have different entropy ranges. A hex string (16 possible chars) has a lower maximum entropy than a base64 string (64 possible chars). CredVigil adjusts its thresholds accordingly.
 
-### `pkg/rules/rules.go` — 161 Detection Rules
+### `pkg/rules/rules.go` — 369 Detection Rules
 
 **Purpose:** Contains all the compiled regex patterns for known secret formats.
 
@@ -1885,9 +1885,9 @@ This file provides `AppConfig`, `DetectionConfig`, and `FileScanningConfig` stru
 
 ---
 
-## 12. The 161 Detection Rules — Categories & Examples
+## 12. The 369 Detection Rules — Categories & Examples
 
-CredVigil covers 25+ categories of secrets. Here's what each category covers and example patterns:
+CredVigil covers 30+ categories of secrets. Here's what each category covers and example patterns:
 
 ### Cloud Providers (15 rules)
 
@@ -1956,12 +1956,12 @@ CredVigil covers 25+ categories of secrets. Here's what each category covers and
 | Upstash | REST tokens |
 | CockroachDB | Connection URIs |
 
-### And 100+ More Rules
+### And 200+ More Rules
 
-Covering: Slack, Jira, Confluence, Teams, Stack Overflow, private keys (RSA/EC/SSH/PGP), JWT, OAuth, SendGrid, Mailgun, Mailchimp, Postmark, Resend, Docker, NPM, PyPI, Heroku, Vault, Terraform, Datadog, New Relic, Sentry, Grafana, Splunk, PagerDuty, OpenTelemetry, CircleCI, Jenkins, Travis CI, Buildkite, Drone, Pulumi, Google Maps, Mapbox, Twitter/X, Facebook, LinkedIn, Cloudinary, Backblaze, Alchemy, Infura, Etherscan, Moralis, Meilisearch, Typesense, HubSpot, Mixpanel, Segment, Intercom, Zendesk, Auth0, Okta, Clerk, and more.
+Covering: Slack, Jira, Confluence, Teams, Stack Overflow, private keys (RSA/EC/SSH/PGP), JWT, OAuth, SendGrid, Mailgun, Mailchimp, Postmark, Resend, Docker, NPM, PyPI, Heroku, Vault, Terraform, Datadog, New Relic, Sentry, Grafana, Splunk, PagerDuty, OpenTelemetry, CircleCI, Jenkins, Travis CI, Buildkite, Drone, Pulumi, Google Maps, Mapbox, Twitter/X, Facebook, LinkedIn, Cloudinary, Backblaze, Alchemy, Infura, Etherscan, Moralis, Meilisearch, Typesense, HubSpot, Mixpanel, Segment, Intercom, Zendesk, Auth0, Okta, Clerk, LoadRunner, BlazeMeter, k6 Cloud, Gatling, NeoLoad, Selenium Grid, Appium, Playwright, Katalon, LambdaTest, Perfecto, TestRail, Allure TestOps, Pact Broker, and more.
 
 ```mermaid
-pie title 331 Detection Rules by Category
+pie title 369 Detection Rules by Category
     "Cloud Providers" : 15
     "AI/ML Services" : 11
     "Source Control" : 7
@@ -1969,9 +1969,10 @@ pie title 331 Detection Rules by Category
     "Databases" : 12
     "Communication" : 10
     "DevOps/CI" : 15
+    "Testing & Automation" : 44
     "Private Keys" : 8
     "Monitoring" : 12
-    "Other Services" : 177
+    "Other Services" : 133
 ```
 
 ---
@@ -2133,7 +2134,7 @@ A: Several factors can lower confidence:
 A: Because the default confidence threshold is 0.3 (30%). CredVigil detects the placeholder pattern and lowers the confidence, but some findings still exceed 30%. You can raise the threshold with `--min-confidence 0.7` to filter these out.
 
 **Q: Can I add my own custom detection rules?**  
-A: Not yet in the current version. This is planned for Component 15 (Plugin System). For now, the 161 built-in rules cover the vast majority of services.
+A: Not yet in the current version. This is planned for Component 15 (Plugin System). For now, the 369 built-in rules cover the vast majority of services.
 
 **Q: What's the difference between `--min-severity` and `--min-confidence`?**  
 A: 
@@ -2225,7 +2226,7 @@ This section collects all the interview-ready talking points related to Componen
 
 ### 16.1 "Tell me about a project you've built"
 
-> **Interview Tip**: "I built CredVigil, a zero-trust credential detection engine that scans codebases for leaked secrets. It uses 331 regex-based detection rules combined with Shannon entropy analysis to produce confidence-scored findings. The engine was designed from day one to never store plaintext secrets — everything is SHA-256 hashed and redacted before it leaves the detection layer."
+> **Interview Tip**: "I built CredVigil, a zero-trust credential detection engine that scans codebases for leaked secrets. It uses 369 regex-based detection rules combined with Shannon entropy analysis to produce confidence-scored findings. The engine was designed from day one to never store plaintext secrets — everything is SHA-256 hashed and redacted before it leaves the detection layer."
 
 ### 16.2 "How does regex matching work?"
 
@@ -2249,7 +2250,7 @@ This section collects all the interview-ready talking points related to Componen
 
 ### 16.7 "How do you handle concurrency?"
 
-> **Interview Tip**: "The RuleSet uses a sync.RWMutex so multiple goroutines can scan files simultaneously, each reading the rules concurrently. File scanning is parallelized — each file is a goroutine that independently matches all 331 rules. Results are collected via channels. This gives near-linear speedup on multi-core machines. The mutex only escalates to a write lock when adding custom rules, which is rare."
+> **Interview Tip**: "The RuleSet uses a sync.RWMutex so multiple goroutines can scan files simultaneously, each reading the rules concurrently. File scanning is parallelized — each file is a goroutine that independently matches all 369 rules. Results are collected via channels. This gives near-linear speedup on multi-core machines. The mutex only escalates to a write lock when adding custom rules, which is rare."
 
 ### 16.8 "Why Go and not Python?"
 
@@ -2293,7 +2294,7 @@ These are detailed marketing angles, talking points, copy snippets, landing page
 
 | Feature | Benefit | What to Say |
 |---------|---------|-------------|
-| 331 detection rules | Broadest coverage | "We detect secrets from 55+ services — from AWS to Pinecone, from Stripe to Together AI" |
+| 369 detection rules | Broadest coverage | "We detect secrets from 75+ services — from AWS to Pinecone, from Stripe to Together AI" |
 | Confidence scoring (0-100%) | No false positive fatigue | "Every finding has a confidence score, so your team fixes real threats, not noise" |
 | Shannon entropy analysis | Catches unknown secrets | "Even if a secret doesn't match any known pattern, we catch it through randomness analysis" |
 | Zero external dependencies | Easy deployment | "One binary, zero dependencies. Works anywhere Go compiles — no pip install, no Docker required" |
@@ -2330,7 +2331,7 @@ These are detailed marketing angles, talking points, copy snippets, landing page
 ### 17.6 Social Media Copy (Ready to Post)
 
 **LinkedIn Post**:
-> 🔐 We just shipped 331 detection rules in CredVigil — covering everything from AWS access keys to Pinecone vector DB tokens.
+> 🔐 We just shipped 369 detection rules in CredVigil — covering everything from AWS access keys to Pinecone vector DB tokens.
 >
 > But here's what makes it different: every finding gets a confidence score from 0-100%.
 >
@@ -2357,7 +2358,7 @@ These are detailed marketing angles, talking points, copy snippets, landing page
 | "Confidence-Scored Secret Detection: Beyond Binary Pattern Matching" | Security engineers | 30 min |
 | "Shannon Entropy in Practice: How Math Catches Secrets Regex Can't" | Developers | 20 min |
 | "Zero-Trust Scan Output: Why Your Secret Scanner Is Leaking Secrets" | CISO/management | 15 min |
-| "Building a 331-Rule Detection Engine in Pure Go with Zero Dependencies" | Go developers | 45 min |
+| "Building a 369-Rule Detection Engine in Pure Go with Zero Dependencies" | Go developers | 45 min |
 
 ### 17.8 Pricing & Packaging Angle
 
@@ -2376,7 +2377,7 @@ These are detailed marketing angles, talking points, copy snippets, landing page
 
 ### 17.10 Elevator Pitch (30 Seconds)
 
-> "CredVigil is an open-source credential scanner that finds leaked API keys, tokens, and passwords in your code. What makes it different is confidence scoring — every finding gets a 0-100% score, so your team fixes real threats instead of drowning in false positives. It's a single Go binary with zero dependencies, 331 detection rules, and zero-trust output — the scan results themselves never contain the actual secrets."
+> "CredVigil is an open-source credential scanner that finds leaked API keys, tokens, and passwords in your code. What makes it different is confidence scoring — every finding gets a 0-100% score, so your team fixes real threats instead of drowning in false positives. It's a single Go binary with zero dependencies, 369 detection rules, and zero-trust output — the scan results themselves never contain the actual secrets."
 
 ---
 

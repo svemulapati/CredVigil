@@ -477,7 +477,9 @@ func TestPipeline_AddProcessor(t *testing.T) {
 func TestPipeline_InsertProcessor(t *testing.T) {
 	pipe := NewDefault()
 	v := NewNoOpVerifier()
-	pipe.InsertProcessor(4, v)
+	if err := pipe.InsertProcessor(4, v); err != nil {
+		t.Fatalf("InsertProcessor returned unexpected error: %v", err)
+	}
 	procs := pipe.Processors()
 	if len(procs) != 6 {
 		t.Fatalf("expected 6 processors, got %d", len(procs))
@@ -490,14 +492,12 @@ func TestPipeline_InsertProcessor(t *testing.T) {
 	}
 }
 
-func TestPipeline_InsertProcessorPanics(t *testing.T) {
+func TestPipeline_InsertProcessorReturnsError(t *testing.T) {
 	pipe := New()
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("expected panic for out-of-range insert")
-		}
-	}()
-	pipe.InsertProcessor(5, NewHashProcessor())
+	err := pipe.InsertProcessor(5, NewHashProcessor())
+	if err == nil {
+		t.Error("expected error for out-of-range insert")
+	}
 }
 
 type errorProcessor struct{}

@@ -469,8 +469,8 @@ func TestScanContent_ScanDuration(t *testing.T) {
 		t.Error("Duration should be > 0")
 	}
 	t.Logf("Scanned %d bytes in %v, found %d findings", len(sb.String()), result.Duration, result.TotalFindings)
-	// Should complete within a reasonable time (5 seconds for ~2000 lines)
-	if result.Duration.Seconds() > 5 {
+	// Should complete within a reasonable time (30 seconds for ~2000 lines with 369+ rules under race detector)
+	if result.Duration.Seconds() > 30 {
 		t.Errorf("Scan took too long: %v", result.Duration)
 	}
 }

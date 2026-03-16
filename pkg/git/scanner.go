@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/credvigil/credvigil/pkg/detector"
@@ -18,6 +19,7 @@ type GitScanner struct {
 	engine   *detector.Engine
 	pipe     *pipeline.Pipeline
 	opts     ScanOptions
+	mu       sync.RWMutex // protects progress
 	progress ScanProgress
 }
 
@@ -54,9 +56,11 @@ func (gs *GitScanner) ScanRepository(ctx context.Context, repo *Repository) (*Gi
 		return nil, fmt.Errorf("failed to count commits: %w", err)
 	}
 
+	gs.mu.Lock()
 	gs.progress = ScanProgress{
 		TotalCommits: totalCommits,
 	}
+	gs.mu.Unlock()
 
 	result := &GitScanResult{
 		Repository:    repo.Path,
@@ -83,15 +87,19 @@ func (gs *GitScanner) ScanRepository(ctx context.Context, repo *Repository) (*Gi
 		default:
 		}
 
+		gs.mu.Lock()
 		gs.progress.ScannedCommits = idx + 1
 		gs.progress.CurrentCommit = commit.ShortHash
+		gs.mu.Unlock()
 
 		commitResult := gs.scanCommitDiff(ctx, commit, entries, meta)
 
 		if commitResult.TotalFindings > 0 {
 			result.CommitResults[commit.Hash] = commitResult
 			result.TotalFindings += commitResult.TotalFindings
+			gs.mu.Lock()
 			gs.progress.FindingsCount = result.TotalFindings
+			gs.mu.Unlock()
 		}
 
 		result.ScannedCommits++
@@ -131,6 +139,8 @@ func (gs *GitScanner) ScanRemoteRepo(ctx context.Context, url string) (*GitScanR
 
 // Progress returns the current scan progress.
 func (gs *GitScanner) Progress() ScanProgress {
+	gs.mu.RLock()
+	defer gs.mu.RUnlock()
 	return gs.progress
 }
 
@@ -208,16 +218,24 @@ func (gs *GitScanner) scanDiffEntry(ctx context.Context, commit Commit, entry Di
 }
 
 // buildScanContent combines the added lines from a diff entry into
-// scannable content. It preserves line ordering so that when the detection
-// engine reports a line number, we can map it back to the original file.
+// scannable content. It sorts lines by their original line number so that
+// content order is deterministic and multi-line patterns (e.g., PEM keys)
+// are preserved correctly.
 func buildScanContent(entry DiffEntry) string {
 	if len(entry.AddedLines) == 0 {
 		return ""
 	}
 
-	var lines []string
-	for _, content := range entry.AddedLines {
-		lines = append(lines, content)
+	// Sort line numbers to ensure deterministic ordering
+	orderedLineNums := make([]int, 0, len(entry.AddedLines))
+	for lineNum := range entry.AddedLines {
+		orderedLineNums = append(orderedLineNums, lineNum)
+	}
+	sortInts(orderedLineNums)
+
+	lines := make([]string, 0, len(orderedLineNums))
+	for _, lineNum := range orderedLineNums {
+		lines = append(lines, entry.AddedLines[lineNum])
 	}
 	return strings.Join(lines, "\n")
 }

@@ -9,6 +9,20 @@ import (
 	"time"
 )
 
+// waitForCondition polls until cond returns true or timeout expires.
+// Replaces time.Sleep-then-assert patterns to avoid flaky tests on slow machines.
+func waitForCondition(t *testing.T, timeout time.Duration, cond func() bool, msg string) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if cond() {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Errorf("timed out waiting for condition: %s", msg)
+}
+
 // ─── Construction & Defaults ─────────────────────────────────────────────────
 
 func TestNewDefault(t *testing.T) {
@@ -187,7 +201,10 @@ func TestPublishDeliversToMultipleSubscribers(t *testing.T) {
 	}
 
 	bus.Publish(context.Background(), TopicScanCompleted, "test", nil)
-	time.Sleep(200 * time.Millisecond)
+
+	waitForCondition(t, 2*time.Second, func() bool {
+		return count.Load() == 3
+	}, "expected 3 deliveries")
 
 	if c := count.Load(); c != 3 {
 		t.Errorf("expected 3 deliveries, got %d", c)
@@ -280,7 +297,9 @@ func TestWildcardReceivesAllTopics(t *testing.T) {
 		bus.Publish(context.Background(), topic, "test", nil)
 	}
 
-	time.Sleep(300 * time.Millisecond)
+	waitForCondition(t, 2*time.Second, func() bool {
+		return received.Load() == int32(len(topics))
+	}, fmt.Sprintf("wildcard should receive %d events", len(topics)))
 
 	if c := received.Load(); c != int32(len(topics)) {
 		t.Errorf("wildcard should receive %d events, got %d", len(topics), c)
@@ -300,7 +319,10 @@ func TestWildcardAndTopicSubscriberBothReceive(t *testing.T) {
 	})
 
 	bus.Publish(context.Background(), TopicFileChanged, "test", nil)
-	time.Sleep(200 * time.Millisecond)
+
+	waitForCondition(t, 2*time.Second, func() bool {
+		return topicCount.Load() == 1 && wildcardCount.Load() == 1
+	}, "both topic and wildcard subscriber should receive 1 event")
 
 	if topicCount.Load() != 1 {
 		t.Errorf("topic subscriber should get 1 event, got %d", topicCount.Load())
@@ -383,7 +405,10 @@ func TestStatsTrackPublishedEvents(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		bus.Publish(context.Background(), TopicFileChanged, "test", nil)
 	}
-	time.Sleep(200 * time.Millisecond)
+
+	waitForCondition(t, 2*time.Second, func() bool {
+		return bus.GetStats().Published == 10
+	}, "expected 10 published events in stats")
 
 	stats := bus.GetStats()
 	if stats.Published != 10 {
@@ -402,7 +427,10 @@ func TestStatsTrackTopicCounts(t *testing.T) {
 	bus.Publish(context.Background(), TopicFileChanged, "test", nil)
 	bus.Publish(context.Background(), TopicScanStarted, "test", nil)
 
-	time.Sleep(200 * time.Millisecond)
+	waitForCondition(t, 2*time.Second, func() bool {
+		s := bus.GetStats()
+		return s.TopicCounts[TopicFileChanged] == 2 && s.TopicCounts[TopicScanStarted] == 1
+	}, "expected topic counts to reflect published events")
 
 	stats := bus.GetStats()
 	if stats.TopicCounts[TopicFileChanged] != 2 {
@@ -676,7 +704,11 @@ func TestIntegration_AuditLogSubscriber(t *testing.T) {
 	bus.Publish(context.Background(), TopicFindingDetected, "detector", "aws-key")
 	bus.Publish(context.Background(), TopicScanCompleted, "cli", nil)
 
-	time.Sleep(300 * time.Millisecond)
+	waitForCondition(t, 2*time.Second, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return len(auditLog) == 3
+	}, "audit log should have 3 entries")
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -708,7 +740,9 @@ func TestIntegration_GitScanEventChain(t *testing.T) {
 	bus.Publish(ctx, TopicGitCommitScanned, "git-scanner", "commit-def")
 	bus.Publish(ctx, TopicGitScanCompleted, "git-scanner", nil)
 
-	time.Sleep(300 * time.Millisecond)
+	waitForCondition(t, 2*time.Second, func() bool {
+		return len(events) == 4
+	}, "expected 4 events in chain")
 
 	if len(events) != 4 {
 		t.Errorf("expected 4 events in chain, got %d", len(events))

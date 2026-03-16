@@ -12,7 +12,7 @@
 
 ## Overview
 
-CredVigil scans codebases, configuration files, and data streams for exposed credentials — API keys, tokens, passwords, private keys, and connection strings. It combines **331 regex detection rules** with **Shannon entropy analysis** and **BPE token efficiency scoring**, producing findings with confidence scores, severity ratings, and SHA-256 fingerprints. It can scan git history, and monitor files in real-time for instant secret detection.
+CredVigil scans codebases, configuration files, and data streams for exposed credentials — API keys, tokens, passwords, private keys, and connection strings. It combines **369 regex detection rules** with **Shannon entropy analysis** and **BPE token efficiency scoring**, producing findings with confidence scores, severity ratings, and SHA-256 fingerprints. It can scan git history, and monitor files in real-time for instant secret detection.
 
 ### Key Principles
 
@@ -101,7 +101,7 @@ echo 'AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY' | ./credvi
   SHA-256:    7f75367e...4a830606
 
 ─────────────────────────────────────────────────────────────────
-  Scan completed in 7ms using 331 rules
+  Scan completed in 7ms using 369 rules
   Total findings: 55
   By severity: CRITICAL=17, HIGH=14, MEDIUM=20, LOW=4
 ─────────────────────────────────────────────────────────────────
@@ -111,7 +111,7 @@ echo 'AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY' | ./credvi
 
 ## Detection Coverage
 
-**331 built-in rules** across 60+ categories.
+**369 built-in rules** across 70+ categories.
 
 <details>
 <summary><strong>View full coverage matrix</strong></summary>
@@ -147,7 +147,12 @@ echo 'AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY' | ./credvi
 | **CDN & Edge** | Fastly, Akamai, Kong, Bunny CDN, Cloudinary, Backblaze B2 |
 | **Media & Video** | Mux, Twitch |
 | **Design** | Figma |
-| **Testing & QA** | BrowserStack, Sauce Labs, Cypress Cloud |
+| **Testing & QA** | BrowserStack, Sauce Labs, Cypress Cloud, LambdaTest, Perfecto |
+| **Performance Testing** | LoadRunner Cloud, BlazeMeter, k6 Cloud (Grafana), Gatling Enterprise, NeoLoad, Flood.io |
+| **Functional Automation** | Selenium Grid, Appium Cloud, Playwright, Katalon, TestComplete, Ranorex, Mabl, Testim, Ghost Inspector, Reflect |
+| **API & Integration Testing** | ReadyAPI, SoapUI Pro, Pact Broker/PactFlow, Insomnia, Hoppscotch, Stoplight, Karate |
+| **Test Management** | TestRail, Allure TestOps, Xray, Zephyr, qTest, PractiTest, TestMonitor |
+| **CI/CD Quality** | Coveralls, Parasoft, Tricentis Tosca, Micro Focus UFT, SmartBear, Robot Framework/Robocorp |
 | **Networking** | ngrok, Tailscale, WireGuard |
 | **Workflow Automation** | Zapier, n8n |
 | **Low-Code** | Retool |
@@ -191,7 +196,7 @@ echo 'AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY' | ./credvi
 ```
 Input (file / directory / stdin)
     │
-    ├── Regex Pattern Matching ──────── 331 compiled rules
+    ├── Regex Pattern Matching ──────── 369 compiled rules
     │     Known formats: ghp_*, AKIA*, sk_live_*, squ_*, AKC*, etc.
     │
     ├── Shannon Entropy Analysis ────── Catches novel/unknown secrets
@@ -253,7 +258,7 @@ credvigil/
 │   │   ├── bpe.go          # BPE tokenizer, efficiency scoring, dual analysis
 │   │   ├── entropy_test.go
 │   │   └── bpe_test.go     # 30 tests + 5 benchmarks
-│   ├── rules/              # 331 compiled regex detection rules
+│   ├── rules/              # 369 compiled regex detection rules
 │   │   ├── rules.go
 │   │   └── rules_test.go
 │   ├── detector/           # Detection engine + concurrent file scanner

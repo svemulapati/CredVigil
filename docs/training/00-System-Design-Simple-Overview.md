@@ -115,13 +115,13 @@ Let's look at each block in detail.
 
 The Detective reads through code and looks for anything that looks like a password, API key, or secret token. It uses **three methods** — like a real detective uses fingerprints, behavior profiling, and forensic analysis together.
 
-### Method 1: Known Pattern Matching (331 "Wanted Posters")
+### Method 1: Known Pattern Matching (369 "Wanted Posters")
 
-The Detective has a book of 331 patterns — each one describes exactly what a specific type of secret looks like.
+The Detective has a book of 369 patterns — each one describes exactly what a specific type of secret looks like.
 
 ```mermaid
 flowchart LR
-    subgraph BOOK["📖 Pattern Book (331 Patterns)"]
+    subgraph BOOK["📖 Pattern Book (369 Patterns)"]
         P1["AWS Key:\nStarts with 'AKIA'\nfollowed by 16 characters"]
         P2["GitHub Token:\nStarts with 'ghp_'\nfollowed by 36 characters"]
         P3["Stripe Key:\nStarts with 'sk_live_'\nfollowed by characters"]
@@ -224,7 +224,7 @@ flowchart LR
 flowchart TB
     START["📄 Receive a file\n(config.env)"] --> READ["Read line by line"]
     READ --> LINE["Line 3:\nAWS_SECRET_KEY=wJal...KEY"]
-    LINE --> REGEX{"Does it match\nany of the 331\npatterns?"}
+    LINE --> REGEX{"Does it match\nany of the 369\npatterns?"}
     REGEX -->|"Yes!\nRule: aws-secret-key"| SCORE["Calculate confidence\nBase: 50%\n+ Randomness: +15%\n+ Compression: +8%\n+ Near 'KEY': +10%\n= 83%"]
     REGEX -->|"No match"| ENTROPY{"Is the randomness\nhigher than 4.0?"}
     ENTROPY -->|"Yes"| BPE{"Does it resist\nBPE compression?"}
@@ -614,7 +614,7 @@ flowchart TB
     end
 
     subgraph DETECTION["🔍 The Detective"]
-        REGEX["331 known\npatterns"]
+        REGEX["369 known\npatterns"]
         ENTROPY["Randomness\ncheck"]
     end
 
@@ -670,7 +670,7 @@ flowchart TB
     C["3. 📹 Security Camera receives event\nChecks: Not in .git? ✅ Not binary? ✅\nDebounce: Fresh event? ✅"]
     D["4. 📻 Camera broadcasts:\nchannel 'file.changed'\npayload: '/app/config.env'"]
     E["5. 🔍 Detective hears 'file.changed'\nOpens config.env\nReads line by line"]
-    F["6. 🔍 Line 1: DATABASE_URL=localhost\nNo match in 331 patterns ✅\nLow randomness ✅"]
+    F["6. 🔍 Line 1: DATABASE_URL=localhost\nNo match in 369 patterns ✅\nLow randomness ✅"]
     G["7. 🔍 Line 3: AWS_SECRET_KEY=wJal...KEY\n🚨 Pattern match: aws-secret-key!\nRandomness: 4.66 (high!)\nConfidence: 75%"]
     H["8. 📻 Detective broadcasts:\nchannel 'finding.detected'\npayload: Finding object"]
     I["9. 🧹 Clean-Up Crew hears 'finding.detected'\nStation 1: Hash → a3f2...c9d1\nStation 2: Mask → wJal****EKEY\nStation 3: Enrich → Type: AWS, Category: Cloud\nStation 4: Fingerprint → Tracking ID assigned\nStation 5: Erase → Raw secret DELETED"]
@@ -752,7 +752,7 @@ flowchart LR
 
 | # | Block | Analogy | One-Line Description |
 |---|-------|---------|---------------------|
-| 1 | Detection Engine | Detective | Finds secrets using 331 patterns + randomness + BPE compression analysis |
+| 1 | Detection Engine | Detective | Finds secrets using 369 patterns + randomness + BPE compression analysis |
 | 2 | Pipeline | Clean-Up Crew | Hashes, masks, and erases raw secrets for safe output |
 | 3 | Git Integration | Historian | Scans every version of code in git history |
 | 4 | File Watcher | Security Camera | Watches files in real-time, triggers scans instantly |
@@ -771,7 +771,7 @@ File saved → Camera notices → Radio broadcasts "file changed"
 
 | Metric | Value |
 |--------|-------|
-| Detection patterns | 331 |
+| Detection patterns | 369 |
 | Secret types detected | 180+ |
 | Pipeline stages | 5 (hash → mask → enrich → fingerprint → erase) |
 | Event bus channels | 10 topics |

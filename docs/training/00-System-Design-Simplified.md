@@ -39,7 +39,7 @@ Developers accidentally leave secrets (passwords, API keys, tokens) in their cod
 
 ### Real-World Analogy
 
-> Think of CredVigil like an **airport security scanner**. Just like how airport security checks your bags for dangerous items, CredVigil checks your code for dangerous secrets. It has a list of "what to look for" (331 known patterns) and also checks for anything that "looks suspicious" (random-looking strings that might be passwords).
+> Think of CredVigil like an **airport security scanner**. Just like how airport security checks your bags for dangerous items, CredVigil checks your code for dangerous secrets. It has a list of "what to look for" (369 known patterns) and also checks for anything that "looks suspicious" (random-looking strings that might be passwords).
 
 ### Key Design Principles (Simple Version)
 
@@ -52,7 +52,7 @@ Developers accidentally leave secrets (passwords, API keys, tokens) in their cod
 
 ### How to Talk About This in an Interview
 
-> "I built CredVigil, a command-line tool that detects leaked secrets in source code. It has 331 built-in rules for known secret patterns like AWS keys and GitHub tokens, an entropy analyzer that catches unknown secrets by detecting random-looking strings, and a BPE token efficiency analyzer that detects secrets by measuring compression resistance. It can scan individual files, entire directories, git commit history, and even watch files in real-time. The output never shows the actual secret — it always masks it for security."
+> "I built CredVigil, a command-line tool that detects leaked secrets in source code. It has 369 built-in rules for known secret patterns like AWS keys and GitHub tokens, an entropy analyzer that catches unknown secrets by detecting random-looking strings, and a BPE token efficiency analyzer that detects secrets by measuring compression resistance. It can scan individual files, entire directories, git commit history, and even watch files in real-time. The output never shows the actual secret — it always masks it for security."
 
 ---
 
@@ -69,7 +69,7 @@ graph TD
     end
 
     subgraph "Layer 2: DETECTION - Finding secrets"
-        C["331 Regex Rules<br/>Known patterns"]
+        C["369 Regex Rules<br/>Known patterns"]
         D["Entropy Analyzer<br/>Random-looking strings"]
         D2["BPE Analyzer<br/>Compression resistance"]
     end
@@ -124,7 +124,7 @@ graph TD
 
     ENT["pkg/entropy<br/>The randomness and compression checker<br/>Shannon entropy + BPE token efficiency"]
 
-    RULES["pkg/rules<br/>The rulebook<br/>331 known patterns"]
+    RULES["pkg/rules<br/>The rulebook<br/>369 known patterns"]
 
     MODELS["pkg/models<br/>The data templates<br/>Defines what a Finding looks like"]
 
@@ -177,7 +177,7 @@ sequenceDiagram
 
     loop For each text file
         Scanner->>Engine: Check this file for secrets
-        Engine->>Engine: Run 331 regex patterns
+        Engine->>Engine: Run 369 regex patterns
         Engine->>Engine: Check for random-looking strings
         Engine-->>Scanner: Found 2 secrets!
     end
@@ -209,7 +209,7 @@ graph LR
 
 ### How to Talk About This in an Interview
 
-> "When you run a scan, CredVigil walks through every file, skips binary/image files, and runs each text file through the detection engine. The engine checks against 331 known patterns, analyzes string randomness, and measures BPE token compression resistance. Each finding then goes through a 5-step pipeline: hash it (for tracking across scans), mask it (for safe display), enrich it (add file type and category info), fingerprint it (for deduplication), and finally sanitize it (delete the raw secret from memory). The output only shows masked versions like `AKIA****MPLE` — never the real secret."
+> "When you run a scan, CredVigil walks through every file, skips binary/image files, and runs each text file through the detection engine. The engine checks against 369 known patterns, analyzes string randomness, and measures BPE token compression resistance. Each finding then goes through a 5-step pipeline: hash it (for tracking across scans), mask it (for safe display), enrich it (add file type and category info), fingerprint it (for deduplication), and finally sanitize it (delete the raw secret from memory). The output only shows masked versions like `AKIA****MPLE` — never the real secret."
 
 ---
 
@@ -359,11 +359,11 @@ classDiagram
 | **Low** | Minor risk | Test credentials, internal tokens |
 | **Info** | Just informational | Possible false positive |
 
-### Secret Types — What We Can Find (180+ Types!)
+### Secret Types — What We Can Find (230+ Types!)
 
 ```mermaid
 mindmap
-    root((180+ Secret Types))
+    root((230+ Secret Types))
         Cloud Providers
             AWS Keys
             GCP Service Accounts
@@ -409,7 +409,7 @@ Short secrets (<5):        Fully hidden
 
 ### How to Talk About This in an Interview
 
-> "The core data structure is the `Finding` — it's like a police report for a detected secret. It contains what was found, where, how confident we are, the severity level, and a masked version. The `Severity` enum goes from Info to Critical. We support 180+ secret types across cloud providers, code platforms, databases, payment systems, and more. Secrets are always masked in the output — we show just enough to identify which credential it is, like how banks show `****1234`."
+> "The core data structure is the `Finding` — it's like a police report for a detected secret. It contains what was found, where, how confident we are, the severity level, and a masked version. The `Severity` enum goes from Info to Critical. We support 230+ secret types across cloud providers, code platforms, databases, payment systems, and more. Secrets are always masked in the output — we show just enough to identify which credential it is, like how banks show `****1234`."
 
 ---
 
@@ -445,11 +445,11 @@ Confidence: 95% (very specific pattern — hard to produce by accident)
 Keywords: "aws", "amazon", "iam" (if found nearby, even more confident)
 ```
 
-### We Have 331 Rules!
+### We Have 369 Rules!
 
 ```mermaid
 graph TD
-    ALL["331 Rules Total<br/>Loaded at startup"]
+    ALL["369 Rules Total<br/>Loaded at startup"]
 
     ALL --> AWS["AWS: 8 rules"]
     ALL --> GCP["GCP: 5 rules"]
@@ -480,7 +480,7 @@ Words that mean "this is NOT a real secret":
 
 ### How to Talk About This in an Interview
 
-> "The rule engine is essentially a database of 331 known secret patterns. Each rule has a regex pattern that describes what the secret looks like, keywords that boost confidence when found nearby, and false positive patterns to avoid flagging example code as real secrets. All patterns are pre-compiled at startup, so there's zero overhead during scanning. For example, the AWS access key rule looks for strings starting with `AKIA` followed by exactly 16 characters — this pattern is so specific that it gets a 95% base confidence score."
+> "The rule engine is essentially a database of 369 known secret patterns. Each rule has a regex pattern that describes what the secret looks like, keywords that boost confidence when found nearby, and false positive patterns to avoid flagging example code as real secrets. All patterns are pre-compiled at startup, so there's zero overhead during scanning. For example, the AWS access key rule looks for strings starting with `AKIA` followed by exactly 16 characters — this pattern is so specific that it gets a 95% base confidence score."
 
 ---
 
@@ -494,7 +494,7 @@ The engine uses **three complementary methods**, like having a photo, a behavior
 graph LR
     subgraph "Method 1: Pattern Matching"
         R1["Knows exactly what to look for"]
-        R2["331 specific patterns"]
+        R2["369 specific patterns"]
         R3["Very accurate, few false alarms"]
         R4["Cannot catch unknown formats"]
     end
@@ -531,7 +531,7 @@ graph LR
 
 ```mermaid
 flowchart TD
-    START["File content arrives"] --> RULES["Step 1: Run all 331 rules<br/>Check every known pattern"]
+    START["File content arrives"] --> RULES["Step 1: Run all 369 rules<br/>Check every known pattern"]
     RULES --> ENTROPY["Step 2: Run entropy analysis<br/>Look for random-looking strings"]
     ENTROPY --> BPE["Step 3: Run BPE analysis<br/>Check compression resistance"]
     BPE --> DEDUP["Step 4: Remove duplicates<br/>Same secret on same line = 1 finding"]
@@ -571,7 +571,7 @@ graph TD
 
 ### How to Talk About This in an Interview
 
-> "The detection engine uses a triple approach: pattern matching with 331 rules for known secrets, entropy analysis for unknown ones, and BPE token efficiency for compression-resistant detection. This is like security that has a wanted poster, a behavior profiler, AND a forensic analyst. When entropy and BPE both agree a string is suspicious, confidence gets a +15% boost. Results are deduplicated — if the same secret is found on the same line by the same rule, we only report it once. The engine is also smart about extraction — when a rule matches `password = 'mySecret'`, it extracts just `mySecret`, not the whole line, which makes hashing and masking more accurate."
+> "The detection engine uses a triple approach: pattern matching with 369 rules for known secrets, entropy analysis for unknown ones, and BPE token efficiency for compression-resistant detection. This is like security that has a wanted poster, a behavior profiler, AND a forensic analyst. When entropy and BPE both agree a string is suspicious, confidence gets a +15% boost. Results are deduplicated — if the same secret is found on the same line by the same rule, we only report it once. The engine is also smart about extraction — when a rule matches `password = 'mySecret'`, it extracts just `mySecret`, not the whole line, which makes hashing and masking more accurate."
 
 ---
 
@@ -1293,7 +1293,7 @@ graph TD
 ```mermaid
 graph LR
     subgraph "Fast - Milliseconds"
-        F1["Loading 331 rules"]
+        F1["Loading 369 rules"]
         F2["Pipeline processing"]
     end
 
@@ -1316,7 +1316,7 @@ graph LR
 
 | Optimization | What It Does | Impact |
 |-------------|-------------|--------|
-| Pre-compiled patterns | All 331 regex patterns are compiled once at startup | No compilation delay during scanning |
+| Pre-compiled patterns | All 369 regex patterns are compiled once at startup | No compilation delay during scanning |
 | Worker pool | 4 files scanned in parallel | ~4x faster than sequential |
 | File filtering | Skip binaries, images, node_modules | Avoid wasting time on irrelevant files |
 | Only added lines in git | Only check new lines in each commit | Half the work for git scans |
@@ -1326,7 +1326,7 @@ graph LR
 
 | Component | Memory Used | Notes |
 |-----------|------------|-------|
-| 331 compiled rules | ~2-3 MB | Constant, loaded once |
+| 369 compiled rules | ~2-3 MB | Constant, loaded once |
 | File content | Up to 10 MB per file | Only one file at a time per worker |
 | Findings | ~1 KB each | Grows with number of findings |
 
@@ -1344,13 +1344,13 @@ Use these cards to quickly answer common interview questions:
 
 ### Card 1: "Tell me about your project"
 
-> "I built CredVigil, a command-line tool that detects leaked secrets in source code. It has 331 built-in detection rules for known secret patterns like AWS keys and GitHub tokens, an entropy analyzer that catches unknown secrets by measuring string randomness, and a BPE token efficiency analyzer that detects compression-resistant strings. It can scan files, directories, git commit history, and watch files in real-time. The tool follows a zero-trust security model — found secrets are always masked in the output, so even if the scan results are leaked, the actual secrets remain protected."
+> "I built CredVigil, a command-line tool that detects leaked secrets in source code. It has 369 built-in detection rules for known secret patterns like AWS keys and GitHub tokens, an entropy analyzer that catches unknown secrets by measuring string randomness, and a BPE token efficiency analyzer that detects compression-resistant strings. It can scan files, directories, git commit history, and watch files in real-time. The tool follows a zero-trust security model — found secrets are always masked in the output, so even if the scan results are leaked, the actual secrets remain protected."
 
 ---
 
 ### Card 2: "Walk me through the architecture"
 
-> "It's a 4-layer pipeline: Input (CLI, files, git, watcher), Detection (331 regex rules + entropy analysis + BPE token efficiency with multi-factor confidence scoring), Post-Processing (5-stage pipeline: hash, mask, enrich, fingerprint, sanitize), and Output (text or JSON). The code is organized into 8 packages with no circular dependencies. The `Finding` struct is the shared data model all components communicate through."
+> "It's a 4-layer pipeline: Input (CLI, files, git, watcher), Detection (369 regex rules + entropy analysis + BPE token efficiency with multi-factor confidence scoring), Post-Processing (5-stage pipeline: hash, mask, enrich, fingerprint, sanitize), and Output (text or JSON). The code is organized into 8 packages with no circular dependencies. The `Finding` struct is the shared data model all components communicate through."
 
 ---
 
@@ -1397,7 +1397,7 @@ Use these cards to quickly answer common interview questions:
 | `cmd/credvigil/main.go` | CLI entry point — handles commands and output |
 | `internal/config/config.go` | Configuration structs and defaults |
 | `pkg/models/finding.go` | Data structures: Finding, Severity, SecretType |
-| `pkg/rules/rules.go` | All 331 detection rules |
+| `pkg/rules/rules.go` | All 369 detection rules |
 | `pkg/detector/engine.go` | Detection engine: regex + entropy + BPE |
 | `pkg/detector/scanner.go` | File scanner with worker pool |
 | `pkg/entropy/entropy.go` | Shannon entropy analysis |

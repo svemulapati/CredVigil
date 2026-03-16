@@ -3743,4 +3743,480 @@ func (rs *RuleSet) loadBuiltinRules() {
 		BaseConfidence: 0.95,
 		Verifiable:     true,
 	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// PERFORMANCE TESTING
+	// ═══════════════════════════════════════════════════════════════
+
+	// LoadRunner Cloud (Micro Focus / OpenText) — all protocols
+	rs.addRule(Rule{
+		ID:             "loadrunner-cloud-api-key",
+		Description:    "LoadRunner Cloud API Key",
+		SecretType:     models.SecretLoadRunnerCloudKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:loadrunner|lr[_\-]?cloud|lrc)[_\-]?(?:api[_\-]?)?(?:key|token|secret)\s*[=:]\s*['"]?([A-Za-z0-9_\-]{20,64})['"]?`),
+		Keywords:       []string{"loadrunner", "lr_cloud", "lrc"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.0,
+	})
+
+	// BlazeMeter API Key/Secret
+	rs.addRule(Rule{
+		ID:             "blazemeter-api-key",
+		Description:    "BlazeMeter API Key",
+		SecretType:     models.SecretBlazeMeterKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:blazemeter|bz[_\-]?meter)[_\-]?(?:api[_\-]?)?(?:key|secret|token)\s*[=:]\s*['"]?([A-Za-z0-9]{32,64})['"]?`),
+		Keywords:       []string{"blazemeter", "bzmeter"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.0,
+	})
+
+	// k6 Cloud Token (Grafana k6)
+	rs.addRule(Rule{
+		ID:             "k6-cloud-token",
+		Description:    "k6 Cloud API Token",
+		SecretType:     models.SecretK6CloudToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:k6[_\-]?cloud[_\-]?(?:api[_\-]?)?token|K6_CLOUD_TOKEN)\s*[=:]\s*['"]?([A-Za-z0-9]{32,64})['"]?`),
+		Keywords:       []string{"k6", "k6_cloud", "k6cloud"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.0,
+	})
+
+	// Gatling Enterprise API Key
+	rs.addRule(Rule{
+		ID:             "gatling-enterprise-api-key",
+		Description:    "Gatling Enterprise API Key",
+		SecretType:     models.SecretGatlingEnterpriseKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:gatling[_\-]?(?:enterprise)?[_\-]?(?:api[_\-]?)?(?:key|token|secret))\s*[=:]\s*['"]?([A-Za-z0-9_\-]{20,64})['"]?`),
+		Keywords:       []string{"gatling"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.0,
+	})
+
+	// NeoLoad Web API Token
+	rs.addRule(Rule{
+		ID:             "neoload-api-token",
+		Description:    "NeoLoad Web API Token",
+		SecretType:     models.SecretNeoLoadToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:neoload|nl[_\-]?web)[_\-]?(?:api[_\-]?)?(?:token|key)\s*[=:]\s*['"]?([A-Za-z0-9]{32,64})['"]?`),
+		Keywords:       []string{"neoload", "nlweb"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.0,
+	})
+
+	// Flood.io API Token
+	rs.addRule(Rule{
+		ID:             "flood-io-api-token",
+		Description:    "Flood.io API Token",
+		SecretType:     models.SecretFloodIOToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:flood[_\-.]?io|flood[_\-]?api)[_\-]?(?:token|key)\s*[=:]\s*['"]?([A-Za-z0-9_\-]{20,64})['"]?`),
+		Keywords:       []string{"flood", "flood.io", "floodio"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.0,
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// FUNCTIONAL AUTOMATION & BROWSER TESTING
+	// ═══════════════════════════════════════════════════════════════
+
+	// Selenium Grid Authentication Token
+	rs.addRule(Rule{
+		ID:             "selenium-grid-token",
+		Description:    "Selenium Grid Authentication Token",
+		SecretType:     models.SecretSeleniumGridToken,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:selenium[_\-]?(?:grid)?[_\-]?(?:hub)?)[_\-]?(?:token|password|secret|auth)\s*[=:]\s*['"]?([A-Za-z0-9_\-!@#$%^&*]{8,64})['"]?`),
+		Keywords:       []string{"selenium", "selenium_grid", "se_grid"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.0,
+	})
+
+	// Appium Cloud Access Key (e.g., Sauce Labs Appium, BrowserStack Appium)
+	rs.addRule(Rule{
+		ID:             "appium-cloud-access-key",
+		Description:    "Appium Cloud Access Key",
+		SecretType:     models.SecretAppiumCloudKey,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:appium[_\-]?(?:cloud)?)[_\-]?(?:access[_\-]?key|api[_\-]?key|token|secret)\s*[=:]\s*['"]?([A-Za-z0-9_\-]{20,64})['"]?`),
+		Keywords:       []string{"appium"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.0,
+	})
+
+	// Playwright Service Token (Azure / Cloud)
+	rs.addRule(Rule{
+		ID:             "playwright-service-token",
+		Description:    "Playwright Service Access Token",
+		SecretType:     models.SecretPlaywrightToken,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:playwright[_\-]?(?:service)?)[_\-]?(?:token|access[_\-]?token|api[_\-]?key)\s*[=:]\s*['"]?([A-Za-z0-9_\-]{20,128})['"]?`),
+		Keywords:       []string{"playwright"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.0,
+	})
+
+	// Katalon API Key
+	rs.addRule(Rule{
+		ID:             "katalon-api-key",
+		Description:    "Katalon TestOps API Key",
+		SecretType:     models.SecretKatalonAPIKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:katalon)[_\-]?(?:api[_\-]?)?(?:key|token)\s*[=:]\s*['"]?([A-Za-z0-9_\-]{20,64})['"]?`),
+		Keywords:       []string{"katalon"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.0,
+	})
+
+	// LambdaTest Access Key
+	rs.addRule(Rule{
+		ID:             "lambdatest-access-key",
+		Description:    "LambdaTest Access Key",
+		SecretType:     models.SecretLambdaTestKey,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:lambdatest|lt)[_\-]?(?:access[_\-]?key|api[_\-]?key|token)\s*[=:]\s*['"]?([A-Za-z0-9]{20,64})['"]?`),
+		Keywords:       []string{"lambdatest", "lt_access"},
+		BaseConfidence: 0.85,
+		MinEntropy:     3.0,
+	})
+
+	// Perfecto Security Token
+	rs.addRule(Rule{
+		ID:             "perfecto-security-token",
+		Description:    "Perfecto Security Token",
+		SecretType:     models.SecretPerfectoToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:perfecto)[_\-]?(?:security[_\-]?)?(?:token|api[_\-]?key|secret)\s*[=:]\s*['"]?([A-Za-z0-9_\-.]{20,128})['"]?`),
+		Keywords:       []string{"perfecto"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.0,
+	})
+
+	// TestComplete / SmartBear API Key
+	rs.addRule(Rule{
+		ID:             "testcomplete-api-key",
+		Description:    "TestComplete API Key",
+		SecretType:     models.SecretTestCompleteKey,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:testcomplete|test[_\-]?complete)[_\-]?(?:api[_\-]?)?(?:key|token|license)\s*[=:]\s*['"]?([A-Za-z0-9_\-]{16,64})['"]?`),
+		Keywords:       []string{"testcomplete", "test_complete"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.0,
+	})
+
+	// Ranorex License Key
+	rs.addRule(Rule{
+		ID:             "ranorex-license-key",
+		Description:    "Ranorex License Key",
+		SecretType:     models.SecretRanorexKey,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:ranorex)[_\-]?(?:license[_\-]?)?(?:key|token)\s*[=:]\s*['"]?([A-Za-z0-9_\-]{16,128})['"]?`),
+		Keywords:       []string{"ranorex"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.0,
+	})
+
+	// Mabl API Key
+	rs.addRule(Rule{
+		ID:             "mabl-api-key",
+		Description:    "Mabl API Key",
+		SecretType:     models.SecretMablAPIKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:mabl)[_\-]?(?:api[_\-]?)?(?:key|token)\s*[=:]\s*['"]?([A-Za-z0-9_\-]{20,64})['"]?`),
+		Keywords:       []string{"mabl"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.0,
+	})
+
+	// Testim API Token
+	rs.addRule(Rule{
+		ID:             "testim-api-token",
+		Description:    "Testim API Token",
+		SecretType:     models.SecretTestimToken,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:testim)[_\-]?(?:api[_\-]?)?(?:token|key)\s*[=:]\s*['"]?([A-Za-z0-9_\-]{20,64})['"]?`),
+		Keywords:       []string{"testim"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.0,
+	})
+
+	// Ghost Inspector API Key
+	rs.addRule(Rule{
+		ID:             "ghost-inspector-api-key",
+		Description:    "Ghost Inspector API Key",
+		SecretType:     models.SecretGhostInspectorKey,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:ghost[_\-]?inspector)[_\-]?(?:api[_\-]?)?(?:key|token)\s*[=:]\s*['"]?([A-Fa-f0-9]{40,64})['"]?`),
+		Keywords:       []string{"ghost_inspector", "ghostinspector"},
+		BaseConfidence: 0.85,
+		MinEntropy:     3.0,
+	})
+
+	// Reflect API Key
+	rs.addRule(Rule{
+		ID:             "reflect-api-key",
+		Description:    "Reflect.run API Key",
+		SecretType:     models.SecretReflectAPIKey,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:reflect)[_\-]?(?:api[_\-]?)?(?:key|token)\s*[=:]\s*['"]?([A-Za-z0-9_\-]{20,64})['"]?`),
+		Keywords:       []string{"reflect"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.0,
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// API TESTING & INTEGRATION TESTING
+	// ═══════════════════════════════════════════════════════════════
+
+	// ReadyAPI / SoapUI Pro License Token
+	rs.addRule(Rule{
+		ID:             "readyapi-license-token",
+		Description:    "ReadyAPI / SoapUI Pro License Token",
+		SecretType:     models.SecretReadyAPIToken,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:readyapi|ready[_\-]?api|soapui[_\-]?pro)[_\-]?(?:license[_\-]?)?(?:token|key)\s*[=:]\s*['"]?([A-Za-z0-9_\-]{16,128})['"]?`),
+		Keywords:       []string{"readyapi", "soapui"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.0,
+	})
+
+	// SoapUI Pro License Key
+	rs.addRule(Rule{
+		ID:             "soapui-pro-license-key",
+		Description:    "SoapUI Pro License Key",
+		SecretType:     models.SecretSoapUIProKey,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:soapui)[_\-]?(?:pro[_\-]?)?(?:license[_\-]?)?(?:key|token)\s*[=:]\s*['"]?([A-Za-z0-9_\-]{16,128})['"]?`),
+		Keywords:       []string{"soapui"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.0,
+	})
+
+	// Pact Broker Token
+	rs.addRule(Rule{
+		ID:             "pact-broker-token",
+		Description:    "Pact Broker Authentication Token",
+		SecretType:     models.SecretPactBrokerToken,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:pact[_\-]?broker|pactflow)[_\-]?(?:token|api[_\-]?key|secret|password)\s*[=:]\s*['"]?([A-Za-z0-9_\-]{20,128})['"]?`),
+		Keywords:       []string{"pact_broker", "pactflow", "pactbroker"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.0,
+	})
+
+	// Insomnia API Token
+	rs.addRule(Rule{
+		ID:             "insomnia-api-token",
+		Description:    "Insomnia Sync/API Token",
+		SecretType:     models.SecretInsomniaAPIToken,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:insomnia)[_\-]?(?:api[_\-]?)?(?:token|key|secret)\s*[=:]\s*['"]?([A-Za-z0-9_\-]{20,64})['"]?`),
+		Keywords:       []string{"insomnia"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.0,
+	})
+
+	// Hoppscotch API Token
+	rs.addRule(Rule{
+		ID:             "hoppscotch-api-token",
+		Description:    "Hoppscotch API Token",
+		SecretType:     models.SecretHoppscotchToken,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:hoppscotch)[_\-]?(?:api[_\-]?)?(?:token|key)\s*[=:]\s*['"]?([A-Za-z0-9_\-]{20,64})['"]?`),
+		Keywords:       []string{"hoppscotch"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.0,
+	})
+
+	// Stoplight API Token
+	rs.addRule(Rule{
+		ID:             "stoplight-api-token",
+		Description:    "Stoplight API Token",
+		SecretType:     models.SecretStoplightToken,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:stoplight)[_\-]?(?:api[_\-]?)?(?:token|key)\s*[=:]\s*['"]?([A-Za-z0-9_\-]{20,64})['"]?`),
+		Keywords:       []string{"stoplight"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.0,
+	})
+
+	// Karate / Karate-Gatling API Key
+	rs.addRule(Rule{
+		ID:             "karate-gatling-api-key",
+		Description:    "Karate / Karate-Gatling API Key",
+		SecretType:     models.SecretKarateGatlingKey,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:karate)[_\-]?(?:gatling)?[_\-]?(?:api[_\-]?)?(?:key|token)\s*[=:]\s*['"]?([A-Za-z0-9_\-]{20,64})['"]?`),
+		Keywords:       []string{"karate"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.0,
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// TEST MANAGEMENT & REPORTING
+	// ═══════════════════════════════════════════════════════════════
+
+	// TestRail API Key
+	rs.addRule(Rule{
+		ID:             "testrail-api-key",
+		Description:    "TestRail API Key",
+		SecretType:     models.SecretTestRailKey,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:testrail|test[_\-]?rail)[_\-]?(?:api[_\-]?)?(?:key|token|password)\s*[=:]\s*['"]?([A-Za-z0-9_\-]{16,64})['"]?`),
+		Keywords:       []string{"testrail", "test_rail"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.0,
+	})
+
+	// Allure TestOps Token
+	rs.addRule(Rule{
+		ID:             "allure-testops-token",
+		Description:    "Allure TestOps API Token",
+		SecretType:     models.SecretAllureToken,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:allure)[_\-]?(?:testops)?[_\-]?(?:api[_\-]?)?(?:token|key)\s*[=:]\s*['"]?([A-Za-z0-9_\-]{20,64})['"]?`),
+		Keywords:       []string{"allure", "allure_testops"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.0,
+	})
+
+	// Xray (Jira Plugin) API Token
+	rs.addRule(Rule{
+		ID:             "xray-api-token",
+		Description:    "Xray Test Management API Token",
+		SecretType:     models.SecretXrayToken,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:xray)[_\-]?(?:api[_\-]?)?(?:token|key|secret|client[_\-]?secret)\s*[=:]\s*['"]?([A-Za-z0-9_\-]{20,128})['"]?`),
+		Keywords:       []string{"xray"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.0,
+	})
+
+	// Zephyr API Token
+	rs.addRule(Rule{
+		ID:             "zephyr-api-token",
+		Description:    "Zephyr Test Management API Token",
+		SecretType:     models.SecretZephyrToken,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:zephyr)[_\-]?(?:scale)?[_\-]?(?:api[_\-]?)?(?:token|key|secret)\s*[=:]\s*['"]?([A-Za-z0-9_\-]{20,128})['"]?`),
+		Keywords:       []string{"zephyr"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.0,
+	})
+
+	// qTest API Token
+	rs.addRule(Rule{
+		ID:             "qtest-api-token",
+		Description:    "qTest Manager API Token",
+		SecretType:     models.SecretQTestToken,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:qtest|q[_\-]?test)[_\-]?(?:api[_\-]?)?(?:token|key|bearer)\s*[=:]\s*['"]?([A-Za-z0-9_\-]{20,128})['"]?`),
+		Keywords:       []string{"qtest", "q_test"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.0,
+	})
+
+	// PractiTest API Token
+	rs.addRule(Rule{
+		ID:             "practitest-api-token",
+		Description:    "PractiTest API Token",
+		SecretType:     models.SecretPractiTestToken,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:practitest)[_\-]?(?:api[_\-]?)?(?:token|key)\s*[=:]\s*['"]?([A-Za-z0-9_\-]{20,64})['"]?`),
+		Keywords:       []string{"practitest"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.0,
+	})
+
+	// TestMonitor API Key
+	rs.addRule(Rule{
+		ID:             "testmonitor-api-key",
+		Description:    "TestMonitor API Key",
+		SecretType:     models.SecretTestMonitorKey,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:testmonitor|test[_\-]?monitor)[_\-]?(?:api[_\-]?)?(?:key|token)\s*[=:]\s*['"]?([A-Za-z0-9_\-]{20,64})['"]?`),
+		Keywords:       []string{"testmonitor"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.0,
+	})
+
+	// ═══════════════════════════════════════════════════════════════
+	// CI/CD TESTING & QUALITY
+	// ═══════════════════════════════════════════════════════════════
+
+	// Coveralls Repo Token
+	rs.addRule(Rule{
+		ID:             "coveralls-repo-token",
+		Description:    "Coveralls Repo Token",
+		SecretType:     models.SecretCoverallsToken,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:coveralls|COVERALLS_REPO_TOKEN)[_\-]?(?:repo[_\-]?)?(?:token)?\s*[=:]\s*['"]?([A-Za-z0-9]{32,40})['"]?`),
+		Keywords:       []string{"coveralls", "COVERALLS_REPO_TOKEN"},
+		BaseConfidence: 0.85,
+		Verifiable:     true,
+	})
+
+	// Parasoft License Token
+	rs.addRule(Rule{
+		ID:             "parasoft-license-token",
+		Description:    "Parasoft License / API Token",
+		SecretType:     models.SecretParasoftToken,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:parasoft)[_\-]?(?:license[_\-]?)?(?:token|key|password)\s*[=:]\s*['"]?([A-Za-z0-9_\-]{16,128})['"]?`),
+		Keywords:       []string{"parasoft"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.0,
+	})
+
+	// Tricentis Tosca Key
+	rs.addRule(Rule{
+		ID:             "tricentis-tosca-key",
+		Description:    "Tricentis Tosca API / License Key",
+		SecretType:     models.SecretTricentisKey,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:tricentis|tosca)[_\-]?(?:api[_\-]?)?(?:key|license[_\-]?key|token)\s*[=:]\s*['"]?([A-Za-z0-9_\-]{16,128})['"]?`),
+		Keywords:       []string{"tricentis", "tosca"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.0,
+	})
+
+	// Micro Focus UFT Key
+	rs.addRule(Rule{
+		ID:             "microfocus-uft-key",
+		Description:    "Micro Focus UFT License / API Key",
+		SecretType:     models.SecretMicroFocusUFTKey,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:uft|micro[_\-]?focus[_\-]?uft)[_\-]?(?:license[_\-]?)?(?:key|token|password)\s*[=:]\s*['"]?([A-Za-z0-9_\-]{16,128})['"]?`),
+		Keywords:       []string{"uft", "microfocus"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.0,
+	})
+
+	// SmartBear API Token
+	rs.addRule(Rule{
+		ID:             "smartbear-api-token",
+		Description:    "SmartBear Platform API Token",
+		SecretType:     models.SecretSmartBearToken,
+		Severity:       models.SeverityHigh,
+		Pattern:        regexp.MustCompile(`(?i)(?:smartbear|smart[_\-]?bear)[_\-]?(?:api[_\-]?)?(?:token|key|secret)\s*[=:]\s*['"]?([A-Za-z0-9_\-]{20,64})['"]?`),
+		Keywords:       []string{"smartbear"},
+		BaseConfidence: 0.80,
+		MinEntropy:     3.0,
+	})
+
+	// Robot Framework (Cloud) Key
+	rs.addRule(Rule{
+		ID:             "robot-framework-cloud-key",
+		Description:    "Robot Framework Cloud API Key",
+		SecretType:     models.SecretRobotFrameworkKey,
+		Severity:       models.SeverityMedium,
+		Pattern:        regexp.MustCompile(`(?i)(?:robot[_\-]?framework|rf[_\-]?cloud|robocorp)[_\-]?(?:api[_\-]?)?(?:key|token|secret)\s*[=:]\s*['"]?([A-Za-z0-9_\-]{20,128})['"]?`),
+		Keywords:       []string{"robocorp", "robot_framework", "rf_cloud"},
+		BaseConfidence: 0.75,
+		MinEntropy:     3.0,
+	})
 }

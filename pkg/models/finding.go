@@ -405,6 +405,55 @@ const (
 	SecretSauceLabsKey    SecretType = "saucelabs-access-key"
 	SecretCypressKey      SecretType = "cypress-record-key"
 
+	// Performance Testing
+	SecretLoadRunnerCloudKey   SecretType = "loadrunner-cloud-api-key"
+	SecretBlazeMeterKey        SecretType = "blazemeter-api-key"
+	SecretK6CloudToken         SecretType = "k6-cloud-token"
+	SecretGatlingEnterpriseKey SecretType = "gatling-enterprise-api-key"
+	SecretNeoLoadToken         SecretType = "neoload-api-token"
+	SecretFloodIOToken         SecretType = "flood-io-api-token"
+
+	// Functional Automation & Browser Testing
+	SecretSeleniumGridToken SecretType = "selenium-grid-token"
+	SecretAppiumCloudKey    SecretType = "appium-cloud-access-key"
+	SecretPlaywrightToken   SecretType = "playwright-service-token"
+	SecretKatalonAPIKey     SecretType = "katalon-api-key"
+	SecretLambdaTestKey     SecretType = "lambdatest-access-key"
+	SecretPerfectoToken     SecretType = "perfecto-security-token"
+	SecretTestCompleteKey   SecretType = "testcomplete-api-key"
+	SecretRanorexKey        SecretType = "ranorex-license-key"
+	SecretMablAPIKey        SecretType = "mabl-api-key"
+	SecretTestimToken       SecretType = "testim-api-token"
+	SecretGhostInspectorKey SecretType = "ghost-inspector-api-key"
+	SecretReflectAPIKey     SecretType = "reflect-api-key"
+
+	// API Testing & Integration Testing
+	SecretReadyAPIToken    SecretType = "readyapi-license-token"
+	SecretSoapUIProKey     SecretType = "soapui-pro-license-key"
+	SecretKarateGatlingKey SecretType = "karate-gatling-api-key"
+	SecretPactBrokerToken  SecretType = "pact-broker-token"
+	SecretPostmanAPIKey    SecretType = "postman-api-key"
+	SecretInsomniaAPIToken SecretType = "insomnia-api-token"
+	SecretHoppscotchToken  SecretType = "hoppscotch-api-token"
+	SecretStoplightToken   SecretType = "stoplight-api-token"
+
+	// Test Management & Reporting
+	SecretTestRailKey     SecretType = "testrail-api-key"
+	SecretAllureToken     SecretType = "allure-testops-token"
+	SecretXrayToken       SecretType = "xray-api-token"
+	SecretZephyrToken     SecretType = "zephyr-api-token"
+	SecretQTestToken      SecretType = "qtest-api-token"
+	SecretPractiTestToken SecretType = "practitest-api-token"
+	SecretTestMonitorKey  SecretType = "testmonitor-api-key"
+
+	// CI/CD Testing & Quality
+	SecretCoverallsToken    SecretType = "coveralls-repo-token"
+	SecretParasoftToken     SecretType = "parasoft-license-token"
+	SecretTricentisKey      SecretType = "tricentis-tosca-key"
+	SecretMicroFocusUFTKey  SecretType = "microfocus-uft-key"
+	SecretSmartBearToken    SecretType = "smartbear-api-token"
+	SecretRobotFrameworkKey SecretType = "robot-framework-cloud-key"
+
 	// Design
 	SecretFigmaPAT SecretType = "figma-pat"
 

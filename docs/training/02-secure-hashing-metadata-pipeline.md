@@ -649,7 +649,7 @@ sequenceDiagram
 │       ▼                                                                         │
 │  ┌──────────────────────────────────┐                                           │
 │  │   Core Detection Engine          │  ← Component 1                            │
-│  │   (331 rules, entropy, scoring)  │                                           │
+│  │   (369 rules, entropy, scoring)  │                                           │
 │  │   Output: []Finding with         │                                           │
 │  │   RawMatch, SecretHash, etc.     │                                           │
 │  └──────────────┬───────────────────┘                                           │

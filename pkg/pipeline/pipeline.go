@@ -62,16 +62,17 @@ func (p *Pipeline) AddProcessor(proc Processor) {
 }
 
 // InsertProcessor inserts a processor at the given index (0-based).
-// Panics if index is out of range.
-func (p *Pipeline) InsertProcessor(index int, proc Processor) {
+// Returns an error if index is out of range.
+func (p *Pipeline) InsertProcessor(index int, proc Processor) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if index < 0 || index > len(p.processors) {
-		panic(fmt.Sprintf("pipeline: insert index %d out of range [0, %d]", index, len(p.processors)))
+		return fmt.Errorf("pipeline: insert index %d out of range [0, %d]", index, len(p.processors))
 	}
 	p.processors = append(p.processors, nil)
 	copy(p.processors[index+1:], p.processors[index:])
 	p.processors[index] = proc
+	return nil
 }
 
 // Processors returns the ordered list of processors in the pipeline.

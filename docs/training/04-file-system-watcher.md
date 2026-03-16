@@ -62,7 +62,7 @@ The File System Watcher adds **real-time monitoring** — it watches directories
 ```mermaid
 flowchart TB
     subgraph M1["Module 1: Detection Engine"]
-        ENGINE["331 Rules +\nEntropy Analysis"]
+        ENGINE["369 Rules +\nEntropy Analysis"]
     end
     subgraph M2["Module 2: Pipeline"]
         PIPE["Hash → Redact → Enrich\n→ Fingerprint → Sanitize"]
@@ -1178,7 +1178,7 @@ flowchart TB
     end
     
     subgraph C1["Component 1: Detection Engine"]
-        ENGINE["ScanContent\n331 rules + entropy"]
+        ENGINE["ScanContent\n369 rules + entropy"]
     end
     
     subgraph C2["Component 2: Pipeline"]
@@ -2080,7 +2080,7 @@ flowchart TB
 > "Pre-commit hooks only run when you commit. CredVigil's watcher runs when you save. That means you get feedback 30 seconds to 5 minutes earlier — before you've moved on to writing more code. Faster feedback = faster fix."
 
 **vs fswatch / inotifywait Scripts:**
-> "Raw file system watchers report events but don't understand what they mean. CredVigil's watcher debounces, filters, and feeds events directly into a 331-rule detection engine. No scripting required."
+> "Raw file system watchers report events but don't understand what they mean. CredVigil's watcher debounces, filters, and feeds events directly into a 369-rule detection engine. No scripting required."
 
 ### 18.7 Blog Post Ideas (Watcher-Specific)
 
@@ -2142,7 +2142,7 @@ In **Module 5: Event Bus**, you'll learn how CredVigil components communicate wi
 ```mermaid
 flowchart LR
     subgraph DONE["✅ Completed"]
-        M1["Module 1<br/>Detection Engine<br/>331 rules + entropy"]
+        M1["Module 1<br/>Detection Engine<br/>369 rules + entropy"]
         M2["Module 2<br/>Pipeline<br/>5-stage zero-trust"]
         M3["Module 3<br/>Git Integration<br/>History scanning"]
         M4["Module 4<br/>File Watcher<br/>Real-time monitoring"]

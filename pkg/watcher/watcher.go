@@ -211,6 +211,14 @@ func (w *Watcher) Stop() {
 	}
 }
 
+// Close releases all resources held by the watcher. If the watcher was started,
+// it is stopped first. Safe to call if Start() was never called — this ensures
+// the underlying fsnotify watcher is properly closed.
+func (w *Watcher) Close() {
+	w.Stop()
+	w.cleanup()
+}
+
 // IsRunning returns whether the watcher is currently active.
 func (w *Watcher) IsRunning() bool {
 	w.mu.RLock()
@@ -236,12 +244,28 @@ func (w *Watcher) eventLoop(ctx context.Context) error {
 	debounce := make(map[string]time.Time)
 	debounceMu := sync.Mutex{}
 
+	// Periodically prune old debounce entries to prevent memory leaks
+	// in long-running watchers monitoring active codebases.
+	pruneTicker := time.NewTicker(30 * time.Second)
+	defer pruneTicker.Stop()
+
 	defer w.cleanup()
 
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
+
+		case <-pruneTicker.C:
+			// Prune debounce entries older than 2x debounce interval
+			cutoff := time.Now().Add(-2 * w.config.DebounceInterval)
+			debounceMu.Lock()
+			for path, last := range debounce {
+				if last.Before(cutoff) {
+					delete(debounce, path)
+				}
+			}
+			debounceMu.Unlock()
 
 		case fsEvent, ok := <-w.fsw.Events:
 			if !ok {

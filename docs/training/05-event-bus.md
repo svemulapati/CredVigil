@@ -62,7 +62,7 @@ The Event Bus changes that. It introduces a **middleman** — a central message 
 ```mermaid
 flowchart TB
     subgraph M1["Module 1: Detection Engine"]
-        ENGINE["331 Rules +\nEntropy Analysis"]
+        ENGINE["369 Rules +\nEntropy Analysis"]
     end
     subgraph M2["Module 2: Pipeline"]
         PIPE["Hash → Redact → Enrich\n→ Fingerprint → Sanitize"]
@@ -1426,7 +1426,7 @@ In **Module 6: API Server**, you'll learn how CredVigil exposes its capabilities
 ```mermaid
 flowchart LR
     subgraph DONE["✅ Completed"]
-        M1["Module 1<br/>Detection Engine<br/>331 rules + entropy"]
+        M1["Module 1<br/>Detection Engine<br/>369 rules + entropy"]
         M2["Module 2<br/>Pipeline<br/>5-stage zero-trust"]
         M3["Module 3<br/>Git Integration<br/>History scanning"]
         M4["Module 4<br/>File Watcher<br/>Real-time monitoring"]

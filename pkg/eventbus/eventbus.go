@@ -225,11 +225,16 @@ func (eb *EventBus) Subscribe(topic Topic, handler Handler) (*Subscription, erro
 
 // Unsubscribe removes a subscription and stops its delivery goroutine.
 func (eb *EventBus) Unsubscribe(sub *Subscription) {
-	if sub == nil || !sub.active.Load() {
+	if sub == nil {
 		return
 	}
 
-	sub.active.Store(false)
+	// Use CompareAndSwap to ensure only one goroutine closes the done channel.
+	// This prevents a double-close panic when concurrent Unsubscribe or Close
+	// calls race on the same subscription.
+	if !sub.active.CompareAndSwap(true, false) {
+		return
+	}
 	close(sub.done)
 
 	eb.mu.Lock()
