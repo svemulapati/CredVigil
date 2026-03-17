@@ -250,11 +250,83 @@ CredVigil is designed as a modular, component-based system. Each component is de
 | 8 | Web Dashboard | 🔜 | Visual overview of credential risk across repositories |
 | 9 | Notification Engine | 🔜 | Slack, email, and webhook alerts on new findings |
 | 10 | Policy Engine | 🔜 | Define and enforce credential security policies |
-| 11 | CI/CD Integration | 🔜 | GitHub Actions, pre-commit hooks, pipeline gates |
+| 11 | **CI/CD Integration** | ✅ | GitHub Actions reusable workflow, pre-commit hooks, pipeline gates |
 | 12 | Compliance Reporter | 🔜 | SOC 2, ISO 27001, PCI-DSS compliance reports |
 | 13 | Secret Rotation Tracker | 🔜 | Track whether leaked secrets have been rotated |
 | 14 | ML Anomaly Detection | 🔜 | Catch novel secret patterns no regex would find |
 | 15 | Plugin System | 🔜 | Extensible architecture for custom rules and integrations |
+
+---
+
+## Using CredVigil in CI/CD
+
+### GitHub Actions (Recommended)
+
+Add this to your repository at `.github/workflows/secrets-scan.yml`:
+
+```yaml
+name: Secrets Scan
+on: [push, pull_request]
+
+jobs:
+  scan:
+    uses: svemulapati/CredVigil-Secrets-Scanner/.github/workflows/credvigil-scan.yml@main
+    with:
+      scan-path: '.'
+      min-severity: 'medium'
+      fail-on-secrets: true
+```
+
+Every push and PR is now scanned. If secrets are found, the build fails and a PR comment is posted.
+
+**Available options:**
+
+| Input | Default | Description |
+|-------|---------|-------------|
+| `scan-path` | `.` | Path to scan (file or directory) |
+| `min-severity` | `low` | Minimum severity: info, low, medium, high, critical |
+| `min-confidence` | `0.3` | Minimum confidence threshold (0.0-1.0) |
+| `format` | `text` | Output format: text or json |
+| `fail-on-secrets` | `true` | Fail the workflow if secrets are found |
+| `enable-entropy` | `true` | Enable Shannon entropy detection |
+| `enable-bpe` | `true` | Enable BPE token efficiency detection |
+| `upload-artifact` | `false` | Upload JSON results as workflow artifact |
+
+See [.github/workflows/example-usage.yml](.github/workflows/example-usage.yml) for more configurations.
+
+### Pre-Commit Hook (Local Development)
+
+```bash
+# Install the hook
+cp scripts/pre-commit .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+
+# Or symlink (auto-updates when you pull)
+ln -sf ../../scripts/pre-commit .git/hooks/pre-commit
+```
+
+Now every `git commit` scans staged files. Secrets block the commit:
+
+```
+🔐 CredVigil Pre-Commit Scan
+   Scanning 3 staged file(s) for secrets...
+
+🚫 COMMIT BLOCKED — Secrets detected!
+
+[CRITICAL] AWS Secret Access Key
+  Rule:       aws-secret-access-key
+  File:       config.env:7
+  Match:      wJal****EKEY
+  Confidence: 85%
+```
+
+Configure with environment variables:
+
+```bash
+export CREDVIGIL_SEVERITY=medium     # Only block on medium+
+export CREDVIGIL_CONFIDENCE=0.5      # Only block on 50%+ confidence
+CREDVIGIL_SKIP=1 git commit          # Skip once (not recommended)
+```
 
 ---
 
@@ -273,6 +345,8 @@ credvigil/
 │   ├── git/                # Git integration layer (clone, walk, diff, scan history)
 │   ├── watcher/            # File system watcher (fsnotify, debounce, recursive)
 │   └── eventbus/           # Event bus (pub/sub, topics, wildcard, async delivery)
+├── .github/workflows/      # CI/CD: reusable GitHub Action + examples
+├── scripts/                # Pre-commit hook for local development
 ├── internal/config/        # Application configuration
 ├── testdata/               # Test fixtures with synthetic credentials
 ├── go.mod

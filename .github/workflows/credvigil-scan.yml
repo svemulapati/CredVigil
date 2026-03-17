@@ -1,0 +1,250 @@
+# CredVigil Secrets Scanner — Reusable GitHub Action Workflow
+#
+# This reusable workflow scans your codebase for hardcoded credentials
+# using CredVigil's triple-detection engine (regex + entropy + BPE).
+#
+# HOW TO USE:
+#   In your repo, create .github/workflows/secrets-scan.yml with:
+#
+#   name: Secrets Scan
+#   on: [push, pull_request]
+#   jobs:
+#     scan:
+#       uses: svemulapati/CredVigil-Secrets-Scanner/.github/workflows/credvigil-scan.yml@main
+#       with:
+#         scan-path: '.'
+#         min-severity: 'medium'
+#         fail-on-secrets: true
+#
+# EXIT CODES:
+#   0 = No secrets found (build passes)
+#   1 = Secrets found (build fails if fail-on-secrets is true)
+#   2 = Scanner error (build fails)
+#
+# ZERO-TRUST: Raw secrets are NEVER logged or stored in artifacts.
+#   All output contains only SHA-256 hashes and redacted previews.
+
+name: CredVigil Secrets Scan
+
+on:
+  workflow_call:
+    inputs:
+      scan-path:
+        description: 'Path to scan (file or directory, relative to repo root)'
+        required: false
+        type: string
+        default: '.'
+
+      min-severity:
+        description: 'Minimum severity to report: info, low, medium, high, critical'
+        required: false
+        type: string
+        default: 'low'
+
+      min-confidence:
+        description: 'Minimum confidence threshold (0.0-1.0)'
+        required: false
+        type: string
+        default: '0.3'
+
+      format:
+        description: 'Output format: text or json'
+        required: false
+        type: string
+        default: 'text'
+
+      fail-on-secrets:
+        description: 'Fail the workflow if secrets are found (true/false)'
+        required: false
+        type: boolean
+        default: true
+
+      enable-entropy:
+        description: 'Enable Shannon entropy detection (true/false)'
+        required: false
+        type: boolean
+        default: true
+
+      enable-bpe:
+        description: 'Enable BPE token efficiency detection (true/false)'
+        required: false
+        type: boolean
+        default: true
+
+      go-version:
+        description: 'Go version to use for building CredVigil'
+        required: false
+        type: string
+        default: '1.21'
+
+      upload-artifact:
+        description: 'Upload JSON scan results as a workflow artifact (true/false)'
+        required: false
+        type: boolean
+        default: false
+
+    outputs:
+      findings-count:
+        description: 'Total number of secrets found'
+        value: ${{ jobs.scan.outputs.findings-count }}
+      scan-result:
+        description: 'Scan result: clean or findings-detected'
+        value: ${{ jobs.scan.outputs.scan-result }}
+
+jobs:
+  scan:
+    name: Scan for Secrets
+    runs-on: ubuntu-latest
+    outputs:
+      findings-count: ${{ steps.scan.outputs.findings_count }}
+      scan-result: ${{ steps.scan.outputs.scan_result }}
+
+    steps:
+      # ─── Step 1: Check out the repository to scan ───
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for git-based scanning
+
+      # ─── Step 2: Set up Go ───
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      # ─── Step 3: Check out CredVigil and build the scanner ───
+      - name: Build CredVigil scanner
+        run: |
+          # Clone CredVigil into a temporary directory
+          git clone --depth 1 https://github.com/svemulapati/CredVigil-Secrets-Scanner.git /tmp/credvigil-build
+
+          # Build the binary
+          cd /tmp/credvigil-build
+          go build -o /tmp/credvigil ./cmd/credvigil
+
+          # Verify the binary works
+          /tmp/credvigil version
+          echo "✅ CredVigil built successfully"
+
+      # ─── Step 4: Run the scan ───
+      - name: Run CredVigil scan
+        id: scan
+        run: |
+          echo "╔═══════════════════════════════════════════════════════════════╗"
+          echo "║              CredVigil CI/CD Secrets Scan                    ║"
+          echo "╚═══════════════════════════════════════════════════════════════╝"
+          echo ""
+
+          # Build the scan command with all configured options
+          SCAN_CMD="/tmp/credvigil scan"
+          SCAN_CMD="$SCAN_CMD --min-severity ${{ inputs.min-severity }}"
+          SCAN_CMD="$SCAN_CMD --min-confidence ${{ inputs.min-confidence }}"
+          SCAN_CMD="$SCAN_CMD --format ${{ inputs.format }}"
+
+          # Conditionally disable entropy detection
+          if [ "${{ inputs.enable-entropy }}" = "false" ]; then
+            SCAN_CMD="$SCAN_CMD --no-entropy"
+          fi
+
+          # Conditionally disable BPE detection
+          if [ "${{ inputs.enable-bpe }}" = "false" ]; then
+            SCAN_CMD="$SCAN_CMD --no-bpe"
+          fi
+
+          # Add the scan path
+          SCAN_CMD="$SCAN_CMD ${{ inputs.scan-path }}"
+
+          echo "Running: $SCAN_CMD"
+          echo "─────────────────────────────────────────────────────────────────"
+          echo ""
+
+          # Run the scan and capture the exit code
+          # Exit code 0 = clean, 1 = secrets found, other = error
+          set +e
+          if [ "${{ inputs.format }}" = "json" ]; then
+            $SCAN_CMD > /tmp/credvigil-results.json 2>&1
+            EXIT_CODE=$?
+            cat /tmp/credvigil-results.json
+          else
+            $SCAN_CMD 2>&1 | tee /tmp/credvigil-results.txt
+            EXIT_CODE=$?
+          fi
+          set -e
+
+          echo ""
+          echo "─────────────────────────────────────────────────────────────────"
+
+          # Set outputs based on exit code
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "findings_count=0" >> "$GITHUB_OUTPUT"
+            echo "scan_result=clean" >> "$GITHUB_OUTPUT"
+            echo "✅ No secrets detected — repository is clean."
+          elif [ $EXIT_CODE -eq 1 ]; then
+            # Count findings from output (approximate from text output)
+            if [ "${{ inputs.format }}" = "json" ]; then
+              FINDINGS=$(cat /tmp/credvigil-results.json | grep -o '"total_findings":[0-9]*' | head -1 | cut -d: -f2)
+            else
+              FINDINGS=$(grep -c '^\[' /tmp/credvigil-results.txt 2>/dev/null || echo "1")
+            fi
+            echo "findings_count=${FINDINGS:-1}" >> "$GITHUB_OUTPUT"
+            echo "scan_result=findings-detected" >> "$GITHUB_OUTPUT"
+            echo "⚠️  Secrets detected! Found ${FINDINGS:-unknown} potential credential(s)."
+          else
+            echo "findings_count=0" >> "$GITHUB_OUTPUT"
+            echo "scan_result=error" >> "$GITHUB_OUTPUT"
+            echo "❌ Scanner encountered an error (exit code: $EXIT_CODE)"
+            exit 2
+          fi
+
+          # Decide whether to fail the build
+          if [ "${{ inputs.fail-on-secrets }}" = "true" ] && [ $EXIT_CODE -eq 1 ]; then
+            echo ""
+            echo "🚫 Build FAILED: Secrets were detected and fail-on-secrets is enabled."
+            echo "   Review the findings above, rotate any exposed credentials,"
+            echo "   and remove them from the codebase before merging."
+            exit 1
+          fi
+
+          # If fail-on-secrets is false, warn but don't fail
+          if [ "${{ inputs.fail-on-secrets }}" = "false" ] && [ $EXIT_CODE -eq 1 ]; then
+            echo ""
+            echo "⚠️  Secrets detected but fail-on-secrets is disabled — build will continue."
+            echo "   Review the findings and remediate before production deployment."
+            exit 0
+          fi
+
+      # ─── Step 5: Upload artifact (optional) ───
+      - name: Upload scan results artifact
+        if: ${{ inputs.upload-artifact && inputs.format == 'json' && always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: credvigil-scan-results
+          path: /tmp/credvigil-results.json
+          retention-days: 30
+
+      # ─── Step 6: Add PR comment summary (on pull requests) ───
+      - name: Add PR comment with scan summary
+        if: ${{ github.event_name == 'pull_request' && steps.scan.outputs.scan_result == 'findings-detected' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const result = '${{ steps.scan.outputs.scan_result }}';
+            const count = '${{ steps.scan.outputs.findings_count }}';
+
+            let body = '## 🔐 CredVigil Secrets Scan\n\n';
+            if (result === 'clean') {
+              body += '✅ **No secrets detected** — this PR is clean.\n';
+            } else {
+              body += `⚠️ **${count} potential secret(s) detected.**\n\n`;
+              body += 'Please review the scan results in the Actions tab, ';
+              body += 'rotate any exposed credentials, and remove them from the code.\n\n';
+              body += '> Note: CredVigil never logs raw secrets. ';
+              body += 'All findings show only SHA-256 hashes and redacted previews.\n';
+            }
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });

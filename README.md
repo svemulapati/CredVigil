@@ -236,11 +236,102 @@ CredVigil is designed as a modular, component-based system. Each component is de
 | 8 | Web Dashboard | — | Visual overview of credential risk across repositories |
 | 9 | Notification Engine | — | Slack, email, and webhook alerts on new findings |
 | 10 | Policy Engine | — | Define and enforce credential security policies |
-| 11 | CI/CD Integration | — | GitHub Actions, pre-commit hooks, pipeline gates |
+| 11 | **CI/CD Integration** | ✅ | GitHub Actions reusable workflow, pre-commit hooks, pipeline gates |
 | 12 | Compliance Reporter | — | SOC 2, ISO 27001, PCI-DSS compliance reports |
 | 13 | Secret Rotation Tracker | — | Track whether leaked secrets have been rotated |
 | 14 | ML Anomaly Detection | — | Catch novel secret patterns no regex would find |
 | 15 | Plugin System | — | Extensible architecture for custom rules and integrations |
+
+---
+
+## Using CredVigil in CI/CD
+
+### GitHub Actions (Recommended)
+
+Add this to your repository at `.github/workflows/secrets-scan.yml`:
+
+```yaml
+name: Secrets Scan
+on: [push, pull_request]
+
+jobs:
+  scan:
+    uses: svemulapati/CredVigil-Secrets-Scanner/.github/workflows/credvigil-scan.yml@main
+    with:
+      scan-path: '.'
+      min-severity: 'medium'
+      fail-on-secrets: true
+```
+
+That's it — your repo is now protected. Every push and PR will be scanned for secrets.
+
+**Available options:**
+
+| Input | Default | Description |
+|-------|---------|-------------|
+| `scan-path` | `.` | Path to scan (file or directory) |
+| `min-severity` | `low` | Minimum severity: info, low, medium, high, critical |
+| `min-confidence` | `0.3` | Minimum confidence threshold (0.0-1.0) |
+| `format` | `text` | Output format: text or json |
+| `fail-on-secrets` | `true` | Fail the workflow if secrets are found |
+| `enable-entropy` | `true` | Enable Shannon entropy detection |
+| `enable-bpe` | `true` | Enable BPE token efficiency detection |
+| `upload-artifact` | `false` | Upload JSON results as workflow artifact |
+
+**More examples** — audit mode (non-blocking), JSON export, high-confidence only: see [.github/workflows/example-usage.yml](.github/workflows/example-usage.yml)
+
+### Pre-Commit Hook (Local Development)
+
+Install to scan staged files before every commit:
+
+```bash
+# Option A: Copy the hook
+cp scripts/pre-commit .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+
+# Option B: Symlink (auto-updates when you pull)
+ln -sf ../../scripts/pre-commit .git/hooks/pre-commit
+```
+
+Now every `git commit` will scan staged files:
+
+```
+🔐 CredVigil Pre-Commit Scan
+   Scanning 3 staged file(s) for secrets...
+
+✅ No secrets detected — 3 file(s) scanned.
+```
+
+If secrets are found, the commit is blocked:
+
+```
+🚫 COMMIT BLOCKED — Secrets detected!
+
+[CRITICAL] AWS Secret Access Key
+  Rule:       aws-secret-access-key
+  File:       config.env:7
+  Match:      wJal****EKEY
+  Confidence: 85%
+
+  Action Required:
+  1. Remove or rotate the detected credentials
+  2. Use environment variables or a secrets manager instead
+```
+
+**Configure the hook** with environment variables:
+
+```bash
+export CREDVIGIL_SEVERITY=medium     # Only block on medium+ severity
+export CREDVIGIL_CONFIDENCE=0.5      # Only block on 50%+ confidence
+export CREDVIGIL_SKIP=1              # Skip the hook temporarily
+```
+
+**Skip once** (not recommended):
+```bash
+CREDVIGIL_SKIP=1 git commit -m "emergency fix"
+# or
+git commit --no-verify -m "emergency fix"
+```
 
 ---
 
@@ -287,6 +378,12 @@ credvigil/
 │   └── eventbus/           # Event bus (Component 5)
 │       ├── eventbus.go     # Topic-based pub/sub with async delivery + wildcard support
 │       └── eventbus_test.go # 42 tests + 5 benchmarks: pub/sub, concurrency, integration
+├── .github/
+│   └── workflows/
+│       ├── credvigil-scan.yml  # Reusable GitHub Action workflow (Component 11)
+│       └── example-usage.yml  # Example configurations for calling the action
+├── scripts/
+│   └── pre-commit             # Git pre-commit hook for local scanning
 ├── internal/
 │   └── config/             # Application configuration
 │       └── config.go
@@ -343,6 +440,7 @@ This runs 14 end-to-end tests covering version checks, full scans, severity/conf
 | [Module 3: Git Integration Layer](docs/training/03-git-integration-layer.md) | Clone, walk history, parse diffs, scan commits for leaked secrets |
 | [Module 4: File System Watcher](docs/training/04-file-system-watcher.md) | Real-time file monitoring, fsnotify, debounce, recursive watching, event filtering |
 | [Module 5: Event Bus](docs/training/05-event-bus.md) | Internal pub/sub, topic-based routing, wildcard subscriptions, async delivery, backpressure |
+| [Module 6: CI/CD Integration](docs/training/06-cicd-integration.md) | GitHub Actions, pre-commit hooks, pipeline gates, exit codes, zero-trust CI |
 | [SECURITY.md](SECURITY.md) | Security policy, responsible disclosure, zero-trust design, and liability |
 | [LICENSE](LICENSE) | Apache License 2.0 |
 

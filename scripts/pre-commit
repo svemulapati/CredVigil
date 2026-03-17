@@ -1,0 +1,210 @@
+#!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────────────────────
+# CredVigil Pre-Commit Hook
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Scans staged files for hardcoded secrets before allowing a commit.
+# Uses CredVigil's triple-detection engine (regex + entropy + BPE).
+#
+# EXIT CODES:
+#   0 = No secrets found → commit proceeds
+#   1 = Secrets found → commit blocked
+#   2 = CredVigil binary not found or error → commit proceeds with warning
+#
+# INSTALLATION:
+#   Option A — Copy directly:
+#     cp scripts/pre-commit .git/hooks/pre-commit
+#     chmod +x .git/hooks/pre-commit
+#
+#   Option B — Symlink (auto-updates when you pull):
+#     ln -sf ../../scripts/pre-commit .git/hooks/pre-commit
+#
+#   Option C — Install for all repos globally:
+#     git config --global core.hooksPath /path/to/credvigil/scripts
+#
+# CONFIGURATION:
+#   Set these environment variables to customize behavior:
+#     CREDVIGIL_BIN        Path to credvigil binary (default: auto-detect)
+#     CREDVIGIL_SEVERITY   Minimum severity: info|low|medium|high|critical (default: low)
+#     CREDVIGIL_CONFIDENCE Minimum confidence: 0.0-1.0 (default: 0.3)
+#     CREDVIGIL_SKIP       Set to "1" to skip the hook temporarily
+#     CREDVIGIL_NO_ENTROPY Set to "1" to disable entropy detection
+#     CREDVIGIL_NO_BPE     Set to "1" to disable BPE detection
+#
+# ZERO-TRUST: Raw secrets are NEVER printed to the terminal.
+#   All output contains only SHA-256 hashes and redacted previews.
+# ─────────────────────────────────────────────────────────────────────────────
+
+set -euo pipefail
+
+# ─── Colors ───
+RED='\033[91m'
+GREEN='\033[92m'
+YELLOW='\033[93m'
+BLUE='\033[94m'
+BOLD='\033[1m'
+RESET='\033[0m'
+
+# ─── Allow skipping the hook ───
+if [ "${CREDVIGIL_SKIP:-0}" = "1" ]; then
+    echo -e "${YELLOW}⚠️  CredVigil pre-commit hook SKIPPED (CREDVIGIL_SKIP=1)${RESET}"
+    echo "   Unset CREDVIGIL_SKIP to re-enable: unset CREDVIGIL_SKIP"
+    exit 0
+fi
+
+# ─── Find the CredVigil binary ───
+# Search order: CREDVIGIL_BIN env var → ./credvigil → $GOPATH/bin → PATH
+find_credvigil() {
+    if [ -n "${CREDVIGIL_BIN:-}" ] && [ -x "${CREDVIGIL_BIN}" ]; then
+        echo "${CREDVIGIL_BIN}"
+        return 0
+    fi
+
+    # Check common locations
+    local locations=(
+        "./credvigil"
+        "$(git rev-parse --show-toplevel 2>/dev/null)/credvigil"
+        "${GOPATH:-$HOME/go}/bin/credvigil"
+    )
+
+    for loc in "${locations[@]}"; do
+        if [ -x "$loc" ] 2>/dev/null; then
+            echo "$loc"
+            return 0
+        fi
+    done
+
+    # Check PATH
+    if command -v credvigil &>/dev/null; then
+        command -v credvigil
+        return 0
+    fi
+
+    return 1
+}
+
+CREDVIGIL_BIN=$(find_credvigil) || {
+    echo -e "${YELLOW}⚠️  CredVigil binary not found. Skipping pre-commit scan.${RESET}"
+    echo ""
+    echo "   To install CredVigil:"
+    echo "     cd $(git rev-parse --show-toplevel 2>/dev/null || echo '.')"
+    echo "     go build -o credvigil ./cmd/credvigil"
+    echo ""
+    echo "   Or set CREDVIGIL_BIN to the binary path:"
+    echo "     export CREDVIGIL_BIN=/path/to/credvigil"
+    echo ""
+    exit 0  # Don't block commits if the binary is missing
+}
+
+# ─── Configuration ───
+MIN_SEVERITY="${CREDVIGIL_SEVERITY:-low}"
+MIN_CONFIDENCE="${CREDVIGIL_CONFIDENCE:-0.3}"
+
+# ─── Get staged files ───
+# Only scan files that are being committed (Added, Copied, Modified, Renamed)
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null)
+
+if [ -z "$STAGED_FILES" ]; then
+    # No staged files — nothing to scan
+    exit 0
+fi
+
+# ─── Count staged files ───
+FILE_COUNT=$(echo "$STAGED_FILES" | wc -l | tr -d ' ')
+
+echo -e "${BLUE}${BOLD}🔐 CredVigil Pre-Commit Scan${RESET}"
+echo -e "   Scanning ${FILE_COUNT} staged file(s) for secrets..."
+echo ""
+
+# ─── Create a temporary directory for staged content ───
+# We extract the staged version of each file (from the index, not the working tree)
+# so we scan exactly what will be committed — not uncommitted edits.
+TMPDIR=$(mktemp -d)
+trap "rm -rf '$TMPDIR'" EXIT
+
+# Extract staged content for each file
+SCAN_COUNT=0
+while IFS= read -r file; do
+    # Skip files that no longer exist (deleted in working tree but staged)
+    if ! git ls-files --error-unmatch "$file" &>/dev/null 2>&1; then
+        continue
+    fi
+
+    # Create the directory structure in tmpdir
+    mkdir -p "$TMPDIR/$(dirname "$file")"
+
+    # Extract the staged version (from index, not working tree)
+    git show ":$file" > "$TMPDIR/$file" 2>/dev/null || continue
+
+    SCAN_COUNT=$((SCAN_COUNT + 1))
+done <<< "$STAGED_FILES"
+
+if [ "$SCAN_COUNT" -eq 0 ]; then
+    echo -e "${GREEN}✅ No scannable files staged.${RESET}"
+    exit 0
+fi
+
+# ─── Build scan command ───
+SCAN_ARGS="scan"
+SCAN_ARGS="$SCAN_ARGS --min-severity $MIN_SEVERITY"
+SCAN_ARGS="$SCAN_ARGS --min-confidence $MIN_CONFIDENCE"
+
+if [ "${CREDVIGIL_NO_ENTROPY:-0}" = "1" ]; then
+    SCAN_ARGS="$SCAN_ARGS --no-entropy"
+fi
+
+if [ "${CREDVIGIL_NO_BPE:-0}" = "1" ]; then
+    SCAN_ARGS="$SCAN_ARGS --no-bpe"
+fi
+
+SCAN_ARGS="$SCAN_ARGS $TMPDIR"
+
+# ─── Run the scan ───
+set +e
+OUTPUT=$($CREDVIGIL_BIN $SCAN_ARGS 2>&1)
+EXIT_CODE=$?
+set -e
+
+# ─── Process results ───
+case $EXIT_CODE in
+    0)
+        # No secrets found — commit can proceed
+        echo -e "${GREEN}${BOLD}✅ No secrets detected${RESET} — ${SCAN_COUNT} file(s) scanned."
+        echo ""
+        exit 0
+        ;;
+    1)
+        # Secrets found — block the commit
+        echo -e "${RED}${BOLD}🚫 COMMIT BLOCKED — Secrets detected!${RESET}"
+        echo ""
+
+        # Print the scan output (redacted — no raw secrets)
+        # Replace the temp directory paths with the actual file paths for readability
+        echo "$OUTPUT" | sed "s|$TMPDIR/||g"
+
+        echo ""
+        echo -e "${RED}─────────────────────────────────────────────────────────────────${RESET}"
+        echo -e "${RED}${BOLD}  Action Required:${RESET}"
+        echo -e "  1. Remove or rotate the detected credentials"
+        echo -e "  2. Use environment variables or a secrets manager instead"
+        echo -e "  3. Add the value to .gitignore or .credvigilignore if it's a false positive"
+        echo ""
+        echo -e "  ${YELLOW}To skip this check once (NOT recommended):${RESET}"
+        echo -e "    CREDVIGIL_SKIP=1 git commit -m \"your message\""
+        echo ""
+        echo -e "  ${YELLOW}To bypass with git flag (NOT recommended):${RESET}"
+        echo -e "    git commit --no-verify -m \"your message\""
+        echo ""
+        exit 1
+        ;;
+    *)
+        # Scanner error — warn but allow the commit
+        echo -e "${YELLOW}⚠️  CredVigil encountered an error (exit code: $EXIT_CODE)${RESET}"
+        echo "$OUTPUT" | head -5
+        echo ""
+        echo "   Allowing commit to proceed. Run the scan manually to check:"
+        echo "   $CREDVIGIL_BIN scan ."
+        echo ""
+        exit 0  # Don't block commits on scanner errors
+        ;;
+esac

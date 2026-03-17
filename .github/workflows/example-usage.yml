@@ -1,0 +1,78 @@
+# Example: How to use CredVigil's reusable GitHub Action in your repository.
+#
+# Copy this file to YOUR repository at:
+#   .github/workflows/secrets-scan.yml
+#
+# This will automatically scan your code for hardcoded secrets on every push
+# and pull request. If secrets are found, the build fails and a PR comment
+# is added with a summary.
+
+name: Secrets Scan
+
+# ─── When to run ───
+# Scans on every push and every pull request to main/develop.
+on:
+  push:
+    branches: [ main, develop, 'release/**' ]
+  pull_request:
+    branches: [ main, develop ]
+
+  # Allow manual trigger from the GitHub Actions UI
+  workflow_dispatch:
+
+jobs:
+  # ─── Example 1: Basic scan with defaults ───
+  # Scans the entire repo, fails if any secrets are found.
+  basic-scan:
+    name: Basic Secrets Scan
+    uses: svemulapati/CredVigil-Secrets-Scanner/.github/workflows/credvigil-scan.yml@main
+    with:
+      scan-path: '.'
+      fail-on-secrets: true
+
+  # ─── Example 2: Scan only source code, medium+ severity ───
+  # Only reports MEDIUM, HIGH, and CRITICAL findings.
+  # Useful for reducing noise from low-confidence matches.
+  strict-scan:
+    name: Strict Source Scan
+    uses: svemulapati/CredVigil-Secrets-Scanner/.github/workflows/credvigil-scan.yml@main
+    with:
+      scan-path: './src'
+      min-severity: 'medium'
+      min-confidence: '0.5'
+      fail-on-secrets: true
+
+  # ─── Example 3: Audit scan (warn but don't fail) ───
+  # Scans everything but only warns — doesn't block the build.
+  # Good for initial adoption before enforcing.
+  audit-scan:
+    name: Audit Scan (Non-Blocking)
+    uses: svemulapati/CredVigil-Secrets-Scanner/.github/workflows/credvigil-scan.yml@main
+    with:
+      scan-path: '.'
+      min-severity: 'low'
+      fail-on-secrets: false
+      upload-artifact: true
+      format: 'json'
+
+  # ─── Example 4: JSON output with artifact upload ───
+  # Exports scan results as a JSON artifact for downstream processing.
+  json-scan:
+    name: JSON Export Scan
+    uses: svemulapati/CredVigil-Secrets-Scanner/.github/workflows/credvigil-scan.yml@main
+    with:
+      scan-path: '.'
+      format: 'json'
+      upload-artifact: true
+      fail-on-secrets: true
+
+  # ─── Example 5: High-confidence only ───
+  # Only report findings with 70%+ confidence — minimal false positives.
+  high-confidence-scan:
+    name: High-Confidence Scan
+    uses: svemulapati/CredVigil-Secrets-Scanner/.github/workflows/credvigil-scan.yml@main
+    with:
+      scan-path: '.'
+      min-confidence: '0.7'
+      min-severity: 'high'
+      fail-on-secrets: true
