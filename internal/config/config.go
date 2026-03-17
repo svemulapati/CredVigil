@@ -13,6 +13,23 @@ type AppConfig struct {
 	Detection DetectionConfig `json:"detection" yaml:"detection"`
 	// File scanning settings
 	FileScanning FileScanningConfig `json:"file_scanning" yaml:"file_scanning"`
+	// Storage settings (PostgreSQL + TimescaleDB)
+	Storage StorageConfig `json:"storage" yaml:"storage"`
+}
+
+// StorageConfig holds PostgreSQL + TimescaleDB connection settings.
+type StorageConfig struct {
+	// Whether storage is enabled (default: false — keeps backward compatibility)
+	Enabled bool `json:"enabled" yaml:"enabled"`
+	// PostgreSQL connection string (DSN format)
+	// Example: postgres://user:pass@localhost:5432/credvigil?sslmode=disable
+	ConnectionString string `json:"connection_string" yaml:"connection_string"`
+	// Maximum number of connections in the pool
+	MaxConns int `json:"max_conns" yaml:"max_conns"`
+	// Minimum number of idle connections
+	MinConns int `json:"min_conns" yaml:"min_conns"`
+	// Maximum connection lifetime in minutes
+	MaxConnLifetimeMinutes int `json:"max_conn_lifetime_minutes" yaml:"max_conn_lifetime_minutes"`
 }
 
 // DetectionConfig holds detection engine configuration.
@@ -51,6 +68,12 @@ func DefaultAppConfig() AppConfig {
 		},
 		FileScanning: FileScanningConfig{
 			Workers: 4,
+		},
+		Storage: StorageConfig{
+			Enabled:                false,
+			MaxConns:               10,
+			MinConns:               2,
+			MaxConnLifetimeMinutes: 30,
 		},
 	}
 }

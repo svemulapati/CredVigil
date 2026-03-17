@@ -11,6 +11,8 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -18,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/credvigil/credvigil/internal/storage"
 	"github.com/credvigil/credvigil/pkg/detector"
 	gitpkg "github.com/credvigil/credvigil/pkg/git"
 	"github.com/credvigil/credvigil/pkg/models"
@@ -73,6 +76,8 @@ Options:
   --no-bpe                      Disable BPE token efficiency detection
   --no-context                  Don't show surrounding context
   --context-lines <n>           Number of context lines (default: 2)
+  --store                       Persist findings to PostgreSQL/TimescaleDB
+  --db <connection-string>      PostgreSQL DSN (or set CREDVIGIL_DB env var)
 
 Git Options:
   --git <path|url>              Scan a git repository's commit history
@@ -105,6 +110,8 @@ func cmdScan(args []string) {
 	outputFormat := "text"
 	scanStdin := false
 	gitTarget := ""
+	storeEnabled := false
+	dbConnString := os.Getenv("CREDVIGIL_DB")
 	var targets []string
 
 	for i := 0; i < len(args); i++ {
@@ -165,6 +172,13 @@ func cmdScan(args []string) {
 			if i+1 < len(args) {
 				i++
 				fmt.Sscanf(args[i], "%d", &cfg.ContextLines)
+			}
+		case "--store":
+			storeEnabled = true
+		case "--db":
+			if i+1 < len(args) {
+				i++
+				dbConnString = args[i]
 			}
 		default:
 			if !strings.HasPrefix(args[i], "-") {
@@ -249,14 +263,137 @@ func cmdScan(args []string) {
 		outputText(allResults, totalDuration, engine.RuleCount())
 	}
 
-	// Exit with code 1 if any findings
+	// Count total findings for exit code and storage
 	totalFindings := 0
 	for _, r := range allResults {
 		totalFindings += r.TotalFindings
 	}
+
+	// Persist findings to PostgreSQL if --store is enabled
+	if storeEnabled {
+		if dbConnString == "" {
+			fmt.Fprintln(os.Stderr, "Error: --store requires a database connection string.")
+			fmt.Fprintln(os.Stderr, "  Use --db <connection-string> or set CREDVIGIL_DB env var.")
+			fmt.Fprintln(os.Stderr, "  Example: --db postgres://user:pass@localhost:5432/credvigil?sslmode=disable")
+			os.Exit(2)
+		}
+		persistResults(allResults, dbConnString, startTime, totalDuration, engine.RuleCount(), totalFindings, targets)
+	}
+
 	if totalFindings > 0 {
 		os.Exit(1)
 	}
+}
+
+// persistResults saves scan results and findings to PostgreSQL.
+func persistResults(results []models.ScanResult, connString string, startTime time.Time, duration time.Duration, ruleCount, totalFindings int, targets []string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	repo, err := storage.NewPostgresRepository(ctx, connString)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "storage: failed to connect: %v\n", err)
+		fmt.Fprintln(os.Stderr, "  Scan results were NOT persisted. Continuing...")
+		return
+	}
+	defer repo.Close()
+
+	scanID := generateID()
+	finishedAt := startTime.Add(duration)
+
+	// Build severity counts
+	sevCounts := make(models.JSONMap)
+	for _, r := range results {
+		for sev, count := range r.CountBySeverity {
+			key := sev.String()
+			if existing, ok := sevCounts[key]; ok {
+				sevCounts[key] = existing.(int) + count
+			} else {
+				sevCounts[key] = count
+			}
+		}
+	}
+
+	// Determine scan target
+	scanTarget := "."
+	if len(targets) > 0 {
+		scanTarget = strings.Join(targets, ", ")
+	}
+
+	// Determine exit code
+	exitCode := 0
+	if totalFindings > 0 {
+		exitCode = 1
+	}
+
+	// Check if running in CI
+	isCI := os.Getenv("CI") == "true" || os.Getenv("GITHUB_ACTIONS") == "true"
+	ciJobRef := os.Getenv("GITHUB_SERVER_URL") + "/" + os.Getenv("GITHUB_REPOSITORY") + "/actions/runs/" + os.Getenv("GITHUB_RUN_ID")
+	if !isCI {
+		ciJobRef = ""
+	}
+
+	hostname, _ := os.Hostname()
+
+	scan := &models.StoredScanResult{
+		ID:             scanID,
+		ScannerVersion: version,
+		ScanType:       "file",
+		ScanTarget:     scanTarget,
+		StartedAt:      startTime,
+		FinishedAt:     finishedAt,
+		DurationMs:     duration.Milliseconds(),
+		TotalFindings:  totalFindings,
+		SeverityCounts: sevCounts,
+		FilesScanned:   len(results),
+		RuleCount:      ruleCount,
+		MachineName:    hostname,
+		ExitCode:       exitCode,
+		IsCI:           isCI,
+		CIJobRef:       ciJobRef,
+	}
+
+	// Convert findings to StoredFinding
+	var storedFindings []models.StoredFinding
+	for _, r := range results {
+		for i := range r.Findings {
+			sf := models.ToStoredFinding(&r.Findings[i], scanID, finishedAt)
+			storedFindings = append(storedFindings, sf)
+		}
+	}
+
+	if err := repo.SaveScanResult(ctx, scan, storedFindings); err != nil {
+		fmt.Fprintf(os.Stderr, "storage: failed to persist: %v\n", err)
+		fmt.Fprintln(os.Stderr, "  Scan results were NOT persisted. Continuing...")
+		return
+	}
+
+	// Log audit event
+	auditLog := &models.AuditLog{
+		Timestamp: finishedAt,
+		EventType: "scan.completed",
+		Actor:     "credvigil-cli",
+		ScanID:    &scanID,
+		Details: models.JSONMap{
+			"scan_target":    scanTarget,
+			"total_findings": totalFindings,
+			"duration_ms":    duration.Milliseconds(),
+			"rule_count":     ruleCount,
+		},
+		Severity: "info",
+	}
+	if err := repo.LogEvent(ctx, auditLog); err != nil {
+		fmt.Fprintf(os.Stderr, "storage: failed to log audit event: %v\n", err)
+	}
+
+	fmt.Fprintf(os.Stderr, "  💾 Persisted %d finding(s) to database (scan: %s)\n", totalFindings, scanID[:8])
+}
+
+// generateID creates a random hex string suitable for use as a UUID-like ID.
+func generateID() string {
+	b := make([]byte, 16)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
 }
 
 // cmdScanGit handles git repository history scanning.

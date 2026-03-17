@@ -335,6 +335,73 @@ git commit --no-verify -m "emergency fix"
 
 ---
 
+## Storage Layer (PostgreSQL + TimescaleDB)
+
+CredVigil can optionally persist scan results, findings, and audit logs to a PostgreSQL database with the TimescaleDB extension for efficient time-series analytics.
+
+### Quick Setup
+
+```bash
+# 1. Start PostgreSQL + TimescaleDB (Docker)
+docker run -d --name credvigil-db \
+  -e POSTGRES_USER=credvigil \
+  -e POSTGRES_PASSWORD=secret \
+  -e POSTGRES_DB=credvigil \
+  -p 5432:5432 \
+  timescale/timescaledb:latest-pg16
+
+# 2. Run the migration
+psql "postgres://credvigil:secret@localhost:5432/credvigil" -f migrations/001_initial_schema.up.sql
+
+# 3. Scan with storage enabled
+credvigil scan . --store --db "postgres://credvigil:secret@localhost:5432/credvigil"
+
+# Or use an environment variable
+export CREDVIGIL_DB="postgres://credvigil:secret@localhost:5432/credvigil"
+credvigil scan . --store
+```
+
+### What Gets Stored
+
+| Table | Purpose | Retention |
+|-------|---------|-----------|
+| `scan_results` | Scan metadata (target, duration, severity counts) | Manual |
+| `findings` | Individual secret detections (TimescaleDB hypertable) | 90 days |
+| `audit_logs` | Security events — scan.completed, etc. (hypertable) | 365 days |
+| `daily_risk_summary` | Continuous aggregate for dashboards | Auto-refreshed |
+
+### Zero-Trust Design
+
+- **No raw secrets** are ever stored — only SHA-256 hashes, redacted matches, and fingerprints
+- Connection strings support `sslmode=require` for encrypted connections
+- All write operations use transactions for atomicity
+
+### Sample Queries
+
+```sql
+-- Recent high-severity findings
+SELECT secret_type, redacted_match, source_location, scanned_at
+FROM findings
+WHERE severity IN ('CRITICAL', 'HIGH')
+ORDER BY scanned_at DESC LIMIT 20;
+
+-- Daily risk trend (uses TimescaleDB time_bucket)
+SELECT time_bucket('1 day', scanned_at) AS day, COUNT(*) AS findings
+FROM findings
+GROUP BY day ORDER BY day DESC LIMIT 30;
+
+-- Top leaked secret types
+SELECT secret_type, COUNT(*) AS total
+FROM findings
+GROUP BY secret_type ORDER BY total DESC LIMIT 10;
+```
+
+### Backward Compatibility
+
+Storage is entirely **opt-in**. Without the `--store` flag, CredVigil behaves identically to before — no database connection is attempted, and no additional dependencies are loaded at runtime.
+
+---
+
 ## Project Structure
 
 ```
@@ -343,7 +410,9 @@ credvigil/
 │   └── main.go
 ├── pkg/
 │   ├── models/             # Core types: Finding, Source, ScanRequest, Severity
-│   │   └── finding.go
+│   │   ├── finding.go
+│   │   ├── storage.go      # Database models: StoredFinding, StoredScanResult, AuditLog
+│   │   └── storage_test.go
 │   ├── entropy/            # Shannon entropy + BPE token efficiency analysis
 │   │   ├── entropy.go
 │   │   ├── bpe.go          # BPE tokenizer, efficiency scoring, dual analysis
@@ -385,8 +454,15 @@ credvigil/
 ├── scripts/
 │   └── pre-commit             # Git pre-commit hook for local scanning
 ├── internal/
-│   └── config/             # Application configuration
-│       └── config.go
+│   ├── config/             # Application configuration
+│   │   └── config.go
+│   └── storage/            # Storage layer (Component 12)
+│       ├── repository.go   # Repository interface — storage abstraction
+│       ├── postgres.go     # PostgreSQL + TimescaleDB implementation
+│       └── postgres_test.go
+├── migrations/
+│   ├── 001_initial_schema.up.sql   # TimescaleDB schema, hypertables, indexes
+│   └── 001_initial_schema.down.sql # Rollback migration
 ├── testdata/
 │   └── fake_secrets.env    # Test fixtures with synthetic credentials
 ├── docs/
@@ -419,6 +495,8 @@ go test ./pkg/pipeline -v     # Post-processing pipeline
 go test ./pkg/git -v          # Git integration layer
 go test ./pkg/watcher -v      # File system watcher
 go test ./pkg/eventbus -v     # Event bus
+go test ./pkg/models -v       # Storage models + JSONMap + ToStoredFinding
+go test ./internal/storage -v # Repository + query builder
 ```
 
 An interactive test suite is also available:
@@ -441,6 +519,7 @@ This runs 14 end-to-end tests covering version checks, full scans, severity/conf
 | [Module 4: File System Watcher](docs/training/04-file-system-watcher.md) | Real-time file monitoring, fsnotify, debounce, recursive watching, event filtering |
 | [Module 5: Event Bus](docs/training/05-event-bus.md) | Internal pub/sub, topic-based routing, wildcard subscriptions, async delivery, backpressure |
 | [Module 6: CI/CD Integration](docs/training/06-cicd-integration.md) | GitHub Actions, pre-commit hooks, pipeline gates, exit codes, zero-trust CI |
+| [Module 7: Storage Layer](docs/training/07-storage-layer.md) | PostgreSQL + TimescaleDB setup, migrations, queries, analytics, zero-trust persistence |
 | [SECURITY.md](SECURITY.md) | Security policy, responsible disclosure, zero-trust design, and liability |
 | [LICENSE](LICENSE) | Apache License 2.0 |
 
