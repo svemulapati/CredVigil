@@ -223,7 +223,7 @@ A **reusable workflow** is a workflow that lives in one repository but can be **
 # In YOUR repo's workflow — just 5 lines:
 jobs:
   scan:
-    uses: svemulapati/CredVigil-Secrets-Scanner/.github/workflows/credvigil-scan.yml@main
+    uses: svemulapati/CredVigil/.github/workflows/credvigil-scan.yml@main
     with:
       scan-path: '.'
 ```
@@ -469,7 +469,7 @@ Let's walk through every step of the workflow:
 ```yaml
 - name: Build CredVigil scanner
   run: |
-    git clone --depth 1 https://github.com/svemulapati/CredVigil-Secrets-Scanner.git /tmp/credvigil-build
+    git clone --depth 1 https://github.com/svemulapati/CredVigil.git /tmp/credvigil-build
     cd /tmp/credvigil-build
     go build -o /tmp/credvigil ./cmd/credvigil
     /tmp/credvigil version
@@ -587,7 +587,7 @@ Example — using outputs in a downstream job:
 ```yaml
 jobs:
   scan:
-    uses: svemulapati/CredVigil-Secrets-Scanner/.github/workflows/credvigil-scan.yml@main
+    uses: svemulapati/CredVigil/.github/workflows/credvigil-scan.yml@main
     with:
       fail-on-secrets: false  # Don't fail — we'll handle it ourselves
   
@@ -614,7 +614,7 @@ on: [push, pull_request]
 
 jobs:
   scan:
-    uses: svemulapati/CredVigil-Secrets-Scanner/.github/workflows/credvigil-scan.yml@main
+    uses: svemulapati/CredVigil/.github/workflows/credvigil-scan.yml@main
     with:
       scan-path: '.'
       fail-on-secrets: true
@@ -853,7 +853,7 @@ name: Secrets Scan
 on: [push, pull_request]
 jobs:
   scan:
-    uses: svemulapati/CredVigil-Secrets-Scanner/.github/workflows/credvigil-scan.yml@main
+    uses: svemulapati/CredVigil/.github/workflows/credvigil-scan.yml@main
     with:
       scan-path: '.'
       fail-on-secrets: true
@@ -878,7 +878,7 @@ jobs:
   # Phase 1: Audit mode (first 2 weeks)
   # Don't fail the build — just report what's there
   audit:
-    uses: svemulapati/CredVigil-Secrets-Scanner/.github/workflows/credvigil-scan.yml@main
+    uses: svemulapati/CredVigil/.github/workflows/credvigil-scan.yml@main
     with:
       scan-path: '.'
       fail-on-secrets: false     # Don't block builds yet
@@ -892,7 +892,7 @@ After reviewing the audit results and fixing existing secrets:
 ```yaml
   # Phase 2: Enforcement mode (after cleanup)
   enforce:
-    uses: svemulapati/CredVigil-Secrets-Scanner/.github/workflows/credvigil-scan.yml@main
+    uses: svemulapati/CredVigil/.github/workflows/credvigil-scan.yml@main
     with:
       scan-path: '.'
       fail-on-secrets: true      # Now block builds with secrets
@@ -912,7 +912,7 @@ on:
 
 jobs:
   audit:
-    uses: svemulapati/CredVigil-Secrets-Scanner/.github/workflows/credvigil-scan.yml@main
+    uses: svemulapati/CredVigil/.github/workflows/credvigil-scan.yml@main
     with:
       scan-path: '.'
       format: 'json'
@@ -930,7 +930,7 @@ on: [push]
 
 jobs:
   scan:
-    uses: svemulapati/CredVigil-Secrets-Scanner/.github/workflows/credvigil-scan.yml@main
+    uses: svemulapati/CredVigil/.github/workflows/credvigil-scan.yml@main
     with:
       format: 'json'
       upload-artifact: true
@@ -1218,7 +1218,7 @@ The pre-commit hook runs **on your machine** with **your permissions**. It:
 |---------|-------|----------|
 | "Build failed" but I don't have secrets | False positive | Set `min-confidence: 0.7` or `min-severity: high` |
 | Action takes too long | Building Go + scanning large repo | Normal — typically 1-3 minutes |
-| "Not found" when calling reusable workflow | Wrong repo URL or branch | Verify: `svemulapati/CredVigil-Secrets-Scanner/.github/workflows/credvigil-scan.yml@main` |
+| "Not found" when calling reusable workflow | Wrong repo URL or branch | Verify: `svemulapati/CredVigil/.github/workflows/credvigil-scan.yml@main` |
 | PR comment not appearing | Workflow doesn't have write permissions | Add `permissions: pull-requests: write` to calling workflow |
 | Artifact not uploading | Format not set to JSON | Set `format: 'json'` alongside `upload-artifact: true` |
 

@@ -10,7 +10,7 @@
 #   on: [push, pull_request]
 #   jobs:
 #     scan:
-#       uses: svemulapati/CredVigil-Secrets-Scanner/.github/workflows/credvigil-scan.yml@main
+#       uses: svemulapati/CredVigil/.github/workflows/credvigil-scan.yml@main
 #       with:
 #         scan-path: '.'
 #         min-severity: 'medium'
@@ -116,7 +116,7 @@ jobs:
       - name: Build CredVigil scanner
         run: |
           # Clone CredVigil into a temporary directory
-          git clone --depth 1 https://github.com/svemulapati/CredVigil-Secrets-Scanner.git /tmp/credvigil-build
+          git clone --depth 1 https://github.com/svemulapati/CredVigil.git /tmp/credvigil-build
 
           # Build the binary
           cd /tmp/credvigil-build

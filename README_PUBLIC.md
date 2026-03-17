@@ -270,7 +270,7 @@ on: [push, pull_request]
 
 jobs:
   scan:
-    uses: svemulapati/CredVigil-Secrets-Scanner/.github/workflows/credvigil-scan.yml@main
+    uses: svemulapati/CredVigil/.github/workflows/credvigil-scan.yml@main
     with:
       scan-path: '.'
       min-severity: 'medium'

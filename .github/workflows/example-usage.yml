@@ -25,7 +25,7 @@ jobs:
   # Scans the entire repo, fails if any secrets are found.
   basic-scan:
     name: Basic Secrets Scan
-    uses: svemulapati/CredVigil-Secrets-Scanner/.github/workflows/credvigil-scan.yml@main
+    uses: svemulapati/CredVigil/.github/workflows/credvigil-scan.yml@main
     with:
       scan-path: '.'
       fail-on-secrets: true
@@ -35,7 +35,7 @@ jobs:
   # Useful for reducing noise from low-confidence matches.
   strict-scan:
     name: Strict Source Scan
-    uses: svemulapati/CredVigil-Secrets-Scanner/.github/workflows/credvigil-scan.yml@main
+    uses: svemulapati/CredVigil/.github/workflows/credvigil-scan.yml@main
     with:
       scan-path: './src'
       min-severity: 'medium'
@@ -47,7 +47,7 @@ jobs:
   # Good for initial adoption before enforcing.
   audit-scan:
     name: Audit Scan (Non-Blocking)
-    uses: svemulapati/CredVigil-Secrets-Scanner/.github/workflows/credvigil-scan.yml@main
+    uses: svemulapati/CredVigil/.github/workflows/credvigil-scan.yml@main
     with:
       scan-path: '.'
       min-severity: 'low'
@@ -59,7 +59,7 @@ jobs:
   # Exports scan results as a JSON artifact for downstream processing.
   json-scan:
     name: JSON Export Scan
-    uses: svemulapati/CredVigil-Secrets-Scanner/.github/workflows/credvigil-scan.yml@main
+    uses: svemulapati/CredVigil/.github/workflows/credvigil-scan.yml@main
     with:
       scan-path: '.'
       format: 'json'
@@ -70,7 +70,7 @@ jobs:
   # Only report findings with 70%+ confidence — minimal false positives.
   high-confidence-scan:
     name: High-Confidence Scan
-    uses: svemulapati/CredVigil-Secrets-Scanner/.github/workflows/credvigil-scan.yml@main
+    uses: svemulapati/CredVigil/.github/workflows/credvigil-scan.yml@main
     with:
       scan-path: '.'
       min-confidence: '0.7'
