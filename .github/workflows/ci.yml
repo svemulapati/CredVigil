@@ -50,6 +50,9 @@ jobs:
       - uses: golangci/golangci-lint-action@v6
         with:
           version: latest
+          # Build golangci-lint from source with the runner's Go so it can
+          # target the module's Go 1.25 (prebuilt binaries lag the Go release).
+          install-mode: goinstall
 
   build:
     name: Build
