@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"sync"
 
-	"github.com/credvigil/credvigil/pkg/models"
+	"github.com/svemulapati/CredVigil/pkg/models"
 )
 
 // Rule defines a single detection rule for identifying a type of secret.

@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/credvigil/credvigil/pkg/detector"
-	"github.com/credvigil/credvigil/pkg/models"
-	"github.com/credvigil/credvigil/pkg/pipeline"
+	"github.com/svemulapati/CredVigil/pkg/detector"
+	"github.com/svemulapati/CredVigil/pkg/models"
+	"github.com/svemulapati/CredVigil/pkg/pipeline"
 )
 
 // GitScanner orchestrates scanning a git repository's commit history

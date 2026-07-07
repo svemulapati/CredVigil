@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/credvigil/credvigil/pkg/models"
-	"github.com/credvigil/credvigil/pkg/pipeline"
+	"github.com/svemulapati/CredVigil/pkg/models"
+	"github.com/svemulapati/CredVigil/pkg/pipeline"
 )
 
 func TestScanContent_AWSKeys(t *testing.T) {
@@ -602,5 +602,51 @@ func TestScanLines(t *testing.T) {
 	findings := e.ScanLines(lines, models.Source{Type: "file", Location: "test.txt"})
 	if len(findings) == 0 {
 		t.Error("ScanLines should detect secrets")
+	}
+}
+
+func TestInlineAllowDirective(t *testing.T) {
+	e := NewDefault()
+	// Two identical secrets; only the second line carries an allow directive.
+	content := "AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\n" +
+		"AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY # credvigil:allow\n"
+
+	result := e.ScanContent(models.ScanRequest{
+		Content: content,
+		Source:  models.Source{Type: "file", Location: "test.env"},
+	})
+
+	for _, f := range result.Findings {
+		if f.Source.Line == 2 {
+			t.Errorf("finding on line 2 should be suppressed by credvigil:allow: %s", f.RuleID)
+		}
+	}
+	if len(result.Findings) == 0 {
+		t.Fatal("line 1 findings should NOT be suppressed")
+	}
+	// CountBySeverity must be recomputed to match the surviving findings.
+	total := 0
+	for _, c := range result.CountBySeverity {
+		total += c
+	}
+	if total != result.TotalFindings || result.TotalFindings != len(result.Findings) {
+		t.Errorf("count mismatch after suppression: counts=%d total=%d findings=%d",
+			total, result.TotalFindings, len(result.Findings))
+	}
+}
+
+func TestHasInlineAllow(t *testing.T) {
+	cases := map[string]bool{
+		"key=abc # credvigil:allow":   true,
+		"key=abc // credvigil-ignore": true,
+		"key=abc # CredVigil:Allow":   true, // case-insensitive
+		"key=abc # credvigil:ignore":  true,
+		"key=abc # nothing here":      false,
+		"key=credvigil":               false,
+	}
+	for line, want := range cases {
+		if got := hasInlineAllow(line); got != want {
+			t.Errorf("hasInlineAllow(%q) = %v, want %v", line, got, want)
+		}
 	}
 }

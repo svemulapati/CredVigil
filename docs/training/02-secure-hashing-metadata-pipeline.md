@@ -1631,7 +1631,7 @@ package mypipeline
 
 import (
     "context"
-    "github.com/credvigil/credvigil/pkg/models"
+    "github.com/svemulapati/CredVigil/pkg/models"
 )
 
 // TagProcessor adds custom tags to findings

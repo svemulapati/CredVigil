@@ -5,7 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 
-	"github.com/credvigil/credvigil/pkg/models"
+	"github.com/svemulapati/CredVigil/pkg/models"
 )
 
 // HashProcessor computes the SHA-256 hash of the raw secret and stores it

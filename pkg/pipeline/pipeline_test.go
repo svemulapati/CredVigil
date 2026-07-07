@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/credvigil/credvigil/pkg/models"
+	"github.com/svemulapati/CredVigil/pkg/models"
 )
 
 func testFinding(raw string) models.Finding {

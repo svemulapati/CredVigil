@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/credvigil/credvigil/pkg/models"
+	"github.com/svemulapati/CredVigil/pkg/models"
 )
 
 // EnrichProcessor adds derived metadata to each finding:

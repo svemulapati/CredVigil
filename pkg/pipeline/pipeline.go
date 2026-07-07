@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/credvigil/credvigil/pkg/models"
+	"github.com/svemulapati/CredVigil/pkg/models"
 )
 
 // Processor is the interface every pipeline stage must implement.

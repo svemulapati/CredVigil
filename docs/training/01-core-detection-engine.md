@@ -825,7 +825,7 @@ If Go is not installed, download it from [https://go.dev/dl/](https://go.dev/dl/
 
 ```bash
 cd ~/Github_Projects   # or wherever you keep your projects
-git clone https://github.com/credvigil/credvigil.git
+git clone https://github.com/svemulapati/CredVigil.git
 cd CredVigil
 ```
 

@@ -4,7 +4,15 @@
     <strong>Intelligent credential detection for modern engineering teams.</strong>
   </p>
   <p align="center">
-    <a href="#quick-start">Quick Start</a> · <a href="#detection-coverage">Detection Coverage</a> · <a href="#architecture">Architecture</a> · <a href="#documentation">Documentation</a>
+    <a href="#quick-start">Quick Start</a> · <a href="#detection-coverage">Detection Coverage</a> · <a href="#output-formats-config--baselining">Output & Config</a> · <a href="#architecture">Architecture</a> · <a href="#documentation">Documentation</a>
+  </p>
+  <p align="center">
+    <a href="https://github.com/svemulapati/CredVigil/actions/workflows/ci.yml"><img src="https://github.com/svemulapati/CredVigil/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+    <a href="https://goreportcard.com/report/github.com/svemulapati/CredVigil"><img src="https://goreportcard.com/badge/github.com/svemulapati/CredVigil" alt="Go Report Card"></a>
+    <a href="https://codecov.io/gh/svemulapati/CredVigil"><img src="https://codecov.io/gh/svemulapati/CredVigil/branch/main/graph/badge.svg" alt="Coverage"></a>
+    <img src="https://img.shields.io/badge/Go-1.25%2B-00ADD8?logo=go" alt="Go 1.25+">
+    <img src="https://img.shields.io/badge/output-SARIF%202.1.0-purple" alt="SARIF 2.1.0">
+    <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="License"></a>
   </p>
 </p>
 
@@ -34,8 +42,8 @@ CredVigil scans codebases, configuration files, and data streams for exposed cre
 ### Install
 
 ```bash
-git clone https://github.com/credvigil/credvigil.git
-cd credvigil
+git clone https://github.com/svemulapati/CredVigil.git
+cd CredVigil
 go build -o credvigil ./cmd/credvigil
 ```
 
@@ -244,7 +252,97 @@ CredVigil is designed as a modular, component-based system. Each component is de
 
 ---
 
+## Output Formats, Config & Baselining
+
+### Output formats
+
+```bash
+credvigil scan .                       # human-readable text (default)
+credvigil scan . --format json         # machine-readable JSON
+credvigil scan . --format sarif > out.sarif   # SARIF 2.1.0
+```
+
+**SARIF** is the interchange format consumed by **GitHub Code Scanning**,
+GitLab, Azure DevOps, and IDE security extensions. Upload it and findings appear
+inline on pull requests and in the repository's Security tab.
+
+### Config file
+
+Drop a `.credvigil.yml` at your repo root and it's auto-discovered (`.yaml` and
+`.json` also work; `--config <path>` forces one). CLI flags override it. See
+[`.credvigil.example.yml`](.credvigil.example.yml) for every option.
+
+```yaml
+output_format: sarif
+detection:
+  min_severity: medium
+  min_confidence: 0.5
+  exclude_rule_ids: [generic-api-key]
+file_scanning:
+  exclude_dirs: [fixtures, examples]
+```
+
+### Baselining (suppressing findings)
+
+Adopting CredVigil on an existing repo? Baseline accepted or pre-existing
+findings in a `.credvigilignore` file — one **fingerprint** or **path glob** per
+line. Suppressed findings never re-alert, so CI stays green on known state.
+
+```
+# .credvigilignore
+9d99f1a4f60b44a32d8105e29f2ff75fef6033682c656b13598d5a619c4c0cfb  # accepted risk
+testdata/          # fixtures directory
+*.example.env      # documentation samples
+```
+
+Disable baselining for a run with `--no-ignore`.
+
+**Inline allow** — for a one-off accepted secret, add a `credvigil:allow` comment
+on the same line and that line is skipped (no baseline file needed):
+
+```bash
+TEST_API_KEY=sk_test_51H8xExample0000000000000000  # credvigil:allow
+```
+
+Accepted markers (case-insensitive): `credvigil:allow`, `credvigil:ignore`,
+`credvigil-allow`, `credvigil-ignore`.
+
 ## Using CredVigil in CI/CD
+
+### GitHub Action (SARIF → Security tab)
+
+Use the published composite action to scan and upload SARIF in one step:
+
+```yaml
+name: Secrets Scan
+on: [push, pull_request]
+
+permissions:
+  contents: read
+  security-events: write   # required to upload SARIF
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: svemulapati/CredVigil@v1
+        with:
+          path: '.'
+          format: 'sarif'
+          output: 'credvigil.sarif'
+      - uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: credvigil.sarif
+```
+
+### Docker
+
+```bash
+docker run --rm -v "$PWD:/repo" ghcr.io/svemulapati/credvigil:latest scan /repo
+```
+
+### Reusable workflow
 
 ### GitHub Actions (Recommended)
 

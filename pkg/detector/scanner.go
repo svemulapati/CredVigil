@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/credvigil/credvigil/pkg/models"
+	"github.com/svemulapati/CredVigil/pkg/models"
 )
 
 // FileScanner scans files and directories for secrets.

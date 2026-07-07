@@ -1,0 +1,32 @@
+# golangci-lint configuration. Run `make lint` locally (requires golangci-lint).
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - ineffassign
+    - unused
+    - misspell
+    - unconvert
+    - gofmt
+    - goimports
+    - revive
+
+linters-settings:
+  goimports:
+    local-prefixes: github.com/svemulapati/CredVigil
+  misspell:
+    locale: US
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  exclude-rules:
+    # Test files may use less strict error handling for brevity.
+    - path: _test\.go
+      linters:
+        - errcheck

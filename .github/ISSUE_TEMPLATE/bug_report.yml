@@ -1,0 +1,50 @@
+name: Bug report
+description: Report a defect in CredVigil
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! **Never paste real secrets.** Redact any sample
+        credentials before submitting.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: The exact command(s) and (redacted) input that trigger the bug.
+      placeholder: |
+        1. credvigil scan ...
+        2. ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: CredVigil version
+      description: Output of `credvigil version`.
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS / architecture
+      placeholder: "macOS 14 arm64 / Ubuntu 22.04 amd64"
+    validations:
+      required: true
+  - type: dropdown
+    id: false-positive
+    attributes:
+      label: Is this a false positive / false negative?
+      options:
+        - "No — general bug"
+        - "False positive (flagged something that isn't a secret)"
+        - "False negative (missed a real secret)"
+    validations:
+      required: false

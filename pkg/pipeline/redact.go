@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/credvigil/credvigil/pkg/models"
+	"github.com/svemulapati/CredVigil/pkg/models"
 )
 
 // RedactProcessor creates a masked preview of the raw secret for safe

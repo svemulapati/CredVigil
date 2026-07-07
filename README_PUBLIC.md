@@ -46,8 +46,8 @@ CredVigil scans codebases, configuration files, and data streams for exposed cre
 ### Install
 
 ```bash
-git clone https://github.com/svemulapati/CredVigil_Secrets_Scanner.git
-cd CredVigil_Secrets_Scanner
+git clone https://github.com/svemulapati/CredVigil.git
+cd CredVigil
 go build -o credvigil ./cmd/credvigil
 ```
 

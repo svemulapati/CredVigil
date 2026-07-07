@@ -1,11 +1,11 @@
 package storage
 
 import (
-"strings"
-"testing"
-"time"
+	"strings"
+	"testing"
+	"time"
 
-"github.com/credvigil/credvigil/pkg/models"
+	"github.com/svemulapati/CredVigil/pkg/models"
 )
 
 func TestBuildFilterQuery_EmptyFilter(t *testing.T) {
@@ -20,8 +20,8 @@ func TestBuildFilterQuery_EmptyFilter(t *testing.T) {
 
 func TestBuildFilterQuery_ScanID(t *testing.T) {
 	q, args := buildFilterQuery("SELECT * FROM findings", models.FindingFilter{
-ScanID: "scan-123",
-})
+		ScanID: "scan-123",
+	})
 	if !strings.Contains(q, "scan_id = $1") {
 		t.Errorf("query %q missing scan_id clause", q)
 	}
@@ -32,8 +32,8 @@ ScanID: "scan-123",
 
 func TestBuildFilterQuery_SecretType(t *testing.T) {
 	q, args := buildFilterQuery("SELECT * FROM findings", models.FindingFilter{
-SecretType: "aws-access-key-id",
-})
+		SecretType: "aws-access-key-id",
+	})
 	if !strings.Contains(q, "secret_type = $1") {
 		t.Errorf("query %q missing secret_type clause", q)
 	}
@@ -44,8 +44,8 @@ SecretType: "aws-access-key-id",
 
 func TestBuildFilterQuery_Category(t *testing.T) {
 	q, args := buildFilterQuery("SELECT * FROM findings", models.FindingFilter{
-Category: "cloud",
-})
+		Category: "cloud",
+	})
 	if !strings.Contains(q, "category = $1") {
 		t.Errorf("query %q missing category clause", q)
 	}
@@ -56,8 +56,8 @@ Category: "cloud",
 
 func TestBuildFilterQuery_RuleID(t *testing.T) {
 	q, args := buildFilterQuery("SELECT * FROM findings", models.FindingFilter{
-RuleID: "rule-42",
-})
+		RuleID: "rule-42",
+	})
 	if !strings.Contains(q, "rule_id = $1") {
 		t.Errorf("query %q missing rule_id clause", q)
 	}
@@ -68,8 +68,8 @@ RuleID: "rule-42",
 
 func TestBuildFilterQuery_Fingerprint(t *testing.T) {
 	q, args := buildFilterQuery("SELECT * FROM findings", models.FindingFilter{
-Fingerprint: "fp-abc",
-})
+		Fingerprint: "fp-abc",
+	})
 	if !strings.Contains(q, "fingerprint = $1") {
 		t.Errorf("query %q missing fingerprint clause", q)
 	}
@@ -80,8 +80,8 @@ Fingerprint: "fp-abc",
 
 func TestBuildFilterQuery_SecretHash(t *testing.T) {
 	q, args := buildFilterQuery("SELECT * FROM findings", models.FindingFilter{
-SecretHash: "hash-xyz",
-})
+		SecretHash: "hash-xyz",
+	})
 	if !strings.Contains(q, "secret_hash = $1") {
 		t.Errorf("query %q missing secret_hash clause", q)
 	}
@@ -93,7 +93,7 @@ SecretHash: "hash-xyz",
 func TestBuildFilterQuery_MinConfidence(t *testing.T) {
 	conf := 0.8
 	q, args := buildFilterQuery("SELECT * FROM findings", models.FindingFilter{
-MinConfidence: &conf,
+		MinConfidence: &conf,
 	})
 	if !strings.Contains(q, "confidence >= $1") {
 		t.Errorf("query %q missing confidence clause", q)
@@ -106,7 +106,7 @@ MinConfidence: &conf,
 func TestBuildFilterQuery_MinSeverity(t *testing.T) {
 	sev := models.SeverityHigh
 	q, args := buildFilterQuery("SELECT * FROM findings", models.FindingFilter{
-MinSeverity: &sev,
+		MinSeverity: &sev,
 	})
 	if !strings.Contains(q, "CASE severity") {
 		t.Errorf("query %q missing CASE severity expression", q)
@@ -120,7 +120,7 @@ func TestBuildFilterQuery_TimeRange(t *testing.T) {
 	since := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	until := time.Date(2025, 6, 30, 0, 0, 0, 0, time.UTC)
 	q, args := buildFilterQuery("SELECT * FROM findings", models.FindingFilter{
-Since: &since,
+		Since: &since,
 		Until: &until,
 	})
 	if !strings.Contains(q, "scanned_at >= $1") {
@@ -138,9 +138,9 @@ func TestBuildFilterQuery_MultipleFilters(t *testing.T) {
 	conf := 0.7
 	since := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	q, args := buildFilterQuery("SELECT * FROM findings", models.FindingFilter{
-ScanID:        "scan-999",
-SecretType:    "stripe-api-key",
-MinConfidence: &conf,
+		ScanID:        "scan-999",
+		SecretType:    "stripe-api-key",
+		MinConfidence: &conf,
 		Category:      "payment",
 		Since:         &since,
 	})
@@ -157,8 +157,8 @@ MinConfidence: &conf,
 
 func TestBuildFilterQuery_CountBase(t *testing.T) {
 	q, _ := buildFilterQuery("SELECT COUNT(*) FROM findings", models.FindingFilter{
-ScanID: "scan-1",
-})
+		ScanID: "scan-1",
+	})
 	if !strings.Contains(q, "SELECT COUNT(*)") {
 		t.Error("missing COUNT base")
 	}
@@ -170,8 +170,8 @@ ScanID: "scan-1",
 func TestBuildFilterQuery_ParameterIndexing(t *testing.T) {
 	conf := 0.5
 	_, args := buildFilterQuery("SELECT * FROM findings", models.FindingFilter{
-ScanID:        "a",
-MinConfidence: &conf,
+		ScanID:        "a",
+		MinConfidence: &conf,
 		SecretType:    "b",
 		Category:      "c",
 		RuleID:        "d",

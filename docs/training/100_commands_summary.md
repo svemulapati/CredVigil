@@ -232,7 +232,7 @@ cat go.mod
 
 **Expected output:**
 ```
-module github.com/credvigil/credvigil
+module github.com/svemulapati/CredVigil
 
 go 1.26.1
 
@@ -2069,15 +2069,15 @@ go test ./...
 
 **Actual output:**
 ```
-?       github.com/credvigil/credvigil/cmd/credvigil         [no test files]
-?       github.com/credvigil/credvigil/internal/config       [no test files]
-ok      github.com/credvigil/credvigil/pkg/detector     0.707s
-ok      github.com/credvigil/credvigil/pkg/entropy      0.277s
-ok      github.com/credvigil/credvigil/pkg/git          5.831s
-?       github.com/credvigil/credvigil/pkg/models       [no test files]
-ok      github.com/credvigil/credvigil/pkg/pipeline     0.643s
-ok      github.com/credvigil/credvigil/pkg/rules        0.777s
-ok      github.com/credvigil/credvigil/pkg/watcher      1.513s
+?       github.com/svemulapati/CredVigil/cmd/credvigil         [no test files]
+?       github.com/svemulapati/CredVigil/internal/config       [no test files]
+ok      github.com/svemulapati/CredVigil/pkg/detector     0.707s
+ok      github.com/svemulapati/CredVigil/pkg/entropy      0.277s
+ok      github.com/svemulapati/CredVigil/pkg/git          5.831s
+?       github.com/svemulapati/CredVigil/pkg/models       [no test files]
+ok      github.com/svemulapati/CredVigil/pkg/pipeline     0.643s
+ok      github.com/svemulapati/CredVigil/pkg/rules        0.777s
+ok      github.com/svemulapati/CredVigil/pkg/watcher      1.513s
 ```
 
 **Reading the output:**
@@ -2145,7 +2145,7 @@ go test ./pkg/detector -v -run TestScanContent_AWSKeys
     engine_test.go:27: Found: High-entropy base64 string (entropy: 4.66) (type=high-entropy-string, confidence=0.80, entropy=4.66)
 --- PASS: TestScanContent_AWSKeys (0.01s)
 PASS
-ok      github.com/credvigil/credvigil/pkg/detector     0.167s
+ok      github.com/svemulapati/CredVigil/pkg/detector     0.167s
 ```
 
 **What this tells you:**
@@ -2301,7 +2301,7 @@ go test -race ./pkg/detector -v
 === RUN   TestStats_Snapshot
 --- PASS: TestStats_Snapshot (0.00s)
 PASS
-ok      github.com/credvigil/credvigil/pkg/watcher      2.216s
+ok      github.com/svemulapati/CredVigil/pkg/watcher      2.216s
 ```
 
 **What it does:** Instruments the binary to detect concurrent access to shared memory without proper synchronization. If a race is found, the test fails with a detailed stack trace showing both goroutines and the exact memory location.
@@ -2319,15 +2319,15 @@ go test ./... -cover
 
 **Actual output:**
 ```
-        github.com/credvigil/credvigil/cmd/credvigil         coverage: 0.0% of statements
-        github.com/credvigil/credvigil/internal/config        coverage: 0.0% of statements
-ok      github.com/credvigil/credvigil/pkg/detector     0.592s  coverage: 62.8% of statements
-ok      github.com/credvigil/credvigil/pkg/entropy      0.277s  coverage: 76.0% of statements
-ok      github.com/credvigil/credvigil/pkg/git          6.150s  coverage: 80.3% of statements
-        github.com/credvigil/credvigil/pkg/models               coverage: 0.0% of statements
-ok      github.com/credvigil/credvigil/pkg/pipeline     0.688s  coverage: 86.7% of statements
-ok      github.com/credvigil/credvigil/pkg/rules        0.403s  coverage: 100.0% of statements
-ok      github.com/credvigil/credvigil/pkg/watcher      1.852s  coverage: 89.4% of statements
+        github.com/svemulapati/CredVigil/cmd/credvigil         coverage: 0.0% of statements
+        github.com/svemulapati/CredVigil/internal/config        coverage: 0.0% of statements
+ok      github.com/svemulapati/CredVigil/pkg/detector     0.592s  coverage: 62.8% of statements
+ok      github.com/svemulapati/CredVigil/pkg/entropy      0.277s  coverage: 76.0% of statements
+ok      github.com/svemulapati/CredVigil/pkg/git          6.150s  coverage: 80.3% of statements
+        github.com/svemulapati/CredVigil/pkg/models               coverage: 0.0% of statements
+ok      github.com/svemulapati/CredVigil/pkg/pipeline     0.688s  coverage: 86.7% of statements
+ok      github.com/svemulapati/CredVigil/pkg/rules        0.403s  coverage: 100.0% of statements
+ok      github.com/svemulapati/CredVigil/pkg/watcher      1.852s  coverage: 89.4% of statements
 ```
 
 **Reading the coverage results:**
@@ -2685,7 +2685,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/credvigil/credvigil/pkg/watcher"
+	"github.com/svemulapati/CredVigil/pkg/watcher"
 )
 
 func main() {

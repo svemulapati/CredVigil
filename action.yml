@@ -1,0 +1,86 @@
+name: "CredVigil Secret Scan"
+description: "Scan a repository for exposed credentials with CredVigil. Emits SARIF for GitHub Code Scanning."
+author: "CredVigil"
+branding:
+  icon: "shield"
+  color: "purple"
+
+inputs:
+  path:
+    description: "File or directory to scan."
+    required: false
+    default: "."
+  format:
+    description: "Output format: text, json, or sarif."
+    required: false
+    default: "sarif"
+  output:
+    description: "Write output to this file (recommended for sarif)."
+    required: false
+    default: "credvigil.sarif"
+  args:
+    description: "Extra arguments passed verbatim to `credvigil scan`."
+    required: false
+    default: ""
+  fail-on-findings:
+    description: "Fail the job when secrets are found (true/false)."
+    required: false
+    default: "true"
+  scan-git-history:
+    description: "Scan full git history instead of the working tree (true/false)."
+    required: false
+    default: "false"
+
+outputs:
+  sarif-file:
+    description: "Path to the generated SARIF report."
+    value: ${{ inputs.output }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: "1.26"
+
+    - name: Run CredVigil
+      shell: bash
+      env:
+        CV_PATH: ${{ inputs.path }}
+        CV_FORMAT: ${{ inputs.format }}
+        CV_OUTPUT: ${{ inputs.output }}
+        CV_ARGS: ${{ inputs.args }}
+        CV_FAIL: ${{ inputs.fail-on-findings }}
+        CV_GIT: ${{ inputs.scan-git-history }}
+      run: |
+        set -euo pipefail
+        cd "$GITHUB_ACTION_PATH"
+        go build -trimpath -ldflags "-s -w" -o /tmp/credvigil ./cmd/credvigil
+        cd "$GITHUB_WORKSPACE"
+
+        target=(--format "$CV_FORMAT")
+        if [ "$CV_GIT" = "true" ]; then
+          target+=(--git "$CV_PATH")
+        else
+          target+=("$CV_PATH")
+        fi
+        # shellcheck disable=SC2206
+        [ -n "$CV_ARGS" ] && target+=($CV_ARGS)
+
+        set +e
+        /tmp/credvigil scan "${target[@]}" > "$CV_OUTPUT"
+        code=$?
+        set -e
+
+        if [ "$CV_FORMAT" != "sarif" ]; then
+          cat "$CV_OUTPUT"
+        fi
+        echo "Exit code: $code"
+
+        if [ "$CV_FAIL" = "true" ] && [ "$code" -eq 1 ]; then
+          echo "::error::CredVigil found potential secrets. See the report / Security tab."
+          exit 1
+        fi
+        [ "$code" -ge 2 ] && exit "$code"
+        exit 0

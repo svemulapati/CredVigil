@@ -3,7 +3,7 @@ package pipeline
 import (
 	"context"
 
-	"github.com/credvigil/credvigil/pkg/models"
+	"github.com/svemulapati/CredVigil/pkg/models"
 )
 
 // VerificationHook is an optional processor interface for verifying

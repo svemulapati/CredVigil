@@ -1470,7 +1470,7 @@ package main
 
 import (
     "fmt"
-    "github.com/credvigil/credvigil/pkg/watcher"
+    "github.com/svemulapati/CredVigil/pkg/watcher"
 )
 
 func main() {
@@ -1499,7 +1499,7 @@ import (
     "os/signal"
     "syscall"
     
-    "github.com/credvigil/credvigil/pkg/watcher"
+    "github.com/svemulapati/CredVigil/pkg/watcher"
 )
 
 func main() {

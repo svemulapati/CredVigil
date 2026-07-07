@@ -35,7 +35,9 @@ type StorageConfig struct {
 // DetectionConfig holds detection engine configuration.
 type DetectionConfig struct {
 	MinConfidence     float64  `json:"min_confidence" yaml:"min_confidence"`
+	MinSeverity       string   `json:"min_severity" yaml:"min_severity"`
 	EnableEntropy     bool     `json:"enable_entropy" yaml:"enable_entropy"`
+	EnableBPE         bool     `json:"enable_bpe" yaml:"enable_bpe"`
 	EntropyMinLength  int      `json:"entropy_min_length" yaml:"entropy_min_length"`
 	ContextLines      int      `json:"context_lines" yaml:"context_lines"`
 	MaxFileSize       int64    `json:"max_file_size" yaml:"max_file_size"`
@@ -61,7 +63,9 @@ func DefaultAppConfig() AppConfig {
 		OutputFormat: "text",
 		Detection: DetectionConfig{
 			MinConfidence:    0.3,
+			MinSeverity:      "info",
 			EnableEntropy:    true,
+			EnableBPE:        true,
 			EntropyMinLength: 12,
 			ContextLines:     2,
 			MaxFileSize:      10 * 1024 * 1024,

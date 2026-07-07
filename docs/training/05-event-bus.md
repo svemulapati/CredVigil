@@ -814,7 +814,7 @@ import (
     "fmt"
     "time"
 
-    "github.com/credvigil/credvigil/pkg/eventbus"
+    "github.com/svemulapati/CredVigil/pkg/eventbus"
 )
 
 func main() {

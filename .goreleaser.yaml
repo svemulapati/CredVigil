@@ -1,0 +1,85 @@
+# GoReleaser config — cross-compiles binaries, packages archives, publishes a
+# Docker image, and updates a Homebrew tap on every tagged release.
+# Docs: https://goreleaser.com
+version: 2
+
+project_name: credvigil
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: credvigil
+    main: ./cmd/credvigil
+    binary: credvigil
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+archives:
+  - id: credvigil
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - README.md
+      - LICENSE
+      - SECURITY.md
+
+checksum:
+  name_template: checksums.txt
+
+sboms:
+  - artifacts: archive
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - Merge pull request
+      - Merge branch
+
+dockers:
+  - image_templates:
+      - "ghcr.io/svemulapati/credvigil:{{ .Version }}"
+      - "ghcr.io/svemulapati/credvigil:latest"
+    dockerfile: Dockerfile
+    build_flag_templates:
+      - "--build-arg=VERSION={{ .Version }}"
+
+brews:
+  - name: credvigil
+    repository:
+      owner: svemulapati
+      name: homebrew-tap
+    homepage: "https://github.com/svemulapati/CredVigil"
+    description: "Intelligent credential detection for modern engineering teams."
+    license: "Apache-2.0"
+    test: |
+      system "#{bin}/credvigil", "version"
+
+release:
+  github:
+    owner: svemulapati
+    name: CredVigil
+  draft: false
+  prerelease: auto

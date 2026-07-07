@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/credvigil/credvigil/pkg/detector"
-	"github.com/credvigil/credvigil/pkg/models"
+	"github.com/svemulapati/CredVigil/pkg/detector"
+	"github.com/svemulapati/CredVigil/pkg/models"
 )
 
 // =============================================================================

@@ -1,0 +1,13 @@
+.git
+.github
+dist
+bin
+credvigil
+credvigil-*
+*.exe
+docs
+testdata
+*.md
+!README.md
+.DS_Store
+coverage.txt

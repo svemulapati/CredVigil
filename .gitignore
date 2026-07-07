@@ -1,0 +1,29 @@
+# Compiled binary (built via `make build` or `go build`)
+/credvigil
+credvigil-*
+*.exe
+
+# Build / release artifacts
+/dist/
+/bin/
+
+# Test & coverage output
+*.out
+coverage.txt
+coverage.html
+
+# OS / editor cruft
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Local config & secrets — never commit real credentials
+*.local.yml
+*.local.yaml
+.env
+.env.*
+!.env.example
+
+# CredVigil's own local baseline is fine to commit; local scratch is not
+/scratch/

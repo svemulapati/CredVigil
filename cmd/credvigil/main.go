@@ -20,15 +20,20 @@ import (
 	"strings"
 	"time"
 
-	"github.com/credvigil/credvigil/internal/storage"
-	"github.com/credvigil/credvigil/pkg/detector"
-	gitpkg "github.com/credvigil/credvigil/pkg/git"
-	"github.com/credvigil/credvigil/pkg/models"
-	"github.com/credvigil/credvigil/pkg/pipeline"
+	appconfig "github.com/svemulapati/CredVigil/internal/config"
+	"github.com/svemulapati/CredVigil/internal/storage"
+	"github.com/svemulapati/CredVigil/pkg/baseline"
+	"github.com/svemulapati/CredVigil/pkg/detector"
+	gitpkg "github.com/svemulapati/CredVigil/pkg/git"
+	"github.com/svemulapati/CredVigil/pkg/models"
+	"github.com/svemulapati/CredVigil/pkg/pipeline"
+	"github.com/svemulapati/CredVigil/pkg/report"
 )
 
+// version is overridable at build time via -ldflags "-X main.version=...".
+var version = "0.1.0"
+
 const (
-	version   = "0.1.0"
 	buildDate = "2026-03-12"
 	component = "core-detection-engine"
 )
@@ -69,15 +74,22 @@ Usage:
   credvigil version             Show version and build info
 
 Options:
-  --format <text|json>          Output format (default: text)
+  --format <text|json|sarif>    Output format (default: text)
+  --config <path>               Config file (default: auto-discover .credvigil.yml)
   --min-confidence <0.0-1.0>    Minimum confidence threshold (default: 0.3)
   --min-severity <info|low|medium|high|critical>  Minimum severity
   --no-entropy                  Disable entropy-based detection
   --no-bpe                      Disable BPE token efficiency detection
+  --no-ignore                   Ignore the .credvigilignore baseline file
   --no-context                  Don't show surrounding context
   --context-lines <n>           Number of context lines (default: 2)
   --store                       Persist findings to PostgreSQL/TimescaleDB
   --db <connection-string>      PostgreSQL DSN (or set CREDVIGIL_DB env var)
+
+Suppression:
+  Baseline findings in a .credvigilignore file at the scan root — one finding
+  fingerprint or path glob per line. Or add an inline "# credvigil:allow"
+  comment on a line to accept any secret on it. See CONTRIBUTING.md.
 
 Git Options:
   --git <path|url>              Scan a git repository's commit history
@@ -111,11 +123,27 @@ func cmdScan(args []string) {
 	scanStdin := false
 	gitTarget := ""
 	storeEnabled := false
+	useIgnore := true
+	configPath := ""
 	dbConnString := os.Getenv("CREDVIGIL_DB")
 	var targets []string
 
+	// First pass: resolve --config and the primary target so a config file can
+	// be discovered and layered under the defaults before CLI flags override it.
+	configPath, preTarget := prescanConfig(args)
+	if ac, path, ok := loadScanConfig(configPath, preTarget); ok {
+		applyAppConfig(ac, &cfg, &fsCfg, &outputFormat)
+		fmt.Fprintf(os.Stderr, "Loaded config: %s\n", path)
+	}
+
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
+		case "--config":
+			if i+1 < len(args) {
+				i++
+			}
+		case "--no-ignore":
+			useIgnore = false
 		case "--stdin":
 			scanStdin = true
 		case "--git":
@@ -256,9 +284,29 @@ func cmdScan(args []string) {
 		}
 	}
 
+	// Apply the .credvigilignore baseline (fingerprints + path globs) so
+	// accepted / pre-existing findings are suppressed. Runs after the pipeline
+	// because suppression keys on the stable fingerprint it computes.
+	if useIgnore && !scanStdin {
+		root := "."
+		if len(targets) > 0 {
+			root = targets[0]
+		}
+		if bl, err := baseline.Discover(root); err != nil {
+			fmt.Fprintf(os.Stderr, "baseline: %v\n", err)
+		} else if n := bl.Apply(allResults); n > 0 {
+			fmt.Fprintf(os.Stderr, "Suppressed %d finding(s) via %s\n", n, baseline.DefaultFileName)
+		}
+	}
+
 	switch outputFormat {
 	case "json":
 		outputJSON(allResults, totalDuration)
+	case "sarif":
+		if err := report.WriteSARIF(os.Stdout, flattenFindings(allResults), version); err != nil {
+			fmt.Fprintf(os.Stderr, "sarif: %v\n", err)
+			os.Exit(2)
+		}
 	default:
 		outputText(allResults, totalDuration, engine.RuleCount())
 	}
@@ -428,6 +476,15 @@ func cmdScanGit(engine *detector.Engine, target string, opts gitpkg.ScanOptions,
 	switch outputFormat {
 	case "json":
 		outputGitJSON(result, totalDuration)
+	case "sarif":
+		var findings []models.Finding
+		for _, cr := range result.CommitResults {
+			findings = append(findings, cr.Findings...)
+		}
+		if err := report.WriteSARIF(os.Stdout, findings, version); err != nil {
+			fmt.Fprintf(os.Stderr, "sarif: %v\n", err)
+			os.Exit(2)
+		}
 	default:
 		outputGitText(result, totalDuration, engine.RuleCount())
 	}
@@ -767,6 +824,102 @@ const (
 	colorBlue   = "\033[94m"
 	colorGray   = "\033[90m"
 )
+
+// flattenFindings collects all findings across scan results into one slice,
+// as SARIF expects a flat result list per run.
+func flattenFindings(results []models.ScanResult) []models.Finding {
+	var out []models.Finding
+	for _, r := range results {
+		out = append(out, r.Findings...)
+	}
+	return out
+}
+
+// prescanConfig extracts an explicit --config path and the first positional
+// target from raw args without mutating parse state. Used to discover a config
+// file before the main flag loop runs.
+func prescanConfig(args []string) (configPath, target string) {
+	for i := 0; i < len(args); i++ {
+		switch {
+		case args[i] == "--config" && i+1 < len(args):
+			configPath = args[i+1]
+			i++
+		case args[i] == "--git" && i+1 < len(args):
+			if target == "" {
+				target = args[i+1]
+			}
+			i++
+		case !strings.HasPrefix(args[i], "-") && target == "":
+			target = args[i]
+		}
+	}
+	return configPath, target
+}
+
+// loadScanConfig resolves a config file: an explicit path takes precedence,
+// otherwise one is auto-discovered next to the scan target. ok is false when no
+// config applies.
+func loadScanConfig(explicit, target string) (appconfig.AppConfig, string, bool) {
+	if explicit != "" {
+		ac, err := appconfig.Load(explicit)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "config: %v\n", err)
+			return appconfig.DefaultAppConfig(), "", false
+		}
+		return ac, explicit, true
+	}
+	root := target
+	if root == "" {
+		root = "."
+	}
+	ac, path, ok, err := appconfig.Discover(root)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "config: %v\n", err)
+		return appconfig.DefaultAppConfig(), "", false
+	}
+	return ac, path, ok
+}
+
+// applyAppConfig layers a loaded AppConfig onto the engine and file-scan
+// configs. CLI flags parsed afterward override these values.
+func applyAppConfig(ac appconfig.AppConfig, cfg *detector.Config, fsCfg *detector.FileScanConfig, outputFormat *string) {
+	d := ac.Detection
+	cfg.MinConfidence = d.MinConfidence
+	cfg.EnableEntropy = d.EnableEntropy
+	cfg.EnableBPE = d.EnableBPE
+	cfg.EntropyMinLength = d.EntropyMinLength
+	cfg.ContextLines = d.ContextLines
+	if d.MaxFileSize > 0 {
+		cfg.MaxFileSize = d.MaxFileSize
+	}
+	if d.MinSeverity != "" {
+		cfg.MinSeverity = parseSeverity(d.MinSeverity)
+	}
+	cfg.ExcludeRuleIDs = d.ExcludeRuleIDs
+	cfg.AllowListPatterns = d.AllowListPatterns
+
+	fs := ac.FileScanning
+	if len(fs.IncludeExtensions) > 0 {
+		fsCfg.IncludeExtensions = fs.IncludeExtensions
+	}
+	if len(fs.ExcludeExtensions) > 0 {
+		fsCfg.ExcludeExtensions = append(fsCfg.ExcludeExtensions, fs.ExcludeExtensions...)
+	}
+	if len(fs.ExcludeDirs) > 0 {
+		fsCfg.ExcludeDirs = append(fsCfg.ExcludeDirs, fs.ExcludeDirs...)
+	}
+	if len(fs.ExcludeFiles) > 0 {
+		fsCfg.ExcludeFiles = append(fsCfg.ExcludeFiles, fs.ExcludeFiles...)
+	}
+	if fs.Workers > 0 {
+		fsCfg.Workers = fs.Workers
+	}
+	fsCfg.FollowSymlinks = fs.FollowSymlinks
+
+	if ac.OutputFormat != "" {
+		*outputFormat = ac.OutputFormat
+	}
+}
 
 func severityColor(s models.Severity) string {
 	switch s {

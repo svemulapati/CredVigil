@@ -1,8 +1,8 @@
 package models
 
 import (
-"testing"
-"time"
+	"testing"
+	"time"
 )
 
 func TestJSONMap_Value_NonNil(t *testing.T) {

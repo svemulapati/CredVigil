@@ -10,7 +10,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/credvigil/credvigil/pkg/models"
+	"github.com/svemulapati/CredVigil/pkg/models"
 )
 
 // Repository is the central storage abstraction.  Every persistence operation

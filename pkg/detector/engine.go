@@ -12,9 +12,9 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/credvigil/credvigil/pkg/entropy"
-	"github.com/credvigil/credvigil/pkg/models"
-	"github.com/credvigil/credvigil/pkg/rules"
+	"github.com/svemulapati/CredVigil/pkg/entropy"
+	"github.com/svemulapati/CredVigil/pkg/models"
+	"github.com/svemulapati/CredVigil/pkg/rules"
 )
 
 // Engine is the core detection engine that scans content for secrets.
@@ -219,9 +219,46 @@ func (e *Engine) ScanContent(req models.ScanRequest) models.ScanResult {
 		}
 	}
 
+	// Honor inline allow directives (e.g. `API_KEY=... # credvigil:allow`).
+	// A finding is dropped when its own source line carries the directive.
+	// This is the line-level companion to the .credvigilignore baseline file.
+	if len(result.Findings) > 0 {
+		kept := result.Findings[:0]
+		counts := make(map[models.Severity]int)
+		for _, f := range result.Findings {
+			if idx := f.Source.Line - 1; idx >= 0 && idx < len(lines) && hasInlineAllow(lines[idx]) {
+				continue
+			}
+			counts[f.Severity]++
+			kept = append(kept, f)
+		}
+		result.Findings = kept
+		result.CountBySeverity = counts
+	}
+
 	result.TotalFindings = len(result.Findings)
 	result.Duration = time.Since(start)
 	return result
+}
+
+// inlineAllowDirectives are the case-insensitive markers that suppress a finding
+// on the line they appear. Both `:` and `-` separators are accepted so either
+// `credvigil:allow` or `credvigil-ignore` works.
+var inlineAllowDirectives = []string{
+	"credvigil:allow", "credvigil-allow",
+	"credvigil:ignore", "credvigil-ignore",
+}
+
+// hasInlineAllow reports whether a source line contains an inline allow
+// directive, signalling that any secret on that line is an accepted exception.
+func hasInlineAllow(line string) bool {
+	lower := strings.ToLower(line)
+	for _, d := range inlineAllowDirectives {
+		if strings.Contains(lower, d) {
+			return true
+		}
+	}
+	return false
 }
 
 // ScanLines scans individual lines (useful for streaming and file watchers).

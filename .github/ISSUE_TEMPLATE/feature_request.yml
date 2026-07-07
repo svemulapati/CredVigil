@@ -1,0 +1,35 @@
+name: Feature request
+description: Suggest a new capability or detection rule
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / use case
+      description: What are you trying to do that CredVigil can't do today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What would you like CredVigil to do?
+    validations:
+      required: true
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type
+      options:
+        - New detection rule
+        - New output format / integration
+        - CLI / config option
+        - Performance
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: service
+    attributes:
+      label: If a new rule — which service / credential format?
+      placeholder: "e.g. Acme API keys look like acme_live_[a-z0-9]{32}"
