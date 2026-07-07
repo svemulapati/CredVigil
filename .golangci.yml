@@ -3,14 +3,11 @@ run:
   timeout: 5m
   tests: true
 
-# Baseline linter set — reliably clean on the current tree. The stricter
-# linters (errcheck, staticcheck, revive, unused) are intentionally deferred:
-# the pre-existing codebase has many unchecked fmt.Fprintf/Sscanf calls and
-# undocumented exports. Enable them incrementally as the code is cleaned up.
+# golangci-lint runs its default set (errcheck, gosimple, govet, ineffassign,
+# staticcheck, unused) plus the extras enabled below. `revive` is intentionally
+# left off for now — the pre-existing code has many undocumented exports.
 linters:
   enable:
-    - govet
-    - ineffassign
     - misspell
     - unconvert
     - gofmt
@@ -18,6 +15,10 @@ linters:
 linters-settings:
   misspell:
     locale: US
+    # Product names / BPE token fragments that misspell flags as typos.
+    ignore-words:
+      - robocorp # Robot Framework / Robocorp (product name)
+      - ect # a BPE token fragment in pkg/entropy, not "etc"
 
 issues:
   max-issues-per-linter: 0

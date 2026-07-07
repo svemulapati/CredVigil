@@ -250,7 +250,7 @@ var inlineAllowDirectives = []string{
 }
 
 // hasInlineAllow reports whether a source line contains an inline allow
-// directive, signalling that any secret on that line is an accepted exception.
+// directive, signaling that any secret on that line is an accepted exception.
 func hasInlineAllow(line string) bool {
 	lower := strings.ToLower(line)
 	for _, d := range inlineAllowDirectives {

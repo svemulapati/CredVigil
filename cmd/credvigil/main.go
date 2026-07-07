@@ -165,12 +165,12 @@ func cmdScan(args []string) {
 		case "--git-depth":
 			if i+1 < len(args) {
 				i++
-				fmt.Sscanf(args[i], "%d", &gitOpts.Depth)
+				_, _ = fmt.Sscanf(args[i], "%d", &gitOpts.Depth)
 			}
 		case "--git-max-commits":
 			if i+1 < len(args) {
 				i++
-				fmt.Sscanf(args[i], "%d", &gitOpts.MaxCommits)
+				_, _ = fmt.Sscanf(args[i], "%d", &gitOpts.MaxCommits)
 			}
 		case "--git-all-branches":
 			gitOpts.AllBranches = true
@@ -184,7 +184,7 @@ func cmdScan(args []string) {
 		case "--min-confidence":
 			if i+1 < len(args) {
 				i++
-				fmt.Sscanf(args[i], "%f", &cfg.MinConfidence)
+				_, _ = fmt.Sscanf(args[i], "%f", &cfg.MinConfidence)
 			}
 		case "--min-severity":
 			if i+1 < len(args) {
@@ -200,7 +200,7 @@ func cmdScan(args []string) {
 		case "--context-lines":
 			if i+1 < len(args) {
 				i++
-				fmt.Sscanf(args[i], "%d", &cfg.ContextLines)
+				_, _ = fmt.Sscanf(args[i], "%d", &cfg.ContextLines)
 			}
 		case "--store":
 			storeEnabled = true
@@ -610,7 +610,7 @@ func outputGitJSON(result *gitpkg.GitScanResult, duration time.Duration) {
 	}
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
-	enc.Encode(out)
+	_ = enc.Encode(out)
 }
 
 func cmdRules() {
@@ -813,7 +813,7 @@ func outputJSON(results []models.ScanResult, duration time.Duration) {
 	}
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
-	enc.Encode(out)
+	_ = enc.Encode(out)
 }
 
 // ANSI color codes

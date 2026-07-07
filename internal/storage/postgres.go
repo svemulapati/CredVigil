@@ -114,7 +114,7 @@ func (r *PostgresRepository) SaveFindings(ctx context.Context, findings []models
 	if err != nil {
 		return fmt.Errorf("storage: begin tx: %w", err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	for i := range findings {
 		f := &findings[i]
@@ -233,7 +233,7 @@ func (r *PostgresRepository) SaveScanResult(ctx context.Context, scan *models.St
 	if err != nil {
 		return fmt.Errorf("storage: begin tx: %w", err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	// Insert scan result
 	sevJSON, err := scan.SeverityCounts.Value()

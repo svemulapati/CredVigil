@@ -132,7 +132,7 @@ func (gs *GitScanner) ScanRemoteRepo(ctx context.Context, url string) (*GitScanR
 	if err != nil {
 		return nil, err
 	}
-	defer repo.Cleanup()
+	defer func() { _ = repo.Cleanup() }()
 
 	return gs.ScanRepository(ctx, repo)
 }

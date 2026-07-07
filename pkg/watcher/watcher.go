@@ -177,7 +177,7 @@ func New(cfg Config, handler Handler) (*Watcher, error) {
 }
 
 // Start begins watching configured paths. It blocks until the context is
-// cancelled or Stop is called. Returns nil on graceful shutdown.
+// canceled or Stop is called. Returns nil on graceful shutdown.
 func (w *Watcher) Start(ctx context.Context) error {
 	w.mu.Lock()
 	if w.running {
