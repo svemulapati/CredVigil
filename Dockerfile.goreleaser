@@ -1,0 +1,14 @@
+# Minimal image used by GoReleaser during releases. GoReleaser builds the
+# binary itself and places it in the build context, so this only packages the
+# pre-built `credvigil` binary — it does NOT compile from source.
+#
+# For a from-source build (local `docker build .` / `make docker`), use the
+# top-level Dockerfile instead.
+FROM alpine:3.20
+RUN apk add --no-cache git ca-certificates \
+    && adduser -D -u 10001 credvigil
+COPY credvigil /usr/local/bin/credvigil
+USER credvigil
+WORKDIR /repo
+ENTRYPOINT ["credvigil"]
+CMD ["scan", "."]

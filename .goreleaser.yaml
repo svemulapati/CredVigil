@@ -62,9 +62,9 @@ dockers:
   - image_templates:
       - "ghcr.io/svemulapati/credvigil:{{ .Version }}"
       - "ghcr.io/svemulapati/credvigil:latest"
-    dockerfile: Dockerfile
-    build_flag_templates:
-      - "--build-arg=VERSION={{ .Version }}"
+    # Minimal Dockerfile that packages the pre-built binary (GoReleaser's build
+    # context only contains the binary, not the source tree).
+    dockerfile: Dockerfile.goreleaser
 
 # Homebrew tap publishing. Disabled until the tap repo + token exist.
 # To enable: create a `svemulapati/homebrew-tap` repo, add a PAT with write
