@@ -10,14 +10,14 @@
 name: Secrets Scan
 
 # ─── When to run ───
-# Scans on every push and every pull request to main/develop.
+# This file is a COPY-PASTE TEMPLATE for consumers, not a scan of this repo.
+# In your own repository, replace the trigger below with:
+#   on:
+#     push:
+#     pull_request:
+# Here it is manual-only so it doesn't scan CredVigil's own testdata/ fixtures
+# (which contain intentional fake secrets) and fail this repo's CI.
 on:
-  push:
-    branches: [ main, develop, 'release/**' ]
-  pull_request:
-    branches: [ main, develop ]
-
-  # Allow manual trigger from the GitHub Actions UI
   workflow_dispatch:
 
 jobs:

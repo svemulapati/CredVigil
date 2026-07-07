@@ -12,6 +12,8 @@ jobs:
   test:
     name: Test (Go ${{ matrix.go }})
     runs-on: ubuntu-latest
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     strategy:
       matrix:
         go: ["1.25", "1.26"]
@@ -25,10 +27,14 @@ jobs:
         run: go vet ./...
       - name: Test (race + coverage)
         run: go test -race -coverprofile=coverage.txt -covermode=atomic ./...
+      # Upload only when a CODECOV_TOKEN secret is configured; tokenless uploads
+      # are rejected and would otherwise fail the job.
       - name: Upload coverage
-        if: matrix.go == '1.26'
+        if: matrix.go == '1.26' && env.CODECOV_TOKEN != ''
         uses: codecov/codecov-action@v4
+        continue-on-error: true
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.txt
           fail_ci_if_error: false
 
