@@ -66,16 +66,21 @@ dockers:
     build_flag_templates:
       - "--build-arg=VERSION={{ .Version }}"
 
-brews:
-  - name: credvigil
-    repository:
-      owner: svemulapati
-      name: homebrew-tap
-    homepage: "https://github.com/svemulapati/CredVigil"
-    description: "Intelligent credential detection for modern engineering teams."
-    license: "Apache-2.0"
-    test: |
-      system "#{bin}/credvigil", "version"
+# Homebrew tap publishing. Disabled until the tap repo + token exist.
+# To enable: create a `svemulapati/homebrew-tap` repo, add a PAT with write
+# access to it as the `HOMEBREW_TAP_TOKEN` secret (wired in release.yml), then
+# uncomment this block.
+# brews:
+#   - name: credvigil
+#     repository:
+#       owner: svemulapati
+#       name: homebrew-tap
+#       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+#     homepage: "https://github.com/svemulapati/CredVigil"
+#     description: "Intelligent credential detection for modern engineering teams."
+#     license: "Apache-2.0"
+#     test: |
+#       system "#{bin}/credvigil", "version"
 
 release:
   github:

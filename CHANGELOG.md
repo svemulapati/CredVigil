@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-07
+
 ### Added
 - **SARIF 2.1.0 output** (`--format sarif`) for GitHub Code Scanning, GitLab,
   and IDE security extensions. Findings now surface inline on pull requests.
@@ -37,5 +39,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - PostgreSQL persistence (`--store`).
 - `text` and `json` output formats.
 
-[Unreleased]: https://github.com/svemulapati/CredVigil/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/svemulapati/CredVigil/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/svemulapati/CredVigil/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/svemulapati/CredVigil/releases/tag/v0.1.0

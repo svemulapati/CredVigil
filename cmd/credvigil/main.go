@@ -31,7 +31,8 @@ import (
 )
 
 // version is overridable at build time via -ldflags "-X main.version=...".
-var version = "0.1.0"
+// GoReleaser injects the git tag; this default is used for `go build`/dev.
+var version = "0.2.0"
 
 const (
 	buildDate = "2026-03-12"

@@ -21,6 +21,8 @@ jobs:
         with:
           go-version: "1.26"
           cache: true
+      - name: Install syft (for SBOM generation)
+        uses: anchore/sbom-action/download-syft@v0
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
